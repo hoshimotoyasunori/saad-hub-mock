@@ -8,14 +8,14 @@
   html,body{margin:0;height:100%;overflow:hidden;background:#0c1222}
   iframe{border:0;width:100%;height:100%;display:block;background:#eef1f6}
   .bar{position:fixed;left:50%;bottom:14px;transform:translateX(-50%);z-index:20;
-    display:flex;gap:2px;padding:4px;background:rgba(12,18,34,.88);border-radius:999px;
+    display:flex;gap:2px;align-items:center;padding:4px;background:rgba(12,18,34,.92);border-radius:999px;
     box-shadow:0 8px 28px rgba(0,0,0,.35);backdrop-filter:blur(8px);font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP",sans-serif}
   .bar button{border:0;background:transparent;color:rgba(255,255,255,.7);font-size:12px;font-weight:700;
     padding:7px 14px;border-radius:999px;cursor:pointer;white-space:nowrap}
   .bar button[aria-current="true"]{background:#fff;color:#0c1222}
-  .bar .hint{display:none;color:rgba(255,255,255,.45);font-size:10px;padding:0 8px 0 4px;align-self:center}
-  @media(min-width:900px){.bar .hint{display:inline}}
-  /* 実機スマホでは切替バーを隠す（URLの?v= で強制できる） */
+  .bar .hint{color:rgba(255,255,255,.45);font-size:10px;padding:0 10px 0 6px;max-width:220px;line-height:1.3}
+  @media(max-width:720px){.bar .hint{display:none}}
+  /* 実機スマホでは切替バーを隠す（?v= で強制可） */
   @media(max-width:520px) and (pointer:coarse){.bar{display:none}}
 </style>
 </head>
@@ -25,21 +25,22 @@
   <button type="button" data-v="auto">自動</button>
   <button type="button" data-v="pc">PC</button>
   <button type="button" data-v="mobile">スマホ</button>
-  <span class="hint">幅820px未満 → スマホ</span>
+  <span class="hint" id="hint">幅820px未満 → ジョブ型スマホ</span>
 </div>
 <script>
 (function(){
   const BP=820;
   const frame=document.getElementById('frame');
   const bar=document.getElementById('bar');
+  const hint=document.getElementById('hint');
   const mq=window.matchMedia('(max-width:'+BP+'px)');
+  let lastMode=null;
 
   function forced(){
     const q=new URLSearchParams(location.search);
     const v=(q.get('v')||q.get('view')||'').toLowerCase();
     if(v==='pc'||v==='desktop'||v==='d') return 'pc';
     if(v==='m'||v==='mobile'||v==='sp') return 'mobile';
-    if(v==='auto'||v==='') return 'auto';
     return 'auto';
   }
   function effective(){
@@ -48,26 +49,30 @@
     if(f==='mobile') return 'mobile';
     return mq.matches ? 'mobile' : 'pc';
   }
+  /* PC版 / ジョブ型スマホ版は別ファイル。古いGitHub Mobileシェルは使わない */
   function srcFor(mode){
+    const base=location.pathname.replace(/[^/]*$/,'');
     return mode==='mobile'
-      ? 'saad-mobile-hub.html?embed=1'
-      : 'saad-github-hub.html';
+      ? base+'saad-mobile-hub.html?embed=1'
+      : base+'saad-github-hub.html?pc=1';
   }
-  function apply(){
-    const mode=effective();
-    const src=srcFor(mode);
-    if(frame.dataset.src!==src){
-      frame.dataset.src=src;
-      frame.src=src;
-    }
+  function syncBar(mode){
     const f=forced();
     bar.querySelectorAll('[data-v]').forEach(b=>{
       if(b.dataset.v===f) b.setAttribute('aria-current','true');
       else b.removeAttribute('aria-current');
     });
-    document.title = mode==='mobile'
-      ? 'SAAD Hub — スマホ'
-      : 'SAAD Hub — PC';
+    hint.textContent = mode==='mobile'
+      ? 'ジョブ型スマホUI（報告・承認）'
+      : 'PC台帳UI（GitHub型）';
+    document.title = mode==='mobile' ? 'SAAD Hub — スマホ' : 'SAAD Hub — PC';
+  }
+  function apply(forceReload){
+    const mode=effective();
+    syncBar(mode);
+    if(!forceReload && lastMode===mode) return;
+    lastMode=mode;
+    frame.src=srcFor(mode);
   }
   bar.querySelectorAll('[data-v]').forEach(b=>{
     b.onclick=()=>{
@@ -75,11 +80,11 @@
       if(b.dataset.v==='auto') u.searchParams.delete('v');
       else u.searchParams.set('v', b.dataset.v);
       history.replaceState(null,'',u);
-      apply();
+      apply(true);
     };
   });
-  apply();
-  mq.addEventListener('change', ()=>{ if(forced()==='auto') apply(); });
+  apply(true);
+  mq.addEventListener('change', ()=>{ if(forced()==='auto') apply(true); });
 })();
 </script>
 </body>

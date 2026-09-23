@@ -412,11 +412,11 @@ table.man .who{white-space:nowrap;font-weight:600}
 /* ================= data ================= */
 const PEOPLE = { sales:'星本', leader:'田中（拠点長）', kanri:'佐藤（管理部）', buy:'鈴木（購買）', koji:'山本（施工L）', jimu:'高橋（事務）' };
 const ROLES = {
-  sales:{label:'一般営業', short:'営', view:'mine', scope:'scope:self（自分の案件）', hint:'<strong>営業（スマホ完結）</strong> — GitHub Mobile相当。ホーム＝<code>assignee:@me</code>、台帳＝階層カード、承認結果は Inbox に届く。'},
+  sales:{label:'一般営業', short:'営', view:'mine', scope:'scope:self（自分の案件）', hint:'<strong>営業（PC台帳）</strong> — 自分の案件を表で確認。現場の報告・訪問は画面下の「スマホ」切替（または幅820px未満）のジョブ型UIを使います。承認結果は Inbox に届きます。'},
   leader:{label:'拠点長', short:'長', view:'approvals', scope:'scope:branch（横浜営業所）', hint:'<strong>拠点長</strong> — 既定Viewは稟議キュー。パネルで承認すると Status=Done になり、起票者へ通知が飛び、ゲート進捗が動く。'},
   kanri:{label:'管理部（経理）', short:'管', view:'approvals', scope:'scope:division（事業本部全体・拠点横断）', hint:'<strong>管理部</strong> — 高額稟議の二次承認と、施工完了後の請求発行。<b>部門/拠点</b>列で どの拠点の案件かを見て判断する。'},
   buy:{label:'購買物流', short:'購', view:'procurement', scope:'scope:all（全社・物流）', hint:'<strong>購買</strong> — <code>type:[購買申請]</code> だけ見る。発注済にすると納期がフィールドに入り、施工解除の条件が1つ埋まる。'},
-  koji:{label:'施工リーダー', short:'施', view:'kojiv', scope:'scope:branch（自拠点の現場）', hint:'<strong>施工（スマホ完結）</strong> — ゲート未完了の間は Blocked。開通すると Inbox に通知が来て、その場で完了報告できる。金額は非表示。'},
+  koji:{label:'施工リーダー', short:'施', view:'kojiv', scope:'scope:branch（自拠点の現場）', hint:'<strong>施工（PC台帳）</strong> — ゲート・現場の一覧はこちら。入場・完了報告は「スマホ」切替のジョブ型UI。金額は非表示。'},
   jimu:{label:'地区事務', short:'事', view:'mine', scope:'scope:region（担当地区）', hint:'<strong>地区事務</strong> — 契約書類などの事務行が自分の宿題に出る。実体は jimu リポ。'},
 };
 /* アプリ＝リポ。裏のマスタ・案件は共有。P2/P3は入口のみ（深い画面は後続） */
@@ -636,7 +636,11 @@ const VIEWS = [
 
 let state = { role:'sales', screen:'portal', view:'all', sel:null, repo:null, wipKey:null, mScreen:'mhome', customer:null, property:null, crmAxis:'customer', crmQ:'', crmPage:0,
   expanded:new Set(['841','841-gate','841-p1']) };
-function isMobile(){ return state.role==='sales' || state.role==='koji'; }
+function isMobile(){
+  /* スマホUIは saad-mobile-hub.html（ジョブ型）に分離。
+     このファイルはPC版専用。営業・施工でもフォン枠に落とさない。 */
+  return false;
+}
 
 /* ================= helpers ================= */
 function $(id){return document.getElementById(id)}
