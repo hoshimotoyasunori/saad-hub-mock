@@ -62,7 +62,8 @@
     }
     const f=forced();
     bar.querySelectorAll('[data-v]').forEach(b=>{
-      b.setAttribute('aria-current', b.dataset.v===f ? 'true' : 'false');
+      if(b.dataset.v===f) b.setAttribute('aria-current','true');
+      else b.removeAttribute('aria-current');
     });
     document.title = mode==='mobile'
       ? 'SAAD Hub — スマホ'
