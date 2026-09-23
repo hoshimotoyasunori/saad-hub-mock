@@ -1,0 +1,1063 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SAAD モバイル — ジョブ型スマホUX（モック）</title>
+<style>
+:root{
+  --ink:#0c1222;--muted:#5b6b82;--line:#c9d2e0;--panel:#f7f9fc;
+  --bg:#eef1f6;--card:#fff;
+  --accent:#0b6bcb;--accent-ink:#fff;
+  --ok:#1a7f37;--ok-bg:#e6f4ea;
+  --warn:#9a6700;--warn-bg:#fff8e1;
+  --danger:#c93c37;--danger-bg:#fdf0ef;
+  --shadow:0 8px 28px rgba(15,26,49,.12);
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{background:linear-gradient(180deg,#dfe6f0,#eef1f6);color:var(--ink);
+  font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP",sans-serif;
+  min-height:100vh;padding:20px 16px 40px}
+.stage{max-width:1060px;margin:0 auto;display:flex;gap:28px;align-items:flex-start;justify-content:center;flex-wrap:wrap}
+
+/* ============ 説明パネル（PC閲覧用） ============ */
+.aside{flex:1 1 340px;max-width:430px;min-width:300px;display:flex;flex-direction:column;gap:12px}
+.aside h1{margin:4px 0 2px;font-size:19px}
+.aside .lead{margin:0;font-size:12.5px;color:var(--muted);line-height:1.7}
+.acard{background:#fff;border:1px solid var(--line);border-radius:14px;padding:14px 16px}
+.acard h3{margin:0 0 8px;font-size:12.5px;color:var(--muted);font-weight:600;letter-spacing:.02em}
+.acard ol,.acard ul{margin:0;padding-left:18px;font-size:12.5px;line-height:1.9}
+.acard b{color:var(--ink)}
+.rolebar{display:flex;gap:8px;flex-wrap:wrap}
+.rolebar button{flex:1;border:1px solid var(--line);background:#fff;border-radius:10px;padding:9px 6px;
+  font-size:12.5px;font-weight:600;color:var(--muted);cursor:pointer}
+.rolebar button[aria-current="true"]{background:var(--ink);border-color:var(--ink);color:#fff}
+.map{font-family:ui-monospace,Menlo,monospace;font-size:11px;line-height:1.8;color:var(--muted);
+  background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 12px;white-space:pre}
+
+/* ============ フォン筐体 ============ */
+.phone{flex:0 0 auto;width:398px;height:820px;background:#0b0f17;border-radius:52px;padding:12px;
+  box-shadow:0 24px 70px rgba(10,18,35,.4);position:relative}
+.screen{position:relative;width:100%;height:100%;background:var(--bg);border-radius:42px;overflow:hidden;
+  display:flex;flex-direction:column}
+.statusbar{flex:none;height:44px;display:flex;align-items:center;justify-content:space-between;
+  padding:0 26px;font-size:13px;font-weight:600;position:relative}
+.island{position:absolute;left:50%;top:11px;transform:translateX(-50%);width:112px;height:26px;background:#0b0f17;border-radius:14px}
+
+/* 画面本体 */
+.view{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:4px 16px 120px;-webkit-overflow-scrolling:touch}
+.view::-webkit-scrollbar{display:none}
+
+/* 下部タブ */
+.tabbar{flex:none;position:absolute;left:0;right:0;bottom:0;height:78px;background:rgba(255,255,255,.96);
+  backdrop-filter:blur(8px);border-top:1px solid var(--line);display:grid;grid-template-columns:1fr 1fr 78px 1fr 1fr;
+  align-items:stretch;padding:6px 6px 18px;z-index:20}
+.tabbar button{border:0;background:transparent;font-size:10px;color:var(--muted);display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:3px;cursor:pointer;border-radius:12px;font-weight:600}
+.tabbar button .ic{font-size:20px;line-height:1}
+.tabbar button[aria-current="true"]{color:var(--accent)}
+.tabbar .plus{align-self:center;justify-self:center;width:56px;height:56px;margin-top:-26px;border-radius:50%;
+  background:var(--accent);color:#fff;font-size:26px;font-weight:400;box-shadow:0 8px 20px rgba(11,107,203,.4);
+  display:grid;place-items:center;border:4px solid var(--bg)}
+.badge-dot{position:relative}
+.badge-dot .n{position:absolute;top:-4px;right:-10px;min-width:16px;height:16px;border-radius:8px;background:var(--danger);
+  color:#fff;font-size:9.5px;font-weight:700;display:grid;place-items:center;padding:0 4px}
+
+/* 共通パーツ */
+.hgreet{padding:10px 2px 2px}
+.hgreet h2{margin:0;font-size:21px;letter-spacing:.01em}
+.hgreet p{margin:4px 0 0;font-size:12.5px;color:var(--muted)}
+.sec{margin:18px 0 8px;font-size:12px;font-weight:700;color:var(--muted);letter-spacing:.03em;display:flex;align-items:center;gap:6px}
+.sec .cnt{background:var(--ink);color:#fff;border-radius:9px;font-size:10px;padding:1px 7px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px;margin-bottom:10px;
+  box-shadow:0 1px 2px rgba(15,26,49,.04)}
+button.card{display:block;width:100%;text-align:left;cursor:pointer;font:inherit;color:inherit}
+.card .k{font-size:11px;font-weight:700;color:var(--muted);display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.card .t{font-size:15px;font-weight:700;margin:5px 0 2px;line-height:1.45}
+.card .s{font-size:12px;color:var(--muted);line-height:1.6}
+.card.hero{border:0;background:linear-gradient(135deg,#0d63c0,#0a4f9c);color:#fff;box-shadow:0 10px 26px rgba(11,88,175,.35)}
+.card.hero .k,.card.hero .s{color:rgba(255,255,255,.82)}
+.card.hero .t{font-size:16.5px}
+.tagP{background:var(--warn-bg);color:var(--warn);border-radius:6px;padding:1px 7px;font-size:10.5px;font-weight:700}
+.tagOK{background:var(--ok-bg);color:var(--ok);border-radius:6px;padding:1px 7px;font-size:10.5px;font-weight:700}
+.tagNG{background:var(--danger-bg);color:var(--danger);border-radius:6px;padding:1px 7px;font-size:10.5px;font-weight:700}
+.tagDom{background:#eef2f7;color:var(--muted);border-radius:6px;padding:1px 7px;font-size:10.5px;font-weight:700}
+.abtn{display:flex;align-items:center;justify-content:center;gap:6px;border:0;border-radius:13px;
+  padding:13px;font-size:14.5px;font-weight:700;cursor:pointer;width:100%}
+.abtn.p{background:var(--accent);color:#fff}
+.abtn.w{background:#fff;color:var(--ink);border:1.5px solid var(--line)}
+.abtn.g{background:var(--ok);color:#fff}
+.abtn.d{background:#fff;color:var(--danger);border:1.5px solid #eecfcd}
+.btnrow{display:flex;gap:8px;margin-top:10px}
+.btnrow .abtn{flex:1}
+.hero .abtn.p{background:#fff;color:#0a4f9c}
+
+/* 予定（時間軸） */
+.tl-row{display:flex;gap:12px;padding:9px 2px;align-items:flex-start}
+.tl-row time{flex:0 0 44px;font-size:12.5px;font-weight:700;color:var(--ink);padding-top:2px}
+.tl-row .body{flex:1;background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.tl-row .body .tt{font-size:13px;font-weight:700}
+.tl-row .body .ts{font-size:11.5px;color:var(--muted);margin-top:2px}
+.tl-row.done .body{opacity:.55}
+.tl-row.done .tt{text-decoration:line-through}
+
+/* ステッパー */
+.stepper{display:flex;align-items:center;margin:12px 0 4px}
+.stp{flex:1;display:flex;flex-direction:column;align-items:center;gap:5px;position:relative}
+.stp::before{content:"";position:absolute;top:7px;left:-50%;width:100%;height:2.5px;background:var(--line)}
+.stp:first-child::before{display:none}
+.stp .dot{width:15px;height:15px;border-radius:50%;background:#fff;border:2.5px solid var(--line);z-index:1}
+.stp .lb{font-size:9.5px;color:var(--muted);font-weight:600}
+.stp.on::before{background:var(--accent)}
+.stp.on .dot{background:var(--accent);border-color:var(--accent)}
+.stp.cur .dot{background:#fff;border-color:var(--accent);box-shadow:0 0 0 3.5px rgba(11,107,203,.2)}
+.stp.cur .lb{color:var(--accent)}
+
+/* 待ちライン */
+.wait{display:flex;gap:7px;align-items:center;font-size:12px;font-weight:600;color:var(--warn);
+  background:var(--warn-bg);border-radius:10px;padding:8px 11px;margin-top:9px}
+.wait.ok{color:var(--ok);background:var(--ok-bg)}
+.wait.me{color:var(--accent);background:#e8f1fb}
+
+/* 詳細ヘッダ */
+.dethead{padding:6px 2px 0}
+.backbtn{border:0;background:transparent;color:var(--accent);font-size:14px;font-weight:600;padding:8px 0;cursor:pointer}
+.dethead h2{margin:2px 0 3px;font-size:20px}
+.dethead .sub{font-size:12.5px;color:var(--muted)}
+.iconrow{display:flex;gap:8px;margin:12px 0 4px}
+.iconrow button{flex:1;border:1px solid var(--line);background:#fff;border-radius:12px;padding:9px 4px;
+  font-size:11.5px;font-weight:600;color:var(--accent);cursor:pointer;display:flex;flex-direction:column;gap:3px;align-items:center}
+.iconrow button .ic{font-size:17px}
+
+/* 履歴（人の言葉） */
+.hist{list-style:none;margin:4px 0 0;padding:0}
+.hist li{display:flex;gap:10px;padding:9px 2px;border-bottom:1px solid #e6ebf2;font-size:12.5px;line-height:1.6}
+.hist li:last-child{border-bottom:0}
+.hist .hd{flex:0 0 40px;font-size:10.5px;color:var(--muted);font-weight:600;padding-top:2px}
+.hist .av{flex:0 0 26px;height:26px;border-radius:50%;background:var(--ink);color:#fff;font-size:10.5px;
+  display:grid;place-items:center;font-weight:700}
+.hist .av.sys{background:#c6d0dd;color:#425066}
+.hist .tx b{font-weight:700}
+.hist .tx .m{color:var(--muted);font-size:11.5px}
+
+/* 下部固定アクション（詳細） */
+.fixact{position:absolute;left:0;right:0;bottom:78px;padding:10px 16px 12px;z-index:15;
+  background:linear-gradient(180deg,rgba(238,241,246,0),rgba(238,241,246,.94) 38%)}
+.fixact .inner{display:flex;gap:8px}
+.fixact .abtn{box-shadow:0 8px 20px rgba(11,107,203,.28)}
+.fixact .abtn.icon{flex:0 0 54px;background:#fff;border:1.5px solid var(--line);color:var(--ink);font-size:18px;box-shadow:none}
+
+/* シート */
+.overlay{position:absolute;inset:0;background:rgba(9,14,26,.45);z-index:30;opacity:0;pointer-events:none;transition:opacity .18s}
+.overlay.show{opacity:1;pointer-events:auto}
+.sheet{position:absolute;left:0;right:0;bottom:0;background:#fff;border-radius:24px 24px 0 0;z-index:31;
+  transform:translateY(105%);transition:transform .22s cubic-bezier(.3,.9,.4,1);max-height:82%;display:flex;flex-direction:column}
+.sheet.show{transform:translateY(0)}
+.sheet .grab{flex:none;width:40px;height:4.5px;border-radius:3px;background:#d5dce6;margin:9px auto 2px}
+.sheet .shead{flex:none;display:flex;align-items:center;justify-content:space-between;padding:8px 18px 6px}
+.sheet .shead h3{margin:0;font-size:16px}
+.sheet .shead button{border:0;background:#eef1f6;border-radius:50%;width:30px;height:30px;font-size:13px;cursor:pointer;color:var(--muted)}
+.sheet .sbody{flex:1;min-height:0;overflow-y:auto;padding:6px 18px 26px}
+.launch{display:flex;align-items:center;gap:13px;width:100%;border:1px solid var(--line);background:#fff;
+  border-radius:14px;padding:13px 14px;margin-bottom:9px;cursor:pointer;text-align:left;font:inherit}
+.launch .ic{flex:0 0 42px;height:42px;border-radius:12px;display:grid;place-items:center;font-size:20px;background:#e8f1fb}
+.launch .tt{font-size:14px;font-weight:700}
+.launch .ss{font-size:11.5px;color:var(--muted);margin-top:1px}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 4px}
+.chip{border:1.5px solid var(--line);background:#fff;border-radius:999px;padding:9px 15px;font-size:13px;font-weight:600;cursor:pointer;color:var(--ink)}
+.chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#fff}
+.sheet textarea{width:100%;border:1.5px solid var(--line);border-radius:12px;padding:10px 12px;font-size:13px;
+  font-family:inherit;min-height:64px;resize:none;margin-top:6px}
+.slabel{font-size:12px;font-weight:700;color:var(--muted);margin:14px 0 2px}
+.pick{display:flex;align-items:center;gap:10px;width:100%;border:1.5px solid var(--line);background:#fff;
+  border-radius:12px;padding:11px 13px;margin-bottom:8px;cursor:pointer;text-align:left;font:inherit}
+.pick[aria-pressed="true"]{border-color:var(--accent);background:#e8f1fb}
+.pick .tt{font-size:13.5px;font-weight:700}
+.pick .ss{font-size:11px;color:var(--muted)}
+.photo-grid{display:flex;gap:8px;margin-top:6px}
+.photo-grid button{flex:1;aspect-ratio:1;border:1.5px dashed var(--line);border-radius:12px;background:#fafbfd;
+  font-size:20px;color:var(--muted);cursor:pointer}
+.photo-grid button.has{border-style:solid;background:#e8f1fb;border-color:var(--accent)}
+
+/* 通知 */
+.ncard{display:flex;gap:11px;align-items:flex-start;width:100%;text-align:left;font:inherit;color:inherit;
+  background:#fff;border:1px solid var(--line);border-radius:14px;padding:13px;margin-bottom:9px;cursor:pointer}
+.ncard.unread{border-left:4px solid var(--accent)}
+.ncard .ic{flex:0 0 36px;height:36px;border-radius:50%;display:grid;place-items:center;font-size:16px;background:#e8f1fb}
+.ncard .tt{font-size:13px;font-weight:700;line-height:1.5}
+.ncard .ss{font-size:11.5px;color:var(--muted);margin-top:2px}
+.ncard .when{margin-left:auto;flex:none;font-size:10.5px;color:var(--muted)}
+
+/* 承認画面 */
+.apr-amt{font-size:26px;font-weight:800;margin:2px 0}
+.apr-meta{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:12.5px;margin:10px 0}
+.apr-meta dt{color:var(--muted)}
+.apr-meta dd{margin:0;font-weight:600}
+
+/* メニュー */
+.mrow{display:flex;align-items:center;gap:12px;width:100%;background:#fff;border:1px solid var(--line);
+  border-radius:14px;padding:13px 14px;margin-bottom:8px;font:inherit;text-align:left;cursor:pointer}
+.mrow .ic{font-size:18px}
+.mrow .tt{font-size:13.5px;font-weight:600}
+.mrow .arr{margin-left:auto;color:var(--muted)}
+.searchbox{width:100%;border:1.5px solid var(--line);border-radius:12px;padding:11px 13px;font-size:14px;
+  font-family:inherit;background:#fff;margin:8px 0 10px}
+
+/* アプリヘッダ（常設: 検索・通知・メニュー） */
+.apphead{flex:none;display:flex;align-items:center;gap:6px;padding:2px 14px 8px}
+.ah-logo{font-weight:800;font-size:14.5px;letter-spacing:.02em;margin-right:auto;display:flex;align-items:center;gap:7px}
+.ah-logo .sq{width:24px;height:24px;border-radius:8px;background:var(--ink);color:#fff;display:grid;place-items:center;font-size:9px;font-weight:800}
+.apphead button{background:#fff;border:1px solid var(--line);width:34px;height:34px;border-radius:50%;font-size:14px;cursor:pointer;position:relative;display:grid;place-items:center}
+.apphead button .n{position:absolute;top:-4px;right:-4px;min-width:15px;height:15px;border-radius:8px;background:var(--danger);color:#fff;font-size:9px;font-weight:700;display:grid;place-items:center;padding:0 3px}
+
+/* 今後実装予定（WIP）画面 */
+.wiphero{display:flex;flex-direction:column;align-items:center;text-align:center;padding:16px 8px 4px}
+.wiphero .big{width:64px;height:64px;border-radius:18px;background:#e8f1fb;display:grid;place-items:center;font-size:30px;margin-bottom:10px}
+.wiptag{display:inline-block;background:var(--warn-bg);color:var(--warn);border-radius:999px;padding:3px 12px;font-size:11px;font-weight:700;margin-bottom:6px}
+.wiphero h2{margin:0 0 2px;font-size:19px}
+.wlist{list-style:none;margin:2px 0 0;padding:0}
+.wlist li{display:flex;gap:9px;padding:8px 0;font-size:13px;line-height:1.55;border-bottom:1px solid #e6ebf2}
+.wlist li:last-child{border-bottom:0}
+.wlist li::before{content:"✓";color:var(--ok);font-weight:800;flex:0 0 auto}
+.kvrow{display:flex;gap:10px;font-size:12.5px;padding:8px 0;border-bottom:1px solid #e6ebf2}
+.kvrow:last-child{border-bottom:0}
+.kvrow .kt{flex:0 0 86px;color:var(--muted);font-weight:600}
+
+/* お知らせ */
+.ann-from{font-size:10.5px;font-weight:700;color:var(--muted);display:flex;gap:8px;align-items:center}
+.ann-body{font-size:12.5px;color:var(--ink);line-height:1.7;margin-top:8px;padding-top:8px;border-top:1px solid #e6ebf2}
+
+/* ドロワー（ハンバーガーメニュー） */
+.d-ovl{position:absolute;inset:0;background:rgba(9,14,26,.45);z-index:40;opacity:0;pointer-events:none;transition:opacity .2s}
+.d-ovl.show{opacity:1;pointer-events:auto}
+.drawer{position:absolute;top:0;right:0;bottom:0;width:min(300px,84%);background:#fff;z-index:41;
+  transform:translateX(105%);transition:transform .24s cubic-bezier(.3,.9,.4,1);display:flex;flex-direction:column;
+  border-radius:24px 0 0 24px;box-shadow:-18px 0 50px rgba(10,18,35,.28)}
+.drawer.show{transform:translateX(0)}
+.d-head{flex:none;display:flex;align-items:center;gap:10px;padding:20px 16px 12px;border-bottom:1px solid var(--line)}
+.d-head .av{width:38px;height:38px;border-radius:50%;background:var(--ink);color:#fff;display:grid;place-items:center;font-size:16px}
+.d-head .nm{font-size:14px;font-weight:800}
+.d-head .rl{font-size:11px;color:var(--muted)}
+.d-head .x{margin-left:auto;border:0;background:#eef1f6;border-radius:50%;width:30px;height:30px;font-size:13px;cursor:pointer;color:var(--muted)}
+.d-body{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:4px 10px 24px}
+.d-sec{font-size:10.5px;font-weight:700;color:var(--muted);letter-spacing:.04em;margin:14px 8px 4px}
+.d-item{display:flex;align-items:center;gap:11px;width:100%;border:0;background:none;padding:10px 9px;border-radius:10px;
+  font:inherit;font-size:13.5px;font-weight:600;cursor:pointer;text-align:left;color:var(--ink)}
+.d-item:active,.d-item:hover{background:#eef2f7}
+.d-item .ic{width:24px;text-align:center;font-size:15px}
+.d-item .arr{margin-left:auto;color:var(--muted);font-size:12px}
+.d-item .mini{font-size:10px;color:var(--muted);font-weight:600;margin-left:auto;background:#f1f4f8;border-radius:6px;padding:1px 6px}
+.d-foot{flex:none;padding:10px 16px 18px;border-top:1px solid var(--line);font-size:10.5px;color:var(--muted);line-height:1.6}
+
+/* トースト */
+.toast{position:absolute;left:50%;bottom:104px;transform:translate(-50%,16px);background:var(--ink);color:#fff;
+  border-radius:12px;padding:11px 18px;font-size:12.5px;font-weight:600;opacity:0;transition:all .22s;z-index:50;
+  max-width:82%;text-align:center;pointer-events:none}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+
+.note{font-size:11px;color:var(--muted);line-height:1.7;margin-top:12px;padding:0 2px}
+.quiet{font-size:12.5px;color:var(--muted);padding:8px 2px}
+
+@media(max-width:900px){
+  body{padding:8px 6px 30px}
+  .stage{gap:16px}
+  .aside{order:2;max-width:398px}
+  .phone{order:1;width:min(398px,100vw - 12px);height:min(820px,92vh)}
+}
+/* 実機幅：フォン枠を全画面にし説明パネルを隠す */
+@media(max-width:520px){
+  body{padding:0;background:#0b0f17;min-height:100%;height:100%;overflow:hidden}
+  .stage{display:block;max-width:none;margin:0;height:100%}
+  .aside{display:none!important}
+  .phone{width:100%;height:100%;height:100dvh;border-radius:0;padding:0;box-shadow:none;max-width:none}
+  .screen{border-radius:0}
+}
+/* 統合入口（saad-hub.html?embed=1）からも同じ全画面 */
+html.embed body{padding:0;background:#0b0f17;min-height:100%;height:100%;overflow:hidden}
+html.embed .stage{display:block;max-width:none;margin:0;height:100%}
+html.embed .aside{display:none!important}
+html.embed .phone{width:100%;height:100%;height:100dvh;border-radius:0;padding:0;box-shadow:none;max-width:none}
+html.embed .screen{border-radius:0}
+</style>
+<script>
+/* 統合入口から ?embed=1 で呼ばれたとき全画面モード */
+if(new URLSearchParams(location.search).has('embed')){
+  document.documentElement.classList.add('embed');
+}
+</script>
+</head>
+<body>
+<div class="stage">
+
+  <div class="phone"><div class="screen" id="screen">
+    <div class="statusbar"><span>9:41</span><div class="island"></div><span>📶 ⚡︎ 92%</span></div>
+    <div class="apphead" id="apphead"></div>
+    <div class="view" id="view"></div>
+    <div class="tabbar" id="tabbar"></div>
+    <div class="overlay" id="ovl"></div>
+    <div class="sheet" id="sheet"></div>
+    <div class="d-ovl" id="dovl"></div>
+    <div class="drawer" id="drawer"></div>
+    <div class="toast" id="toast"></div>
+  </div></div>
+
+  <aside class="aside">
+    <h1>SAAD モバイル — ジョブ型UX</h1>
+    <p class="lead">PC版（GitHub型・台帳とView）は据え置き。スマホは<b>同じデータを「今日やること・報告・承認」というジョブの窓</b>から見る。Issue・repo・Statusの語彙は画面に出さない。</p>
+
+    <div class="acard">
+      <h3>役割を切り替える（デモ用）</h3>
+      <div class="rolebar" id="rolebar"></div>
+    </div>
+
+    <div class="acard">
+      <h3>設計原則（5つ）</h3>
+      <ol>
+        <li><b>ジョブで入る</b> — 台帳・顧客は入口にしない</li>
+        <li><b>1画面1目的</b> — 「次の一手」を1つだけ大きく</li>
+        <li><b>親指ファースト</b> — 下部タブ＋下部固定アクション</li>
+        <li><b>語彙の翻訳</b> — Issue→仕事、Comment→報告、Blocked→準備中</li>
+        <li><b>入力は 選ぶ→撮る→書く</b> — 報告は3タップで完了</li>
+      </ol>
+    </div>
+
+    <div class="acard">
+      <h3>デモ手順（連鎖が動きます）</h3>
+      <ol>
+        <li><b>営業</b>: ホーム「報告する」→ チップを選んで送信（3タップ）</li>
+        <li><b>拠点長</b>: 承認待ちカード → 内容確認 → 「承認する」</li>
+        <li><b>営業/施工</b>に戻る: 通知が届き、施工の現場が<b>準備中→着工OK</b>に変わる</li>
+        <li><b>施工</b>: 着工OKの現場 → 入場報告 → 写真つき完了報告</li>
+      </ol>
+    </div>
+
+    <div class="acard">
+      <h3>PCとの関係</h3>
+      <div class="map">      同じデータ（案件・履歴・待ち）
+            │
+  ┌─────────┴─────────┐
+  PC = GitHub型        スマホ = ジョブ型
+  台帳・View・パネル    今日やること・報告・承認
+  管理部/事務/拠点長    営業/施工/移動中の承認</div>
+      <p class="lead" style="margin-top:8px">スマホの報告はPC台帳の同じ行のタイムラインに載る。承認・ゲート開通の連鎖ロジックも完全共有。正本: <b>docs/mobile-ux-design.md</b></p>
+    </div>
+  </aside>
+</div>
+
+<script>
+/* ================= データ ================= */
+const ROLES={
+  sales:{label:'営業', name:'星本', icon:'👤'},
+  koji:{label:'施工', name:'山本', icon:'🛠'},
+  boss:{label:'拠点長', name:'田中', icon:'📋'},
+};
+const STAGES=['引合','商談','契約','施工','請求'];
+
+const DEALS={
+  d1:{cust:'佐藤 一郎さま', title:'シロアリ防除工事', dom:'HS', addr:'福岡市南区大橋1-2-3', tel:'090-XXXX-1234',
+    stage:1, amount:'380,000円',
+    hist:[
+      {d:'9/23',who:'星',t:'<b>値引き申請を出しました</b><div class="m">−8%（お客さま予算に合わせ）→ 田中拠点長へ</div>'},
+      {d:'9/21',who:'星',t:'<b>調査結果を報告</b><div class="m">床下に蟻道あり・写真4枚。見積を提示予定</div>'},
+      {d:'9/18',who:'sys',t:'保証期限が近いお客さまとして<b>再アプローチ対象</b>になりました'},
+    ]},
+  d2:{cust:'株式会社サンプル', title:'厨房排水管 高圧洗浄', dom:'ES', addr:'福岡市博多区東比恵2-4-5', tel:'092-XXX-5678',
+    stage:1, amount:'250,000円',
+    hist:[
+      {d:'9/22',who:'星',t:'<b>訪問しました</b><div class="m">担当者さまと日程調整。見積は今日17:00までに提出</div>'},
+      {d:'9/19',who:'sys',t:'Webフォームからの問い合わせで<b>新しい仕事</b>になりました'},
+    ]},
+  d3:{cust:'グリーンハイツ管理組合', title:'貯水槽清掃（年次）', dom:'PCS', addr:'福岡市東区香椎3-1-8', tel:'092-XXX-9012',
+    stage:3, amount:'180,000円',
+    hist:[
+      {d:'9/20',who:'山',t:'<b>作業前の確認を完了</b><div class="m">断水案内の掲示OK。9/24 9:00 開始</div>'},
+      {d:'9/12',who:'sys',t:'資材の手配が終わり<b>着工OK</b>になりました'},
+    ]},
+};
+
+/* ============ 機能カタログ（未実装＝今後実装予定画面へ） ============ */
+const WIPS={
+  ringi:{ic:'🧾',t:'稟議を申請',what:['値引き・特価・契約着手の申請をスマホから出す','金額で承認ルート（拠点長→管理部）が自動で決まる','結果は通知に届き、案件の履歴に残る'],ph:'P1 — 最初の実装段階',now:'PC版の稟議View、または営業所で申請'},
+  buy:{ic:'📦',t:'資材・購買を申請',what:['案件に紐づけて資材を選んで申請','購買が発注すると納期が案件に載る','現場からのワンタップ再注文'],ph:'P1',now:'PC版の購買View。現行は電話/FAX'},
+  keihi:{ic:'🚗',t:'経費を申請',what:['出張・車両・立替の申請','領収書は写真を撮るだけ','承認状況が通知に届く'],ph:'P2',now:'現行の紙＋NEXT運用'},
+  jinji:{ic:'🧑‍💼',t:'人事・勤怠',what:['出退勤の打刻（現場から直行直帰OK）','休暇申請と残数の確認','給与明細・源泉徴収票の閲覧'],ph:'P2',now:'現行の勤怠システム・紙の申請書'},
+  knowledge:{ic:'📚',t:'社内ナレッジ',what:['作業手順書・FAQ・過去事例を検索','案件の工程から関連手順へワンタップ','よく見る手順のブックマーク'],ph:'P2',now:'共有ドライブ＋先輩に聞く（属人化の解消が狙い）'},
+  anzen:{ic:'⚠️',t:'安全衛生',what:['ヒヤリハット報告（写真つき・匿名可）','KY（危険予知）チェックリスト','拠点への注意喚起の受信'],ph:'P2',now:'紙の報告書'},
+  cal:{ic:'🗓',t:'カレンダー・予定',what:['自分と拠点メンバーの予定','案件と予定の紐付け（訪問→そのまま報告へ）','Googleカレンダー連携'],ph:'P1',now:'ホームの「今日の予定」が簡易版'},
+  stock:{ic:'🏬',t:'在庫・倉庫',what:['拠点倉庫の在庫をその場で確認','欠品前アラート'],ph:'P2',now:'倉庫に電話。PC版の購買Viewが正'},
+  photo:{ic:'📷',t:'写真を報告',what:['カメラ起動→案件に自動で紐付け','作業前後の比較レイアウト','報告書PDFに自動挿入'],ph:'P1',now:'完了報告の写真欄で代替'},
+  quote:{ic:'🧮',t:'見積を作る',what:['標準単価から自動計算','その場でPDFを見せる・送る','値引きはそのまま稟議へ'],ph:'P2',now:'見積作成はPC版。スマホは金額変更の申請のみ'},
+  custreg:{ic:'👤',t:'顧客を登録',what:['名前と電話だけで仮登録（30秒）','事務が後から本登録（eSMと同じ二段階）','重複チェック自動'],ph:'P1',now:'電話で事務に依頼'},
+  pastdeals:{ic:'🗂',t:'過去の案件をさがす',what:['完了・Close済みも含めた横断検索','顧客・住所・期間で絞り込み','過去の見積・報告書も一緒に出る'],ph:'P1',now:'PC版の台帳検索'},
+  docs:{ic:'📄',t:'案件の書類',what:['見積書・契約書・報告書PDFの閲覧','その場でお客さまに提示','有効期限切れの書類は自動で警告'],ph:'P1',now:'PC版からダウンロード'},
+  bi:{ic:'📊',t:'拠点の数字（BI）',what:['売上・成約率・訪問数のダッシュボード','前年同月・目標との比較'],ph:'P2',now:'PC版のBI。スマホのホームに要約のみ'},
+  settings:{ic:'⚙️',t:'設定',what:['通知のオン/オフ（種類ごと）','表示名・所属拠点の確認'],ph:'P1',now:'—'},
+};
+const ANNS=[
+  {d:'9/22',from:'総務',t:'【全社】11月スマホ配布に伴うGWS利用開始の案内',body:'11月より全営業・施工職にスマホを配布します。GWS（Gmail・カレンダー・Meet）の初期設定手順書を各拠点に送付済みです。設定会は各拠点で10月中に実施します。'},
+  {d:'9/22',from:'DX推進',t:'SAAD 第2次モック説明会（9/26 16:00〜）',body:'スマホ版モックのウォークスルーを実施します。現場からの参加を歓迎します。参加リンクは拠点長経由で配布。'},
+  {d:'9/20',from:'安全衛生',t:'残暑の熱中症対策の徹底について',body:'9月中も高温が続いています。床下・屋根裏作業は2人体制と20分ごとの休憩を徹底してください。'},
+  {d:'9/19',from:'人事',t:'年末調整の書類提出（10/15締切）',body:'保険料控除証明書等の提出をお願いします。今年から写真アップロード提出に対応予定です。'},
+  {d:'9/18',from:'経理',t:'9月度 経費精算の締めは 9/29（月）',body:'締め日以降の提出は翌月精算になります。領収書の紛失が多いため早めの提出を。'},
+  {d:'9/17',from:'購買',t:'防除資材Aの価格改定（10月〜）',body:'仕入価格改定に伴い、10月1日以降の見積は新単価が自動適用されます。既提出の見積は旧単価のまま有効です。'},
+];
+const CUSTS=[
+  {name:'佐藤 一郎',kind:'個人 / HS',deal:'d1',info:'保証 2026-10 期限間近 · 福岡市南区',warn:true},
+  {name:'株式会社サンプル',kind:'法人 / ES',deal:'d2',info:'物件2 · 福岡市博多区'},
+  {name:'グリーンハイツ管理組合',kind:'法人 / PCS',deal:'d3',info:'10年保証 · 福岡市東区'},
+];
+
+/* 稟議（連鎖の核）: r1=佐藤様値引き */
+const state={
+  role:'sales', tab:'home', deal:null, approving:null,
+  sub:null, annOpen:-1, custQ:'', dealQ:'',
+  ringi:'pending',            // pending → ok / back
+  gateD1:false,               // 佐藤様現場の着工OK
+  entered:{}, done:{},        // dealId → bool（現場ごとの入場・完了）
+  sheetDeal:null,
+  notifs:{
+    sales:[{ic:'⏰',tt:'見積提出の期限が今日17:00です',ss:'株式会社サンプル — 高圧洗浄',when:'9:05',go:{deal:'d2'},unread:true}],
+    koji:[{ic:'🗓',tt:'明日の現場: グリーンハイツ 9:00開始',ss:'貯水槽清掃 — 断水案内は掲示済み',when:'8:30',go:{deal:'d3'},unread:true}],
+    boss:[{ic:'🔔',tt:'承認待ちが2件あります',ss:'値引き（佐藤さま）／着手（サンプル社）',when:'9:00',go:{tab:'home'},unread:true}],
+  },
+  sheet:null, pick:{},
+};
+
+/* ================= 基盤 ================= */
+const $=id=>document.getElementById(id);
+function toast(msg){const t=$('toast');t.textContent=msg;t.classList.add('show');clearTimeout(t._h);t._h=setTimeout(()=>t.classList.remove('show'),2200);}
+function esc(s){return s;}
+function unread(role){return state.notifs[role].filter(n=>n.unread).length;}
+function nowD(){return '9/23';}
+
+function pushNotif(role,n){state.notifs[role].unshift({...n,when:'たった今',unread:true});}
+
+/* ================= 部品 ================= */
+function annTeaser(){
+  return `<div class="sec">お知らせ・通達 <button data-sub="ann" style="margin-left:auto;border:0;background:none;color:var(--accent);font-size:11.5px;font-weight:700;cursor:pointer">すべて見る ›</button></div>
+  ${ANNS.slice(0,2).map((a,i)=>`<button class="card" data-sub="ann" style="width:100%;text-align:left">
+    <div class="ann-from"><span>${a.from}</span><span style="margin-left:auto;font-weight:600">${a.d}</span></div>
+    <div class="t" style="margin:3px 0 0;font-size:13px">${a.t}</div>
+  </button>`).join('')}`;
+}
+function stepper(stage){
+  return `<div class="stepper">`+STAGES.map((s,i)=>
+    `<div class="stp${i<stage?' on':''}${i===stage?' on cur':''}"><span class="dot"></span><span class="lb">${s}</span></div>`
+  ).join('')+`</div>`;
+}
+function waitLine(d,id){
+  if(id==='d1'){
+    if(state.ringi==='pending') return `<div class="wait">⏳ 田中拠点長の承認待ち（値引き −8%）</div>`;
+    if(state.ringi==='back')    return `<div class="wait" style="color:var(--danger);background:var(--danger-bg)">↩ 差戻し — 値引き幅を見直して再申請</div>`;
+    if(state.done.d1)           return `<div class="wait ok">✓ 施工完了 — 管理部の請求処理待ち</div>`;
+    if(state.gateD1)            return `<div class="wait ok">✓ 着工OK — 施工チームの入場待ち</div>`;
+  }
+  if(id==='d2') return `<div class="wait me">▶ あなたの番 — 見積を今日17:00までに提出</div>`;
+  if(id==='d3'){
+    if(state.done.d3) return `<div class="wait ok">✓ 施工完了 — 管理部の請求処理待ち</div>`;
+    return `<div class="wait ok">✓ 着工OK — 9/24 9:00 作業開始</div>`;
+  }
+  return '';
+}
+function dealCard(id){
+  const d=DEALS[id];
+  return `<button class="card" data-deal="${id}">
+    <div class="k"><span class="tagDom">${d.dom}</span>${d.title}</div>
+    <div class="t">${d.cust}</div>
+    ${stepper(effStage(id))}
+    ${waitLine(d,id)}
+  </button>`;
+}
+function effStage(id){
+  if(id==='d3') return state.done.d3?4:DEALS.d3.stage;
+  if(id!=='d1') return DEALS[id].stage;
+  if(state.done.d1) return 4;
+  if(state.gateD1) return 3;
+  return state.ringi==='ok'?2:1;
+}
+
+/* ================= ホーム ================= */
+function homeSales(){
+  const focus = state.ringi==='back' ? '差戻しが1件。見直して再申請しましょう。'
+    : '今日は訪問2件と見積1件。申請の結果は通知に届きます。';
+  return `<div class="hgreet"><h2>おはようございます、星本さん</h2><p>${focus}</p></div>
+
+  <div class="sec">いまやること</div>
+  <button class="card hero" data-sheet="report">
+    <div class="k">14:00 訪問 · 佐藤 一郎さま宅</div>
+    <div class="t">契約前の最終説明 — 終わったらその場で報告</div>
+    <div class="s">住所: 福岡市南区大橋1-2-3</div>
+    <div class="btnrow"><span class="abtn p">✏️ 報告する（3タップ）</span></div>
+  </button>
+  <button class="card" data-deal="d2">
+    <div class="k"><span class="tagP">今日 17:00 期限</span></div>
+    <div class="t">サンプル社の見積を提出する</div>
+    <div class="s">厨房排水管 高圧洗浄 — 250,000円で作成済み。確認して送信</div>
+  </button>
+  ${state.ringi==='back'?`<button class="card" data-deal="d1">
+    <div class="k"><span class="tagNG">差戻し</span></div>
+    <div class="t">値引き申請を見直して再申請</div>
+    <div class="s">田中拠点長: 値引き幅の再検討を。−5%なら即決します</div>
+  </button>`:''}
+
+  <div class="sec">今日の予定</div>
+  <div class="tl-row done"><time>10:00</time><div class="body"><div class="tt">サンプル社 訪問</div><div class="ts">報告済み ✓</div></div></div>
+  <div class="tl-row"><time>14:00</time><div class="body"><div class="tt">佐藤さま宅 契約前説明</div><div class="ts">シロアリ防除 — 上のカードから報告</div></div></div>
+  <div class="tl-row"><time>17:00</time><div class="body"><div class="tt">見積提出期限（サンプル社）</div><div class="ts">高圧洗浄 250,000円</div></div></div>
+
+  <div class="sec">申請の進み</div>
+  ${state.ringi==='pending'?`<div class="card"><div class="k">値引き申請（佐藤さま −8%）</div><div class="wait" style="margin-top:8px">⏳ 田中拠点長の承認待ち — 結果は通知に届きます</div></div>`:''}
+  ${state.ringi==='ok'?`<div class="card"><div class="k">値引き申請（佐藤さま）</div><div class="wait ok" style="margin-top:8px">✓ 承認されました — 契約に進めます</div></div>`:''}
+  ${state.ringi==='back'?`<div class="card"><div class="k">値引き申請（佐藤さま）</div><div class="wait" style="margin-top:8px;color:var(--danger);background:var(--danger-bg)">↩ 差戻し — ホーム上部から再申請</div></div>`:''}
+  ${annTeaser()}
+  <div class="note">この画面の報告・申請は、PC版の同じ案件の履歴にそのまま載ります（データは1つ）。</div>`;
+}
+
+function homeKoji(){
+  const gate=state.gateD1;
+  return `<div class="hgreet"><h2>おつかれさまです、山本さん</h2><p>${gate?'佐藤さま宅が着工OKになりました。':'今日はグリーンハイツ。佐藤さま宅は準備中です。'}</p></div>
+
+  <div class="sec">今日の現場</div>
+  ${state.done.d3
+    ? `<button class="card" data-deal="d3">
+        <div class="k"><span class="tagOK">完了報告済み</span>9:00〜 グリーンハイツ</div>
+        <div class="t">貯水槽清掃（年次） — おつかれさまでした</div>
+        <div class="s">管理部の請求処理に進んでいます</div>
+      </button>`
+    : `<button class="card hero" data-deal="d3">
+        <div class="k">9:00 開始 · グリーンハイツ</div>
+        <div class="t">貯水槽清掃（年次） — 断水案内は掲示済み</div>
+        <div class="s">福岡市東区香椎3-1-8</div>
+        <div class="btnrow"><span class="abtn p">${state.entered.d3?'📷 完了を報告する':'📍 入場を報告する'}</span></div>
+      </button>`}
+
+  <div class="sec">次の現場</div>
+  ${gate
+    ? `<button class="card" data-deal="d1">
+        <div class="k"><span class="tagOK">着工OK</span>シロアリ防除</div>
+        <div class="t">佐藤 一郎さま宅</div>
+        <div class="s">承認と資材手配が完了。日程が決まり次第、入場できます</div>
+      </button>`
+    : `<div class="card" style="opacity:.75">
+        <div class="k"><span class="tagP">準備中</span>シロアリ防除</div>
+        <div class="t">佐藤 一郎さま宅</div>
+        <div class="s">承認・資材の準備が終わると、ここが「着工OK」に変わり通知が届きます</div>
+      </div>`}
+  ${annTeaser()}
+  <div class="note">金額・原価はこの役割では表示されません（見え方だけの違い。データは同じ）。</div>`;
+}
+
+function homeBoss(){
+  const q=[];
+  if(state.ringi==='pending') q.push(`<button class="card" data-approve="r1">
+    <div class="k"><span class="tagP">承認待ち</span>値引き申請 · 星本</div>
+    <div class="t">佐藤さま シロアリ防除 −8%</div>
+    <div class="s">380,000 → 349,600円 — タップして内容を確認</div>
+  </button>`);
+  q.push(`<button class="card" data-approve="r2">
+    <div class="k"><span class="tagP">承認待ち</span>着手承認 · 星本</div>
+    <div class="t">サンプル社 高圧洗浄 250,000円</div>
+    <div class="s">標準単価どおり — タップして内容を確認</div>
+  </button>`);
+  return `<div class="hgreet"><h2>おつかれさまです、田中さん</h2><p>移動中でも承認だけはスマホで片付く設計です。</p></div>
+  <div class="sec">あなたの承認待ち <span class="cnt">${q.length}</span></div>
+  ${q.join('')||'<p class="quiet">承認待ちはありません。</p>'}
+  <div class="sec">拠点の今日</div>
+  <button class="card" data-subwip="bi" style="width:100%"><div style="display:flex;text-align:center">
+    <div style="flex:1"><div style="font-size:20px;font-weight:800">6</div><div class="s">訪問予定</div></div>
+    <div style="flex:1;border-left:1px solid var(--line)"><div style="font-size:20px;font-weight:800">2</div><div class="s">成約</div></div>
+    <div style="flex:1;border-left:1px solid var(--line)"><div style="font-size:20px;font-weight:800">81万</div><div class="s">売上（日）</div></div>
+  </div><div class="s" style="margin-top:8px;text-align:center;color:var(--accent);font-weight:600">詳しい数字（BI）›</div></button>
+  ${annTeaser()}
+  <div class="note">一覧・分析・請求などの重い業務はPC版（台帳）で。スマホは「承認と確認」に絞っています。</div>`;
+}
+
+/* ================= 案件 ================= */
+function dealsList(){
+  let ids=state.role==='koji'?['d3','d1']:['d1','d2','d3'];
+  const q=(state.dealQ||'').trim();
+  if(q) ids=ids.filter(id=>{const d=DEALS[id];return (d.cust+d.title+d.addr+d.dom).includes(q);});
+  return `<div class="hgreet"><h2>担当の案件</h2><p>タップで詳細。進みと「いま誰待ちか」が見えます。</p></div>
+  <input class="searchbox" id="dealQ" value="${state.dealQ||''}" placeholder="🔍 顧客名・住所で検索">
+  ${ids.length?ids.map(dealCard).join(''):'<p class="quiet">該当なし。過去の案件は メニュー →「過去の案件をさがす」へ。</p>'}
+  <div class="note">ここに出るのは自分の担当だけ。拠点全体・完了済みの検索はメニューから（PC版は台帳で一覧できます）。</div>`;
+}
+
+function dealDetail(id){
+  const d=DEALS[id];
+  const hideAmt=state.role==='koji';
+  let next='';
+  if(id==='d1'){
+    if(state.role==='sales') next = state.ringi==='ok' ? '承認済み。契約書を準備し、お客さまと日程を確定する'
+      : state.ringi==='back' ? '値引き幅を見直して再申請する（拠点長コメントあり）'
+      : '拠点長の承認待ち。承認されたら契約へ';
+    if(state.role==='koji') next = state.done.d1 ? '完了報告済み。おつかれさまでした'
+      : state.gateD1 ? (state.entered.d1?'作業が終わったら写真つきで完了報告':'現場に着いたら入場を報告')
+      : '準備中。着工OKになると通知が届きます';
+    if(state.role==='boss') next = state.ringi==='pending' ? '値引き申請を承認または差戻し' : '進行中。承認済み';
+  }
+  if(id==='d2') next='見積を確認して今日17:00までに提出する';
+  if(id==='d3') next=state.role==='koji'
+    ? (state.done.d3?'完了報告済み。おつかれさまでした':state.entered.d3?'作業が終わったら写真つきで完了報告':'9:00に現場到着したら入場を報告')
+    : '施工中。完了すると請求準備に進みます';
+
+  const acts=[];
+  if(state.role==='sales') acts.push(`<button class="abtn p" data-sheet="report">✏️ 報告する</button>`);
+  if(state.role==='koji'&&(id==='d3'||(id==='d1'&&state.gateD1))){
+    if(!state.entered[id]) acts.push(`<button class="abtn p" data-enter="${id}">📍 入場を報告</button>`);
+    else if(!state.done[id]) acts.push(`<button class="abtn g" data-sheet="done">📷 完了を報告</button>`);
+  }
+  if(state.role==='boss'&&id==='d1'&&state.ringi==='pending') acts.push(`<button class="abtn p" data-approve="r1">承認画面を開く</button>`);
+
+  return `<div class="dethead">
+    <button class="backbtn" data-back="1">‹ 戻る</button>
+    <div class="k" style="font-size:11px;font-weight:700;color:var(--muted)"><span class="tagDom">${d.dom}</span> ${d.title}</div>
+    <h2>${d.cust}</h2>
+    <div class="sub">${d.addr}${hideAmt?'':' · 契約金額 '+d.amount}</div>
+    <div class="iconrow">
+      <button data-wip="発信: ${d.tel}（実機では電話アプリ起動）"><span class="ic">📞</span>電話</button>
+      <button data-wip="地図アプリで ${d.addr} を開く"><span class="ic">🗺</span>地図</button>
+      <button data-subwip="docs"><span class="ic">📄</span>書類</button>
+    </div>
+  </div>
+  <div class="card">${stepper(effStage(id))}${waitLine(d,id)}</div>
+  <div class="sec">次にやること</div>
+  <div class="card"><div class="t" style="margin-top:0">${next}</div></div>
+  <div class="sec">これまでの動き</div>
+  <div class="card"><ul class="hist">${histOf(id).map(h=>`
+    <li><span class="hd">${h.d}</span><span class="av${h.who==='sys'?' sys':''}">${h.who==='sys'?'⚙':h.who}</span><span class="tx">${h.t}</span></li>`).join('')}
+  </ul></div>
+  <div class="note">履歴はPC版の同じ案件のタイムラインと同一です。管理番号: ${id.toUpperCase()}-2026</div>
+  ${acts.length?`<div class="fixact"><div class="inner"><button class="abtn icon" data-wip="発信: ${d.tel}">📞</button>${acts.join('')}</div></div>`:''}`;
+}
+function histOf(id){
+  const base=[...DEALS[id].hist];
+  if(id==='d1'){
+    if(state.ringi==='ok') base.unshift({d:nowD(),who:'田',t:'<b>値引きを承認しました</b><div class="m">−8%可。お客さま対応を優先してください</div>'});
+    if(state.ringi==='back') base.unshift({d:nowD(),who:'田',t:'<b>差戻しました</b><div class="m">値引き幅の再検討を。−5%なら即決します</div>'});
+    if(state.gateD1) base.unshift({d:nowD(),who:'sys',t:'資材手配が完了し<b>着工OK</b>になりました'});
+    if(state.entered.d1) base.unshift({d:nowD(),who:'山',t:'<b>現場に入場しました</b>'});
+    if(state.done.d1) base.unshift({d:nowD(),who:'山',t:'<b>作業完了を報告</b><div class="m">写真3枚 — 管理部の請求準備に進みます</div>'});
+  }
+  if(id==='d3'){
+    if(state.entered.d3) base.unshift({d:nowD(),who:'山',t:'<b>現場に入場しました</b><div class="m">9:02 グリーンハイツ</div>'});
+    if(state.done.d3) base.unshift({d:nowD(),who:'山',t:'<b>作業完了を報告</b><div class="m">写真3枚 — 管理部の請求準備に進みます</div>'});
+  }
+  if(state._extra&&state._extra[id]) base.unshift(...state._extra[id]);
+  return base;
+}
+
+/* ================= 承認（拠点長） ================= */
+function approveView(rid){
+  const isR1=rid==='r1';
+  return `<div class="dethead">
+    <button class="backbtn" data-back="1">‹ 戻る</button>
+    <div class="k" style="font-size:11px;font-weight:700;color:var(--muted)"><span class="tagP">承認待ち</span>${isR1?'値引き申請':'着手承認'} · 申請者 星本</div>
+    <h2>${isR1?'佐藤 一郎さま — シロアリ防除':'株式会社サンプル — 高圧洗浄'}</h2>
+  </div>
+  <div class="card">
+    <div class="apr-amt">${isR1?'380,000 → 349,600円':'250,000円'}</div>
+    <dl class="apr-meta">
+      <dt>内容</dt><dd>${isR1?'値引き −8%':'標準単価どおり・着手のみ'}</dd>
+      <dt>理由</dt><dd>${isR1?'お客さま予算に合わせるため。保証期限の再アプローチ案件で確度高':'Web問い合わせ・即日見積提示のため'}</dd>
+      <dt>粗利影響</dt><dd>${isR1?'−30,400円（許容範囲内）':'なし'}</dd>
+    </dl>
+  </div>
+  <div class="sec">申請までの経緯</div>
+  <div class="card"><ul class="hist">
+    ${isR1?`<li><span class="hd">9/23</span><span class="av">星</span><span class="tx"><b>値引き申請</b><div class="m">−8%（予算に合わせ）</div></span></li>
+    <li><span class="hd">9/21</span><span class="av">星</span><span class="tx"><b>調査結果を報告</b><div class="m">床下に蟻道・写真4枚</div></span></li>`
+    :`<li><span class="hd">9/22</span><span class="av">星</span><span class="tx"><b>訪問・日程調整</b><div class="m">見積は本日提出予定</div></span></li>`}
+  </ul></div>
+  <div class="fixact"><div class="inner">
+    <button class="abtn d" data-sendback="${rid}">差戻す</button>
+    <button class="abtn g" data-ok="${rid}">✓ 承認する</button>
+  </div></div>`;
+}
+
+/* ================= 通知 ================= */
+function notifView(){
+  const list=state.notifs[state.role];
+  return `<div class="hgreet"><h2>通知</h2><p>あなた宛だけが届きます。タップで該当の仕事へ。</p></div>
+  ${list.length?list.map((n,i)=>`
+    <button class="ncard${n.unread?' unread':''}" data-notif="${i}">
+      <span class="ic">${n.ic}</span>
+      <span style="flex:1"><span class="tt">${n.tt}</span><br><span class="ss">${n.ss}</span></span>
+      <span class="when">${n.when}</span>
+    </button>`).join(''):'<p class="quiet">通知はありません。</p>'}`;
+}
+
+/* ================= メニュー（全機能の入口） ================= */
+function mItem(ic,tt,attr,sub){
+  return `<button class="mrow" ${attr}><span class="ic">${ic}</span><span><span class="tt">${tt}</span>${sub?`<br><span style="font-size:10.5px;color:var(--muted)">${sub}</span>`:''}</span><span class="arr">›</span></button>`;
+}
+function menuView(){
+  return `<div class="hgreet"><h2>メニュー</h2><p>${ROLES[state.role].name}さん（${ROLES[state.role].label}） — どこに何があるかはここが正</p></div>
+  <div class="sec">さがす</div>
+  ${mItem('🔍','顧客をさがす','data-sub="cust"','約12,000件 — 検索が入口')}
+  ${mItem('🗂','過去の案件をさがす','data-subwip="pastdeals"')}
+  <div class="sec">申請する</div>
+  ${mItem('🧾','稟議（値引き・特価・着手）','data-subwip="ringi"')}
+  ${mItem('📦','資材・購買','data-subwip="buy"')}
+  ${mItem('🚗','経費','data-subwip="keihi"')}
+  ${mItem('🧑‍💼','休暇・勤怠（人事）','data-subwip="jinji"')}
+  <div class="sec">仕事の道具</div>
+  ${mItem('🗓','カレンダー・予定','data-subwip="cal"')}
+  ${mItem('🏬','在庫・倉庫','data-subwip="stock"')}
+  ${mItem('🧮','見積を作る','data-subwip="quote"')}
+  ${mItem('📊','拠点の数字（BI）','data-subwip="bi"')}
+  <div class="sec">会社の情報</div>
+  ${mItem('📢','お知らせ・通達','data-sub="ann"',`未読 ${ANNS.length} 件`)}
+  ${mItem('📚','社内ナレッジ（手順書・FAQ）','data-subwip="knowledge"')}
+  ${mItem('⚠️','安全衛生・ヒヤリハット','data-subwip="anzen"')}
+  <div class="sec">ヘルプ・設定</div>
+  ${mItem('📖','このアプリの使い方（3分）','data-sub="help"')}
+  ${mItem('💻','PC版でできること','data-sub="pcinfo"')}
+  ${mItem('⚙️','設定','data-subwip="settings"')}
+  <div class="note">「›」の先が準備中の機能は<b>今後実装予定</b>の画面が開き、できるようになること・提供段階・それまでの代替が見られます（PC版と同じ方針）。</div>`;
+}
+function helpView(){
+  return `<div class="dethead"><button class="backbtn" data-back="1">‹ 戻る</button><h2>使い方（3分）</h2></div>
+  ${[['🏠 ホーム＝今日やること','開いた瞬間に「次の一手」が出ます。迷ったらホームに戻る'],
+     ['✏️ 報告は3タップ','結果を選ぶ→ひとことを選ぶ→送信。文章を書かなくていい（あとから追記も可能）'],
+     ['⏳ 待ちが見える','各案件に「いま誰待ちか」が出ます。あなたの番なら青、待ちなら黄色'],
+     ['🔔 通知＝あなた宛だけ','承認された・着工OK・差戻し。タップでその仕事に飛べます'],
+     ['☰ メニュー＝道具箱','申請・ナレッジ・人事などの入口は全部メニューに。迷ったら ☰'],
+     ['💻 PCと同じデータ','ここでの報告はPC版台帳の同じ案件に載ります。二重入力はありません']]
+    .map(([t,s])=>`<div class="card"><div class="t" style="margin-top:0">${t}</div><div class="s">${s}</div></div>`).join('')}`;
+}
+/* ---- 今後実装予定（WIP）画面 ---- */
+function wipView(key){
+  const w=WIPS[key];
+  return `<div class="dethead"><button class="backbtn" data-back="1">‹ 戻る</button></div>
+  <div class="wiphero"><div class="big">${w.ic}</div><span class="wiptag">🚧 今後実装予定</span><h2>${w.t}</h2></div>
+  <div class="sec">この画面でできるようになること</div>
+  <div class="card"><ul class="wlist">${w.what.map(x=>`<li>${x}</li>`).join('')}</ul></div>
+  <div class="card">
+    <div class="kvrow"><span class="kt">提供段階</span><span>${w.ph}</span></div>
+    <div class="kvrow"><span class="kt">それまでは</span><span>${w.now}</span></div>
+  </div>
+  <div class="note">入口だけ先に固定しています（PC版Hubと同じ方針）。道具箱のどこに何が入るかを先に決めることで、実装後も迷わない構成にします。</div>`;
+}
+/* ---- お知らせ・通達 ---- */
+function annView(){
+  return `<div class="dethead"><button class="backbtn" data-back="1">‹ 戻る</button><h2>お知らせ・通達</h2>
+  <div class="sub">全社・拠点宛。人事・経理・安全衛生の締切もここに届きます。</div></div>
+  ${ANNS.map((a,i)=>`<button class="card" data-ann="${i}" style="width:100%;text-align:left">
+    <div class="ann-from"><span>${a.from}</span><span style="margin-left:auto;font-weight:600">${a.d}</span></div>
+    <div class="t" style="margin:4px 0 0;font-size:13.5px">${a.t}</div>
+    ${state.annOpen===i?`<div class="ann-body">${a.body}</div>`:''}
+  </button>`).join('')}
+  <div class="note">タップで本文を開閉。実装版では未読管理と「自分の拠点宛」フィルタが付きます。</div>`;
+}
+/* ---- 顧客検索（簡易実装） ---- */
+function custView(){
+  const q=(state.custQ||'').trim();
+  const hit=q?CUSTS.filter(c=>(c.name+c.kind+c.info).includes(q)):CUSTS;
+  return `<div class="dethead"><button class="backbtn" data-back="1">‹ 戻る</button><h2>顧客をさがす</h2>
+  <div class="sub">実運用は約12,000件 — 一覧を眺めず、検索で1件に当てます（eSMと同じ入口）</div></div>
+  <input class="searchbox" id="custQ" value="${state.custQ||''}" placeholder="🔍 名前・住所・電話番号">
+  <div id="custList">${
+    hit.length?hit.map(c=>`<button class="card" data-deal="${c.deal}" style="width:100%;text-align:left">
+      <div class="k">${c.kind}${c.warn?' <span class="tagP">保証期限間近</span>':''}</div>
+      <div class="t">${c.name}</div><div class="s">${c.info} — タップで進行中の案件へ</div>
+    </button>`).join('')
+    :`<p class="quiet">該当なし。新規のお客さまは「＋ → 顧客を登録」から仮登録できます（実装予定）。</p>`
+  }</div>
+  <div class="note">モックの詳細データは3件。検索→顧客→案件の動線を確認するためのものです。</div>`;
+}
+/* ---- PC版でできること ---- */
+function pcInfoView(){
+  const rows=[['ホーム「今日やること」','ポータル「自分宛」'],['案件タブ','案件台帳（自分のView）'],['報告・履歴','同じ行のタイムライン（Comment）'],['承認（拠点長）','稟議View'],['通知','Inbox'],['メニューの道具','スペース（アプリカタログ）']];
+  return `<div class="dethead"><button class="backbtn" data-back="1">‹ 戻る</button><h2>PC版でできること</h2>
+  <div class="sub">同じデータを別の窓で見ています。二重入力はありません。</div></div>
+  <div class="card">${rows.map(([a,b])=>`<div class="kvrow"><span class="kt" style="flex-basis:130px">${a}</span><span>⇄ ${b}</span></div>`).join('')}</div>
+  <div class="sec">PC版が得意なこと</div>
+  <div class="card"><ul class="wlist">
+    <li>大量の案件を表・Viewで一覧して捌く（管理部・事務・拠点長）</li>
+    <li>マスタ管理（顧客・物件の本登録、組織・商品）</li>
+    <li>請求発行・締め・分析（BI）</li>
+    <li>構成ページ・使い方マニュアルの全文</li>
+  </ul></div>
+  <div class="note">スマホは「今日やること・報告・承認」に絞り、重い業務はPCへ。役割と場面で窓を使い分けます。</div>`;
+}
+
+/* ================= シート（報告・ランチャー） ================= */
+function openSheet(kind){
+  state.sheet=kind; state.pick={};
+  if(kind==='done') state.sheetDeal=state.deal||'d3';
+  renderSheet();
+  $('ovl').classList.add('show'); $('sheet').classList.add('show');
+}
+function closeSheet(){
+  state.sheet=null;
+  $('ovl').classList.remove('show'); $('sheet').classList.remove('show');
+  setTimeout(()=>{ if(!state.sheet) $('sheet').innerHTML=''; },240);
+}
+function renderSheet(){
+  const sh=$('sheet'); if(!state.sheet) return;
+  let body='',title='';
+  if(state.sheet==='launcher'){
+    title='何をしますか？';
+    const items = state.role==='koji'
+      ? [['📍','入場を報告','現場に着いたらワンタップ','enter'],['📷','写真・完了を報告','作業前後の写真とチェック','done'],['📦','資材を注文','現場からワンタップ発注','wip:buy'],['⚠️','ヒヤリハット報告','安全衛生へ共有','wip:anzen'],['🧑‍💼','休暇・勤怠','打刻・休暇申請','wip:jinji']]
+      : state.role==='boss'
+      ? [['✅','承認する','待ちキューを開く','goboss'],['📊','拠点の数字を見る','売上・成約・訪問','wip:bi'],['✏️','訪問を報告','自分の同行分','report'],['🚗','経費を申請','出張・車両','wip:keihi']]
+      : [['✏️','訪問を報告','結果チップで3タップ','report'],['📷','写真を報告','調査・現場の写真','wip:photo'],['🧾','稟議を申請','値引き・特価・着手','wip:ringi'],['🧮','見積を作る','標準単価から自動計算','wip:quote'],['📦','資材を注文','施工前の手配','wip:buy'],['👤','顧客を登録','その場で仮登録（30秒）','wip:custreg'],['🚗','経費を申請','出張・立替','wip:keihi']];
+    body=items.map(([ic,tt,ss,act])=>`<button class="launch" data-launch="${act}"><span class="ic">${ic}</span><span><div class="tt">${tt}</div><div class="ss">${ss}</div></span></button>`).join('')
+      +`<p class="note" style="margin-top:4px">🚧 マークのない項目は今すぐ使えます。準備中の項目は「今後実装予定」の画面が開きます。</p>`;
+  }
+  if(state.sheet==='report'){
+    title='訪問を報告';
+    const p=state.pick;
+    body=`<div class="slabel">① どの予定？</div>
+      <button class="pick" data-pk="deal:d1" aria-pressed="${p.deal==='d1'}"><span>🕑</span><span><div class="tt">14:00 佐藤さま宅 — 契約前説明</div><div class="ss">シロアリ防除</div></span></button>
+      <button class="pick" data-pk="deal:d2" aria-pressed="${p.deal==='d2'}"><span>🕙</span><span><div class="tt">10:00 サンプル社 — 訪問</div><div class="ss">高圧洗浄（報告済みに追記）</div></span></button>
+      <div class="slabel">② 結果は？</div>
+      <div class="chips">${['説明完了','成約','再訪が必要','不在'].map(c=>`<button class="chip" data-pk="result:${c}" aria-pressed="${p.result===c}">${c}</button>`).join('')}</div>
+      <div class="slabel">③ ひとこと（任意）</div>
+      <div class="chips">${['次回見積提示','写真あり','要フォロー'].map(c=>`<button class="chip" data-pk="memo:${c}" aria-pressed="${p.memo===c}">${c}</button>`).join('')}</div>
+      <textarea placeholder="補足があれば（なくてもOK）" id="repTxt"></textarea>
+      <button class="abtn p" style="margin-top:12px" data-send="report" ${p.deal&&p.result?'':'disabled style="margin-top:12px;opacity:.4"'}>送信する</button>`;
+  }
+  if(state.sheet==='done'){
+    title='完了を報告';
+    const p=state.pick;
+    body=`<div class="slabel">① 写真（作業前・後）</div>
+      <div class="photo-grid">${[0,1,2].map(i=>`<button data-pk="ph:${i}" class="${p['ph'+i]?'has':''}">${p['ph'+i]?'✓':'＋'}</button>`).join('')}</div>
+      <div class="slabel">② チェック</div>
+      <div class="chips">${['清掃・復旧OK','近隣あいさつ済み','追加作業なし'].map(c=>`<button class="chip" data-pk="chk:${c}" aria-pressed="${(p.chk||[]).includes(c)}">${c}</button>`).join('')}</div>
+      <textarea placeholder="申し送りがあれば" id="doneTxt"></textarea>
+      <button class="abtn g" style="margin-top:12px" data-send="done">📷 完了を送信</button>
+      <p class="note">送信すると管理部に「請求できます」の通知が飛びます。金額はこの画面に出ません。</p>`;
+  }
+  sh.innerHTML=`<div class="grab"></div><div class="shead"><h3>${title}</h3><button data-close="1">✕</button></div><div class="sbody">${body}</div>`;
+  wireSheet();
+}
+function wireSheet(){
+  const sh=$('sheet');
+  sh.querySelectorAll('[data-close]').forEach(b=>b.onclick=closeSheet);
+  sh.querySelectorAll('[data-launch]').forEach(b=>b.onclick=()=>{
+    const a=b.dataset.launch;
+    if(a.startsWith('wip:')){closeSheet();state.sub={wip:a.slice(4)};render();return;}
+    if(a==='goboss'){closeSheet();state.sub=null;state.tab='home';render();return;}
+    if(a==='enter'){closeSheet();doEnter(state.deal||'d3');return;}
+    openSheet(a);
+  });
+  sh.querySelectorAll('[data-pk]').forEach(b=>b.onclick=()=>{
+    const [k,v]=b.dataset.pk.split(':');
+    if(k==='chk'){state.pick.chk=state.pick.chk||[];const i=state.pick.chk.indexOf(v);i>=0?state.pick.chk.splice(i,1):state.pick.chk.push(v);}
+    else if(k==='ph'){state.pick['ph'+v]=!state.pick['ph'+v];}
+    else state.pick[k]=state.pick[k]===v?null:v;
+    renderSheet();
+  });
+  sh.querySelectorAll('[data-send]').forEach(b=>b.onclick=()=>{
+    if(b.dataset.send==='report'){
+      const p=state.pick; if(!p.deal||!p.result){toast('予定と結果を選んでください');return;}
+      const tx=($('repTxt')||{}).value||'';
+      state._extra=state._extra||{}; state._extra[p.deal]=state._extra[p.deal]||[];
+      const extra=[p.memo,tx].filter(Boolean).join(' / ');
+      state._extra[p.deal].unshift({d:nowD(),who:'星',t:`<b>訪問を報告 — ${p.result}</b>${extra?`<div class="m">${extra}</div>`:''}`});
+      closeSheet(); toast('✓ 報告しました — PC版の履歴にも載りました');
+      render();
+    }
+    if(b.dataset.send==='done'){
+      const t=state.sheetDeal||'d3';
+      state.done[t]=true;
+      const nm=t==='d1'?'佐藤さま宅（シロアリ防除）':'グリーンハイツ（貯水槽清掃）';
+      pushNotif('sales',{ic:'🛠',tt:`${nm}の施工が完了しました`,ss:'山本さんが完了報告（写真3枚）',go:{deal:t}});
+      pushNotif('boss',{ic:'🧾',tt:'施工完了 — 請求の準備ができます',ss:nm,go:{deal:t}});
+      closeSheet(); state.deal=null; state.tab='home';
+      toast('✓ 完了を報告しました — 管理部へ通知');
+      render();
+    }
+  });
+}
+
+/* ================= ドロワー（ハンバーガー） ================= */
+function dItem(ic,tt,go,mini){
+  return `<button class="d-item" data-dgo="${go}"><span class="ic">${ic}</span>${tt}${mini?`<span class="mini">${mini}</span>`:'<span class="arr">›</span>'}</button>`;
+}
+function openDrawer(){
+  const r=ROLES[state.role];
+  $('drawer').innerHTML=`
+    <div class="d-head"><span class="av">${r.icon}</span><span><div class="nm">${PEOPLE_NAME(r)}</div><div class="rl">${r.label} · 福岡南営業所</div></span><button class="x" data-dgo="close">✕</button></div>
+    <div class="d-body">
+      <div class="d-sec">さがす</div>
+      ${dItem('🔍','顧客をさがす','sub:cust')}
+      ${dItem('🗂','過去の案件をさがす','wip:pastdeals','準備中')}
+      <div class="d-sec">申請する</div>
+      ${dItem('🧾','稟議（値引き・特価・着手）','wip:ringi','準備中')}
+      ${dItem('📦','資材・購買','wip:buy','準備中')}
+      ${dItem('🚗','経費','wip:keihi','準備中')}
+      ${dItem('🧑‍💼','休暇・勤怠（人事）','wip:jinji','準備中')}
+      <div class="d-sec">仕事の道具</div>
+      ${dItem('🗓','カレンダー・予定','wip:cal','準備中')}
+      ${dItem('🏬','在庫・倉庫','wip:stock','準備中')}
+      ${dItem('🧮','見積を作る','wip:quote','準備中')}
+      ${dItem('📊','拠点の数字（BI）','wip:bi','準備中')}
+      <div class="d-sec">会社の情報</div>
+      ${dItem('📢','お知らせ・通達','sub:ann',ANNS.length+'件')}
+      ${dItem('📚','社内ナレッジ','wip:knowledge','準備中')}
+      ${dItem('⚠️','安全衛生・ヒヤリハット','wip:anzen','準備中')}
+      <div class="d-sec">ヘルプ・設定</div>
+      ${dItem('📖','このアプリの使い方','sub:help')}
+      ${dItem('💻','PC版でできること','sub:pcinfo')}
+      ${dItem('⚙️','設定','wip:settings','準備中')}
+    </div>
+    <div class="d-foot">「準備中」は今後実装予定の画面が開きます。<br>入口の場所は先に固定（PC版Hubと同じ方針）。</div>`;
+  $('drawer').querySelectorAll('[data-dgo]').forEach(b=>b.onclick=()=>{
+    const g=b.dataset.dgo;
+    closeDrawer();
+    if(g==='close') return;
+    const [k,v]=g.split(':');
+    state.deal=null; state.approving=null; state.annOpen=-1;
+    if(k==='sub') state.sub=v;
+    if(k==='wip') state.sub={wip:v};
+    if(k==='tab'){ state.sub=null; state.tab=v; }
+    render();
+  });
+  $('dovl').classList.add('show'); $('drawer').classList.add('show');
+}
+function closeDrawer(){
+  $('dovl').classList.remove('show'); $('drawer').classList.remove('show');
+  setTimeout(()=>{ if(!$('drawer').classList.contains('show')) $('drawer').innerHTML=''; },260);
+}
+function PEOPLE_NAME(r){ return r.name+'さん'; }
+
+/* ================= アクション ================= */
+function doEnter(id){
+  state.entered[id||'d3']=true;
+  toast('📍 入場を報告しました（9:02）');
+  render();
+}
+function doApprove(rid){
+  if(rid==='r1'){
+    state.ringi='ok'; state.gateD1=true;
+    pushNotif('sales',{ic:'✅',tt:'田中拠点長が値引きを承認しました',ss:'佐藤さま −8% OK — 契約に進めます',go:{deal:'d1'}});
+    pushNotif('koji',{ic:'🟢',tt:'佐藤さま宅が着工OKになりました',ss:'承認・資材完了 — 日程確定後に入場できます',go:{deal:'d1'}});
+    state.notifs.boss=state.notifs.boss.filter(n=>!n.tt.includes('承認待ち'));
+  }
+  state.approving=null; state.tab='home';
+  toast('✓ 承認しました — 関係者に通知が飛びました');
+  render();
+}
+function doSendback(rid){
+  if(rid==='r1'){
+    state.ringi='back';
+    pushNotif('sales',{ic:'↩️',tt:'値引き申請が差戻されました',ss:'田中拠点長: −5%なら即決します',go:{deal:'d1'}});
+  }
+  state.approving=null; state.tab='home';
+  toast('↩ 差戻しました — 申請者に通知');
+  render();
+}
+
+/* ================= レンダリング ================= */
+function render(){
+  const v=$('view');
+  let html='';
+  if(state.sub){
+    const s=state.sub;
+    html = s.wip?wipView(s.wip) : s==='help'?helpView() : s==='ann'?annView() : s==='cust'?custView() : s==='pcinfo'?pcInfoView() : '';
+  }
+  else if(state.approving) html=approveView(state.approving);
+  else if(state.deal) html=dealDetail(state.deal);
+  else if(state.tab==='home') html=state.role==='sales'?homeSales():state.role==='koji'?homeKoji():homeBoss();
+  else if(state.tab==='deals') html=dealsList();
+  else if(state.tab==='notif') html=notifView();
+  else if(state.tab==='menu') html=menuView();
+  v.innerHTML=html;
+  v.scrollTop=0;
+
+  const n=unread(state.role);
+  $('apphead').innerHTML=`<span class="ah-logo"><span class="sq">SA</span>SAAD</span>
+    <button data-ah="cust" aria-label="顧客をさがす">🔍</button>
+    <button data-ah="notif" aria-label="通知">🔔${n?`<span class="n">${n}</span>`:''}</button>
+    <button data-ah="menu" aria-label="メニュー">☰</button>`;
+  $('apphead').querySelectorAll('[data-ah]').forEach(b=>b.onclick=()=>{
+    const a=b.dataset.ah;
+    if(a==='menu'){ openDrawer(); return; }
+    state.deal=null; state.approving=null; state.annOpen=-1;
+    if(a==='cust'){ state.sub='cust'; }
+    else { state.sub=null; state.tab=a; if(a==='notif') state.notifs[state.role].forEach(x=>x.unread=false); }
+    render();
+  });
+
+  $('tabbar').innerHTML=`
+    <button data-tab="home" ${state.tab==='home'&&!state.deal&&!state.approving&&!state.sub?'aria-current="true"':''}><span class="ic">🏠</span>ホーム</button>
+    <button data-tab="deals" ${state.tab==='deals'&&!state.sub?'aria-current="true"':''}><span class="ic">📁</span>案件</button>
+    <button class="plus" data-plus="1">＋</button>
+    <button data-tab="notif" ${state.tab==='notif'&&!state.sub?'aria-current="true"':''}><span class="ic badge-dot">🔔${n?`<span class="n">${n}</span>`:''}</span>通知</button>
+    <button data-tab="menu" ${state.tab==='menu'&&!state.sub?'aria-current="true"':''}><span class="ic">☰</span>メニュー</button>`;
+  $('tabbar').querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{
+    state.tab=b.dataset.tab; state.deal=null; state.approving=null; state.sub=null; state.annOpen=-1;
+    if(b.dataset.tab==='notif') state.notifs[state.role].forEach(x=>x.unread=false);
+    render();
+  });
+  $('tabbar').querySelector('[data-plus]').onclick=()=>openSheet('launcher');
+
+  wireView();
+  renderRolebar();
+}
+function wireView(){
+  const v=$('view');
+  v.querySelectorAll('[data-deal]').forEach(b=>b.onclick=()=>{state.deal=b.dataset.deal;state.sub=null;render();});
+  v.querySelectorAll('[data-back]').forEach(b=>b.onclick=()=>{state.deal=null;state.approving=null;state.sub=null;state.annOpen=-1;render();});
+  v.querySelectorAll('[data-approve]').forEach(b=>b.onclick=()=>{
+    const rid=b.dataset.approve;
+    if(rid==='r2'){toast('🚧 2件目（着手承認）はデモ簡略化のため確認のみ');return;}
+    state.approving=rid;render();
+  });
+  v.querySelectorAll('[data-ok]').forEach(b=>b.onclick=()=>doApprove(b.dataset.ok));
+  v.querySelectorAll('[data-sendback]').forEach(b=>b.onclick=()=>doSendback(b.dataset.sendback));
+  v.querySelectorAll('[data-sheet]').forEach(b=>b.onclick=e=>{e.stopPropagation();openSheet(b.dataset.sheet);});
+  v.querySelectorAll('[data-enter]').forEach(b=>b.onclick=()=>doEnter(b.dataset.enter));
+  v.querySelectorAll('[data-notif]').forEach(b=>b.onclick=()=>{
+    const nn=state.notifs[state.role][+b.dataset.notif];
+    nn.unread=false;
+    if(nn.go&&nn.go.deal){state.deal=nn.go.deal;state.tab='deals';}
+    else{state.tab='home';}
+    render();
+  });
+  v.querySelectorAll('[data-wip]').forEach(b=>{
+    const h=()=>toast('📱 '+b.dataset.wip);
+    b.tagName==='INPUT'?b.addEventListener('focus',h):b.onclick=h;
+  });
+  v.querySelectorAll('[data-sub]').forEach(b=>b.onclick=()=>{state.sub=b.dataset.sub;render();});
+  v.querySelectorAll('[data-subwip]').forEach(b=>b.onclick=()=>{state.sub={wip:b.dataset.subwip};render();});
+  v.querySelectorAll('[data-ann]').forEach(b=>b.onclick=()=>{
+    const i=+b.dataset.ann;
+    state.annOpen = state.annOpen===i ? -1 : i;
+    render();
+  });
+  const cq=$('custQ'); if(cq) cq.addEventListener('input',e=>{
+    state.custQ=e.target.value;
+    const q=state.custQ.trim();
+    const hit=q?CUSTS.filter(c=>(c.name+c.kind+c.info).includes(q)):CUSTS;
+    $('custList').innerHTML = hit.length?hit.map(c=>`<button class="card" data-deal="${c.deal}" style="width:100%;text-align:left">
+      <div class="k">${c.kind}${c.warn?' <span class="tagP">保証期限間近</span>':''}</div>
+      <div class="t">${c.name}</div><div class="s">${c.info} — タップで進行中の案件へ</div>
+    </button>`).join('')
+    :`<p class="quiet">該当なし。新規のお客さまは「＋ → 顧客を登録」から仮登録できます（実装予定）。</p>`;
+    $('custList').querySelectorAll('[data-deal]').forEach(b=>b.onclick=()=>{state.deal=b.dataset.deal;state.sub=null;render();});
+  });
+  const dq=$('dealQ'); if(dq) dq.addEventListener('input',e=>{
+    state.dealQ=e.target.value; render();
+    const el=$('dealQ'); el.focus(); el.setSelectionRange(el.value.length,el.value.length);
+  });
+}
+function renderRolebar(){
+  $('rolebar').innerHTML=Object.entries(ROLES).map(([k,r])=>
+    `<button data-role="${k}" ${state.role===k?'aria-current="true"':''}>${r.icon} ${r.label}（${r.name}）</button>`).join('');
+  $('rolebar').querySelectorAll('[data-role]').forEach(b=>b.onclick=()=>{
+    state.role=b.dataset.role; state.tab='home'; state.deal=null; state.approving=null; state.sub=null; state.annOpen=-1;
+    closeSheet(); closeDrawer(); render();
+  });
+}
+$('ovl').onclick=closeSheet;
+$('dovl').onclick=closeDrawer;
+render();
+</script>
+</body>
+</html>
