@@ -294,9 +294,10 @@ table.ledger tr.is-gate td{background:#fff9f2}
 table.ledger tr.is-blocked td{opacity:.55}
 table.ledger tr.ctx td{opacity:.5}
 .row-title{display:flex;align-items:center;gap:6px;min-width:240px}
-.chev{width:18px;height:18px;border-radius:4px;border:1px solid var(--line);background:#fff;display:grid;place-items:center;font-size:8px;color:var(--muted);flex:0 0 auto}
+.chev{width:18px;height:18px;border-radius:4px;border:1px solid var(--line);background:#fff;display:grid;place-items:center;font-size:8px;color:var(--muted);flex:0 0 auto;cursor:pointer;padding:0;line-height:1;transition:transform .12s ease,background .12s ease,color .12s ease}
+.chev:hover{border-color:var(--teal);color:var(--teal-deep)}
 .chev[aria-expanded="true"]{transform:rotate(90deg);background:#eef6f6;color:var(--teal-deep)}
-.chev.ghost{opacity:0;pointer-events:none}
+.chev.ghost{opacity:0;pointer-events:none;cursor:default}
 .dot{width:8px;height:8px;border-radius:50%;border:2px solid var(--open);flex:0 0 auto}
 .dot.closed{border-color:var(--done);background:var(--done)}
 .kind{font-family:ui-monospace,Menlo,monospace;font-size:10px;font-weight:700}
@@ -1821,11 +1822,12 @@ function rowsForView(){
   return base;
 }
 
-function ledgerTable(rowObjs, treeMode){
+function ledgerTable(rowObjs, treeMode, opts){
   const hideCost = state.role==='koji';
   const canPick=['leader','jimu','kanri'].includes(state.role);
+  const kidsOf=(opts&&opts.kidsOf)||kids;
   const body=rowObjs.map(({it,ctx})=>{
-    const hasKids=kids(it.id).length>0;
+    const hasKids=kidsOf(it.id).length>0;
     const exp=state.expanded.has(it.id);
     const pr=progressOf(it);
     const money = hideCost && it.amount ? '（非表示）' : (it.amount || it.eta || '—');
@@ -1835,7 +1837,7 @@ function ledgerTable(rowObjs, treeMode){
     return `<tr class="d${it.depth}${state.sel===it.id?' is-selected':''}${it.gate?' is-gate':''}${it.blocked?' is-blocked':''}${ctx?' ctx':''}${state.picked.has(it.id)?' is-picked':''}">
       <td>${pick?`<input type="checkbox" data-pick="${it.id}" ${state.picked.has(it.id)?'checked':''}>`:'—'}</td>
       <td><div class="row-title">
-        <button class="chev${(hasKids&&treeMode)?'':' ghost'}" data-exp="${it.id}" aria-expanded="${exp}">▶</button>
+        <button type="button" class="chev${(hasKids&&treeMode)?'':' ghost'}" data-exp="${it.id}" aria-expanded="${exp}" aria-label="${exp?'折りたたむ':'展開する'}" title="${hasKids&&treeMode?(exp?'折りたたむ':'子を開く'):''}">▶</button>
         <span class="dot${it.open?'':' closed'}"></span>
         <button class="title-btn" data-sel="${it.id}"><span class="kind ${KC[it.kind]}">${KIND[it.kind]}</span> ${it.title}${it.handover?' <span class="pend-badge">引き継ぎ待ち</span>':''} <span class="ref">${it.ref}</span></button>
       </div></td>
@@ -2103,17 +2105,39 @@ function renderRepo(){
     $('goSpaces2').onclick=()=>go('spaces');
     return;
   }
-  const rowObjs=issues.filter(i=>i.repo===rid).map(it=>({it, ctx:false}));
+  const inRepo=i=>i.repo===rid;
+  const kidsInRepo=id=>issues.filter(i=>i.parent===id && inRepo(i));
+  const allInRepo=issues.filter(inRepo);
+  const rowObjs=allInRepo.filter(i=>{
+    let p=i.parent;
+    while(p){
+      const par=byId(p);
+      if(par && inRepo(par) && !state.expanded.has(p)) return false;
+      p=par&&par.parent;
+    }
+    return true;
+  }).map(it=>({it, ctx:false}));
+  const nAll=allInRepo.length, nShow=rowObjs.length;
   $('main').innerHTML=`
     <p class="repo-banner"><b>${r.label}</b>（${r.name}）— ${r.desc}。共有: ${r.share}。同じIssueが案件台帳にも載る。</p>
     <div class="split">
       <div class="list-pane">
-        <div class="filterbar"><span class="ftoken">repo:${r.name} is:all</span><span class="chip">${r.cat} · ${r.pri}</span><span class="count">${rowObjs.length} 件</span></div>
-        ${rowObjs.length?ledgerTable(rowObjs,false):'<div class="pad" style="flex:1"><p class="quiet">このアプリのデモIssueはまだありません。案件台帳の他リポ行を参照。</p></div>'}
+        <div class="filterbar">
+          <span class="ftoken">repo:${r.name} is:all</span>
+          <span class="chip">${r.cat} · ${r.pri}</span>
+          <span class="count">${nShow}${nShow!==nAll?` / ${nAll}`:''} 件</span>
+          <button type="button" class="sp-act" id="repoExpAll" title="工程・作業をすべて開く">すべて開く</button>
+          <button type="button" class="sp-act" id="repoColAll" title="小タスクを折りたたむ">すべて閉じる</button>
+        </div>
+        ${nAll?ledgerTable(rowObjs,true,{kidsOf:kidsInRepo}):'<div class="pad" style="flex:1"><p class="quiet">このアプリのデモIssueはまだありません。案件台帳の他リポ行を参照。</p></div>'}
       </div>
       <aside class="detail" id="detail"></aside>
     </div>`;
-  if(rowObjs.length){ bindLedger($('main'), render); if(state.sel) renderPanel($('detail')); }
+  if(nAll){
+    const ea=$('repoExpAll'); if(ea) ea.onclick=()=>{ allInRepo.forEach(i=>{ if(kidsInRepo(i.id).length) state.expanded.add(i.id); }); render(); };
+    const ca=$('repoColAll'); if(ca) ca.onclick=()=>{ allInRepo.forEach(i=>state.expanded.delete(i.id)); render(); };
+    bindLedger($('main'), render); if(state.sel) renderPanel($('detail'));
+  }
   else if(state.sel){ /* 空リストでもパネルを出す */ renderPanel($('detail')); }
 }
 
