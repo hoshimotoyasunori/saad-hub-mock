@@ -270,8 +270,8 @@ h2.page{margin:0 0 6px;font-size:17px}
 .list-pane{min-height:0;height:100%;display:flex;flex-direction:column;overflow:hidden;background:#fff;min-width:0}
 .list-pane .filterbar{flex:none}
 .split-scrim{
-  display:none;position:absolute;inset:0;z-index:4;border:0;padding:0;cursor:pointer;
-  background:rgba(12,18,34,.06);
+  display:none;position:absolute;inset:0;z-index:4;border:0;padding:0;pointer-events:none;
+  background:rgba(12,18,34,.04);
 }
 .has-panel .split-scrim{display:block;right:var(--det-w, 52%)}
 .split-resizer{display:none!important}
@@ -356,6 +356,7 @@ table.man .who{white-space:nowrap;font-weight:600}
 @media(max-width:720px){
   .has-panel .detail{width:100%!important;max-width:100%;min-width:0;grid-template-columns:1fr;display:flex;flex-direction:column;overflow:auto}
   .has-panel .split-scrim{display:none}
+  .dside{width:auto;max-width:none}
 }
 .det-resize{
   position:absolute;left:0;top:0;bottom:0;width:8px;z-index:6;
