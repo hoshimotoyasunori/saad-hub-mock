@@ -743,6 +743,11 @@ const VIEWS = [
 
 let state = { role:'sales', screen:'portal', view:'all', sel:null, repo:null, wipKey:null, mScreen:'mhome', customer:null, property:null, crmAxis:'customer', crmQ:'', crmPage:0,
   picked:new Set(),
+  sortKey:'upd', sortDir:'desc',
+  scope:'role', /* role | self | branch | all */
+  period:'all', /* all | month | last | custom */
+  savedViews:[],
+  colHide:{},
   expanded:new Set(['841','841-gate','841-p1']) };
 function isMobile(){
   /* スマホUIは saad-mobile-hub.html（ジョブ型）に分離。
@@ -1563,23 +1568,57 @@ function renderSpaces(){
 }
 
 function rowsForView(){
-  const v=VIEWS.find(x=>x.id===state.view);
+  const v=VIEWS.find(x=>x.id===state.view)||VIEWS[0];
+  let base;
   if(v.tree){
-    return issues.filter(i=>{
+    base=issues.filter(i=>{
       if(i.depth===0) return true;
       let p=i.parent; while(p){ if(!state.expanded.has(p)) return false; const par=byId(p); p=par&&par.parent; }
       return true;
     }).map(i=>({it:i, ctx:false}));
+  } else {
+    const hit=issues.filter(v.f);
+    const set=new Map();
+    hit.forEach(i=>{
+      let p=i.parent; const chain=[];
+      while(p){ chain.unshift(p); const par=byId(p); p=par&&par.parent; }
+      chain.forEach(cid=>{ if(!set.has(cid)) set.set(cid,{it:byId(cid), ctx:true}); });
+      set.set(i.id,{it:i, ctx:false});
+    });
+    base=issues.filter(i=>set.has(i.id)).map(i=>set.get(i.id));
   }
-  const hit=issues.filter(v.f);
-  const set=new Map();
-  hit.forEach(i=>{
-    let p=i.parent; const chain=[];
-    while(p){ chain.unshift(p); const par=byId(p); p=par&&par.parent; }
-    chain.forEach(cid=>{ if(!set.has(cid)) set.set(cid,{it:byId(cid), ctx:true}); });
-    set.set(i.id,{it:i, ctx:false});
+  /* スコープ */
+  const sc=state.scope||'role';
+  if(sc==='self') base=base.filter(({it,ctx})=>ctx||it.own===state.role);
+  else if(sc==='branch') base=base.filter(({it,ctx})=>{ if(ctx) return true; const o=orgOf(it); return o.branch==='横浜営業所'||o.branch==='藤沢営業所'||state.role==='kanri'||state.role==='buy'; });
+  /* 期間（モックは更新の新しさで近似） */
+  if(state.period==='month') base=base.filter(({it,ctx})=>ctx||idleDays(it)<=30);
+  if(state.period==='last') base=base.filter(({it,ctx})=>ctx||idleDays(it)<=60);
+  /* 並び替え（ヒット行のみ。ctxは親の直後に維持するためヒットだけソートして再構成は簡略） */
+  const sk=state.sortKey||'upd';
+  const dir=state.sortDir==='asc'?1:-1;
+  const hits=base.filter(r=>!r.ctx);
+  hits.sort((a,b)=>{
+    const ia=a.it, ib=b.it;
+    let cmp=0;
+    if(sk==='idle') cmp=idleDays(ia)-idleDays(ib);
+    else if(sk==='title') cmp=ia.title.localeCompare(ib.title,'ja');
+    else if(sk==='status') cmp=String(ia.status).localeCompare(String(ib.status),'ja');
+    else if(sk==='own') cmp=String(PEOPLE[ia.own]||'').localeCompare(String(PEOPLE[ib.own]||''),'ja');
+    else cmp=idleDays(ia)-idleDays(ib); /* upd近似 */
+    return cmp*dir;
   });
-  return issues.filter(i=>set.has(i.id)).map(i=>set.get(i.id));
+  if(!v.tree){
+    const ordered=[];
+    hits.forEach(h=>{
+      let p=h.it.parent; const chain=[];
+      while(p){ chain.unshift(p); const par=byId(p); p=par&&par.parent; }
+      chain.forEach(cid=>{ if(!ordered.find(x=>x.it.id===cid)) ordered.push({it:byId(cid), ctx:true}); });
+      ordered.push(h);
+    });
+    return ordered;
+  }
+  return base;
 }
 
 function ledgerTable(rowObjs, treeMode){
@@ -1684,17 +1723,47 @@ function renderBoard(){
   const v=VIEWS.find(x=>x.id===state.view)||VIEWS[0];
   const rowObjs=rowsForView();
   const open=gateDone();
-  const tabs=VIEWS.map(x=>`<button type="button" data-v="${x.id}" aria-selected="${state.view===x.id}">${x.label}${x.id==='handover'?` <span class="ref">${issues.filter(i=>i.handover&&i.open).length}</span>`:''}</button>`).join('')+'<button class="newv" type="button" id="newView">+ New view</button>';
+  const saved=state.savedViews||[];
+  const tabs=VIEWS.map(x=>`<button type="button" data-v="${x.id}" aria-selected="${state.view===x.id}">${x.label}${x.id==='handover'?` <span class="ref">${issues.filter(i=>i.handover&&i.open).length}</span>`:''}</button>`).join('')
+    +saved.map((s,i)=>`<button type="button" data-sv="${i}" aria-selected="false">${s.name}</button>`).join('')
+    +'<button class="newv" type="button" id="saveView">Viewを保存</button>';
   const n=rowObjs.filter(r=>!r.ctx).length;
   const canPick=['leader','jimu','kanri'].includes(state.role);
   const canBulk=['leader','kanri'].includes(state.role) && (state.view==='approvals' || state.picked.size);
   const abs=ABSENCE[state.role];
+  const pageSize=50;
+  state.boardPage=state.boardPage||0;
+  const hits=rowObjs.filter(r=>!r.ctx);
+  const pages=Math.max(1, Math.ceil(hits.length/pageSize));
+  if(state.boardPage>=pages) state.boardPage=pages-1;
+  const showIds=new Set(hits.slice(state.boardPage*pageSize, (state.boardPage+1)*pageSize).map(r=>r.it.id));
+  /* ctx親は表示中の子に必要なものだけ残す簡略: ページ内ヒット＋その親 */
+  const pageRows=rowObjs.filter(({it,ctx})=>{
+    if(!ctx) return showIds.has(it.id);
+    /* 親は、このページの子孫がいれば残す */
+    return hits.slice(state.boardPage*pageSize, (state.boardPage+1)*pageSize).some(h=>{
+      let p=h.it.parent; while(p){ if(p===it.id) return true; const x=byId(p); p=x&&x.parent; } return false;
+    });
+  });
   $('main').innerHTML=`
     <div class="views">${tabs}</div>
     <p class="gate-banner ${open?'ok':''}">${open?'sfa#841 施工前ゲート開通 — 施工の Blocked 解除済':'sfa#841 施工前ゲート未完了 — 稟議・購買が Done になるまで施工は Blocked'}</p>
     <div class="split">
       <div class="list-pane">
-        <div class="filterbar"><span class="ftoken">${v.q}</span><span class="chip">${ROLES[state.role].scope}</span><span class="count">${n} 件（薄い行は親コンテキスト）</span>
+        <div class="filterbar">
+          <span class="ftoken">${v.q}</span>
+          <label class="quiet" style="margin:0">スコープ <select id="scScope"><option value="role">役割の既定</option><option value="self" ${state.scope==='self'?'selected':''}>自分</option><option value="branch" ${state.scope==='branch'?'selected':''}>拠点</option><option value="all" ${state.scope==='all'?'selected':''}>全社</option></select></label>
+          <label class="quiet" style="margin:0">期間 <select id="scPeriod"><option value="all">すべて</option><option value="month" ${state.period==='month'?'selected':''}>今月相当</option><option value="last" ${state.period==='last'?'selected':''}>直近</option></select></label>
+          <label class="quiet" style="margin:0">並び <select id="scSort">
+            <option value="upd" ${state.sortKey==='upd'?'selected':''}>更新・放置</option>
+            <option value="idle" ${state.sortKey==='idle'?'selected':''}>放置日数</option>
+            <option value="title" ${state.sortKey==='title'?'selected':''}>タイトル</option>
+            <option value="status" ${state.sortKey==='status'?'selected':''}>Status</option>
+            <option value="own" ${state.sortKey==='own'?'selected':''}>担当</option>
+          </select></label>
+          <button type="button" class="sp-act" id="scDir">${state.sortDir==='asc'?'昇順':'降順'}</button>
+          <span class="chip">${ROLES[state.role].scope}</span>
+          <span class="count">${n} 件中 ${Math.min(pageSize, hits.length-state.boardPage*pageSize)} 件表示（${state.boardPage+1}/${pages}）</span>
           ${canPick?'<span class="quiet" style="margin:0">拠点長・事務・管理部は行を選んで担当替え／一括承認できます</span>':''}
           ${['leader','kanri','buy'].includes(state.role)?`<button type="button" class="sp-act" id="absBtn">${abs?`不在中→${PEOPLE[abs.proxy]}`:'不在設定'}</button>`:''}
           <button type="button" class="sp-act" id="remindBtn">自動催促を実行</button>
@@ -1705,17 +1774,36 @@ function renderBoard(){
           ${canBulk?`<button type="button" class="sp-act pri" id="pickBulk">一括承認</button>`:''}
           <button type="button" class="sp-act" id="pickClear">選択解除</button>
         </div>
-        ${ledgerTable(rowObjs, v.tree)}
+        ${ledgerTable(pageRows, v.tree)}
+        <div class="filterbar" style="justify-content:center;gap:10px">
+          <button type="button" class="bg" id="pgPrev" ${state.boardPage<=0?'disabled':''}>◀ 前へ</button>
+          <button type="button" class="bg" id="pgNext" ${state.boardPage>=pages-1?'disabled':''}>もっと見る ▶</button>
+        </div>
       </div>
       <aside class="detail" id="detail"></aside>
     </div>`;
-  $('main').querySelectorAll('[data-v]').forEach(b=>b.onclick=()=>{ state.view=b.dataset.v; state.sel=null; state.picked.clear(); render(); });
-  const nv=$('newView'); if(nv) nv.onclick=()=>goWip('newview');
+  $('main').querySelectorAll('[data-v]').forEach(b=>b.onclick=()=>{ state.view=b.dataset.v; state.sel=null; state.picked.clear(); state.boardPage=0; render(); });
+  $('main').querySelectorAll('[data-sv]').forEach(b=>b.onclick=()=>{
+    const s=saved[Number(b.dataset.sv)]; if(!s) return;
+    state.view=s.view; state.scope=s.scope; state.period=s.period; state.sortKey=s.sortKey; state.sortDir=s.sortDir; state.boardPage=0; render();
+  });
+  const sv=$('saveView'); if(sv) sv.onclick=()=>{
+    const name=prompt('この絞り込みに名前を付けて保存', `${VIEWS.find(x=>x.id===state.view)?.label||'View'}（自分用）`);
+    if(!name) return;
+    state.savedViews.push({name, view:state.view, scope:state.scope, period:state.period, sortKey:state.sortKey, sortDir:state.sortDir});
+    render();
+  };
+  const sc=$('scScope'); if(sc) sc.onchange=()=>{ state.scope=sc.value; state.boardPage=0; render(); };
+  const sp=$('scPeriod'); if(sp) sp.onchange=()=>{ state.period=sp.value; state.boardPage=0; render(); };
+  const ss=$('scSort'); if(ss) ss.onchange=()=>{ state.sortKey=ss.value; render(); };
+  const sd=$('scDir'); if(sd) sd.onclick=()=>{ state.sortDir=state.sortDir==='asc'?'desc':'asc'; render(); };
   const pa=$('pickAssign'); if(pa) pa.onclick=()=>openAssignModal();
   const pb=$('pickBulk'); if(pb) pb.onclick=()=>bulkApprove();
   const pc=$('pickClear'); if(pc) pc.onclick=()=>{ state.picked.clear(); render(); };
   const ab=$('absBtn'); if(ab) ab.onclick=()=>openAbsenceModal();
   const rb=$('remindBtn'); if(rb) rb.onclick=()=>runAutoRemind();
+  const pp=$('pgPrev'); if(pp) pp.onclick=()=>{ state.boardPage--; render(); };
+  const pn=$('pgNext'); if(pn) pn.onclick=()=>{ state.boardPage++; render(); };
   bindLedger($('main'), render);
   if(state.sel) renderPanel($('detail'));
 }
@@ -2100,11 +2188,13 @@ function renderCustomer(cid){
       ${c.regi==='取消'?'<span class="warn-badge">取り下げ済み</span>':''}
       ${c.regiLog?`<span class="ref">${c.regiLog}</span>`:''}
       ${c.pendingChg?`<span class="pend-badge">変更申請中: ${c.pendingLabel||''}</span>`:''}
+      ${c.disabled?`<span class="warn-badge">無効</span>`:''}
     </div>
     <div class="chg-bar"><span>変更・訂正:</span>
       <button type="button" class="sp-act" id="custEdit">編集</button>
       <button type="button" class="sp-act" id="custChg">変更を申請</button>
       ${['leader','kanri'].includes(state.role)?`<button type="button" class="sp-act" id="custCorr">訂正稟議を起票</button>`:''}
+      ${['jimu','kanri','leader'].includes(state.role)&&!c.disabled?`<button type="button" class="sp-act" id="custDis">無効にする</button>`:''}
       ${chgHistHtml(c)}
     </div>
     <div style="display:grid;grid-template-columns:1fr 1.3fr;gap:14px" class="cust-cols">
@@ -2136,6 +2226,12 @@ function renderCustomer(cid){
     fields:[{k:'name',l:'名義',cur:c.name},{k:'addr',l:'住所',cur:c.addr}],
   });
   const ccorr=$('custCorr'); if(ccorr) ccorr.onclick=()=>openFormModal('ringi',{type:'顧客情報変更',amount:'',reason:`顧客 ${c.name}（${c.id}）の情報変更`}, {from:`顧客 ${c.name}`});
+  const cd=$('custDis'); if(cd) cd.onclick=()=>{
+    const active=issues.some(i=>i.customer===cid && i.open);
+    if(active){ alert('進行中の案件がある顧客は無効化できません'); return; }
+    const reason=prompt('無効化の理由（必須）'); if(!reason) return;
+    c.disabled=true; recordChg(c,'状態','有効','無効','無効化'); mlog(c,`無効化: ${reason}`); render();
+  };
   const cb=$('custBack'); if(cb) cb.onclick=()=>{ c.reqSt='差戻し'; c.backNote='電話番号と住所の番地を確認してください'; inbox.jimu=inbox.jimu.filter(n=>n.cust!==cid); if(c.by) notify(c.by, `顧客の仮登録が差戻されました: ${c.name}`, null, {screen:'myreq'}); render(); };
   const cr=$('custRegi'); if(cr) cr.onclick=()=>{
     c.regi='本'; c.reqSt='完了'; c.regiLog=`9/25 ${meShort()} が本登録`;
@@ -2713,7 +2809,7 @@ function applyCancelDeal(ringi){
 
 function mpill(s){
   const m={'対象':'wait','案内済':'wait','発行待ち':'wait','入金待ち':'wait','登録申請中':'wait','請求前':'block','一部入金':'wait',
-    'アポ済':'prog','発行済':'prog','点検済':'done','送付済':'done','消込済':'done','未実施':'back','期日超過':'back','停止':'back'};
+    'アポ済':'prog','発行済':'prog','点検済':'done','送付済':'done','消込済':'done','未実施':'back','期日超過':'back','停止':'back','赤伝':'back','無効':'block'};
   return `<span class="pill ${m[s]||''}">${s}</span>`;
 }
 function insertIssue(o){
@@ -2898,7 +2994,12 @@ const MGMT={
     q:r=>r.no+r.cust+r.prop+r.product+r.branch+r.status+r.domain,
     acts:r=>{
       if(r.status==='発行待ち') return [{l:'保証書を発行', c:'bp', f:()=>{ SEQ.w=(SEQ.w||300)+1; r.no=`W-${r.domain}-2026-${String(SEQ.w).padStart(4,'0')}`; r.status='発行済'; mlog(r,`保証書 ${r.no} を発行`); }}];
-      if(r.status==='発行済') return [{l:'送付済にする', f:()=>{ r.status='送付済'; mlog(r,'顧客へ送付'); }}];
+      if(r.status==='発行済') return [{l:'送付済にする', f:()=>{ r.status='送付済'; mlog(r,'顧客へ送付'); r.sentAt=nowHM(); r.sentHow='郵送'; }}];
+      if(r.status==='送付済') return [
+        {l:'再発行', f:()=>{ const reason=prompt('再発行の理由'); if(!reason) return; SEQ.w=(SEQ.w||300)+1; const old=r.no; r.no=`W-${r.domain}-2026-${String(SEQ.w).padStart(4,'0')}`; r.status='発行済'; mlog(r,`再発行 ${old}→${r.no}: ${reason}`); }},
+        {l:'無効にする', f:()=>{ const reason=prompt('無効化の理由'); if(!reason) return; r.status='無効'; mlog(r,`無効化: ${reason}`); }},
+      ];
+      if(r.status==='無効') return [];
       if(r.until<='2026-12' && !r.lead) return [{l:'再アプローチを起票', f:()=>{ const it=newLeadFrom(r, `保証更新の再アプローチ（${r.cust}）`, `保証期限 ${r.until}`); r.lead=it.id; mlog(r,`リード ${it.ref} を起票`); }}];
       if(r.lead) return [{l:'リードを開く', f:()=>{ openIssue(r.lead); return 'nav'; }}];
       return [];
@@ -2927,13 +3028,22 @@ const MGMT={
     acts:r=>{
       const s=pst(r);
       if(s==='請求前') return [{l:'請求Viewで確認', f:()=>{ state.view='billingv'; go('board'); return 'nav'; }}];
-      if(s==='消込済') return [];
+      if(s==='消込済') return [{l:'消込を解除', f:()=>{
+        const reason=prompt('消込解除の理由（必須）'); if(!reason) return;
+        rememberPrev(r); r.status='入金待ち'; r.paid=''; mlog(r,`消込解除: ${reason}`);
+        recordChg(r,'状態','消込済','入金待ち','消込解除');
+      }}];
       const a=[{l:r.method==='口座振替'?'振替結果を反映（消込）':'入金を消込', c:'bp', f:()=>{
-        r.status='消込済'; r.paid='9/25'; mlog(r,`入金確認・消込 ${yen(r.amount)}`);
+        rememberPrev(r); r.status='消込済'; r.paid='9/25'; mlog(r,`入金確認・消込 ${yen(r.amount)}`);
         if(r.dyn){ addEvent(byId('841-bill1'), ev('sys', meShort(), `入金確認・消込 — ${yen(r.amount)}`)); notify('sales','billing#77 入金を確認しました（消込済）','841-bill1'); }
       }}];
       if(r.method==='ローン' && !r.loanRep) a.push({l:'ローン会社へ完工報告', f:()=>{ r.loanRep=true; mlog(r,'ローン会社へ完工報告'); }});
       if(s==='期日超過') a.push({l:'督促を記録', f:()=>{ mlog(r,'電話で督促。10/10 入金予定と回答'); }});
+      if(s==='入金待ち' || s==='期日超過') a.push({l:'赤伝（取消請求）', f:()=>{
+        const reason=prompt('赤伝の理由（必須）'); if(!reason) return;
+        r.status='赤伝'; r.red=true; mlog(r,`赤伝発行: ${reason}`);
+        notify('kanri', `赤伝: ${r.bill} ${yen(r.amount)}`, null, {screen:'mgmt', mgmt:'payment'});
+      }});
       return a;
     },
     foot:all=>{
