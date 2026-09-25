@@ -486,6 +486,37 @@ tr.is-picked{background:#f0faf9}
 <script>
 /* ================= data ================= */
 const PEOPLE = { sales:'星本', leader:'田中（拠点長）', kanri:'佐藤（管理部）', buy:'鈴木（購買）', koji:'山本（施工L）', jimu:'高橋（事務）' };
+/* 不在・代理（チェック6）: 期間中は承認キューが代理者へ流れる */
+const ABSENCE = {}; /* role -> {proxy, until, note} */
+function applicantOf(it){ return (it && (it.applicant||it.by)) || null; }
+function effectiveApprover(role){
+  const a=ABSENCE[role]; return (a && a.proxy) ? a.proxy : role;
+}
+function canApprove(it){
+  if(!it || it.status!=='承認待ち' || it.kind!=='ringi') return false;
+  const r=state.role;
+  const ap=applicantOf(it);
+  if(ap===r) return false; /* 自己承認禁止 */
+  if(it.own===r) return true;
+  /* 名義上の承認者が不在で、自分がその代理 */
+  const nom=it.nominalApprover||it.approver;
+  if(nom && ABSENCE[nom] && ABSENCE[nom].proxy===r) return true;
+  return false;
+}
+function canBulkApprove(it){
+  if(!canApprove(it)) return false;
+  const type=(it.body&&it.body['種類'])||it.title||'';
+  if(it.cancelRoot || /解約|クレーム/.test(type)) return false;
+  const amt=Number(String(it.amount||'').replace(/[^\d]/g,''))||0;
+  if(amt>=1000000) return false;
+  return true;
+}
+function applicantOpts(){
+  /* 事務は同拠点の営業の代理で起票できる。拠点長・管理部も可 */
+  if(state.role==='jimu') return [['sales','星本（営業）'],['leader','田中（拠点長）']];
+  if(state.role==='leader') return [['leader','自分（田中）'],['sales','星本（営業）']];
+  return Object.entries(PEOPLE).filter(([k])=>['sales','leader','jimu','kanri'].includes(k)).map(([k,v])=>[k, k===state.role?`自分（${v}）`:v]);
+}
 const ROLES = {
   sales:{label:'一般営業', short:'営', view:'mine', scope:'scope:self（自分の案件）', hint:'<strong>営業（PC台帳）</strong> — 自分の案件を表で確認。現場の報告・訪問は画面下の「スマホ」切替（または幅820px未満）のジョブ型UIを使います。承認結果は Inbox に届きます。'},
   leader:{label:'拠点長', short:'長', view:'approvals', scope:'scope:branch（横浜営業所）', hint:'<strong>拠点長</strong> — 既定Viewは稟議キュー。パネルで承認すると Status=Done になり、起票者へ通知が飛び、ゲート進捗が動く。'},
@@ -742,13 +773,66 @@ function waitingOf(it){
   if(it.status==='取り下げ') return {t:'取り下げ済み（履歴として残る）', cls:'done'};
   if(it.status==='見送り') return {t:'見送り（履歴として残る）', cls:'done'};
   if(!it.open) return {t:'Close済（完了・履歴）', cls:'done'};
-  if(it.kind==='gate' && it.status!=='Done'){ const k=kids(it.id); return {t:`稟議・購買の完了待ち（残り ${k.filter(x=>x.status!=='Done').length}件）`, cls:''}; }
-  if(it.status==='Done') return {t:'この行は完了。親の残り待ち', cls:'done'};
-  if(it.status==='承認待ち') return {t:`${PEOPLE[it.own]} の承認待ち`, cls:''};
-  if(it.status==='差戻し') return {t:`${PEOPLE.sales} の再申請待ち`, cls:'back'};
-  if(it.status==='Blocked') return {t:'ゲート開通待ち（稟議・購買の完了）', cls:''};
-  if(it.status==='In Progress') return {t:`${PEOPLE[it.own]} が対応中`, cls:'prog'};
-  return {t:`${PEOPLE[it.own]} の着手待ち`, cls:''};
+  if(it.status==='Done') return {t:'完了（Status=Done）', cls:'done'};
+  if(it.kind==='gate' && it.status!=='Done'){ const k=kids(it.id); return {t:`稟議・購買の完了待ち（残り ${k.filter(x=>x.status!=='Done'&&x.status!=='取り下げ').length}件）`, cls:''}; }
+  if(it.status==='差戻し') return {t:`差戻し — ${PEOPLE[it.by||'sales']} の再申請待ち${idleBadge(it)}`, cls:'back'};
+  if(it.status==='承認待ち') return {t:`${PEOPLE[it.own]} の承認待ち${idleBadge(it)}`, cls:'wait'};
+  if(it.status==='Blocked') return {t:'ゲート未開通', cls:'block'};
+  if(it.status==='Todo' && it.kind==='buy') return {t:`${PEOPLE[it.own]} の手配待ち${idleBadge(it)}`, cls:'wait'};
+  if(it.status==='Todo') return {t:`${PEOPLE[it.own]} の着手待ち`, cls:'wait'};
+  if(it.status==='In Progress') return {t:`${PEOPLE[it.own]} が進行中`, cls:'prog'};
+  return {t:it.status, cls:''};
+}
+/* 放置日数・自動催促（チェック5）: モックでは起票からの仮想日数 */
+const REMIND={
+  ringi:{idle:3, esc:5, escTo:it=>(it.nominalApprover||it.own)==='leader'?'kanri':'leader'},
+  buy:{idle:2, esc:4, escTo:()=>'kanri'},
+  back:{idle:5, esc:7, escTo:()=>'leader'},
+};
+function idleDays(it){
+  if(it.idle!=null) return it.idle;
+  /* デモ用の既定: 稟議の一部を放置扱いに */
+  if(it.id==='841-r3') return 6;
+  if(it.id==='841-r1') return 4;
+  if(it.id==='841-b1') return 3;
+  if(it.status==='差戻し') return 5;
+  return 1;
+}
+function idleBadge(it){
+  const d=idleDays(it);
+  if(d>=5) return ` <span class="warn-badge">放置 ${d}日・エスカレ対象</span>`;
+  if(d>=3) return ` <span class="warn-badge">放置 ${d}日</span>`;
+  return d>1?`（${d}日）`:'';
+}
+function runAutoRemind(){
+  let n=0, e=0;
+  issues.filter(i=>i.open && ['承認待ち','Todo','差戻し'].includes(i.status)).forEach(it=>{
+    const d=idleDays(it);
+    const kind=it.status==='差戻し'?'back':it.kind==='buy'?'buy':it.kind==='ringi'?'ringi':null;
+    if(!kind) return;
+    const rule=REMIND[kind];
+    if(d>=rule.idle && d<rule.esc && !it.reminded){
+      it.reminded=true;
+      const to=it.status==='差戻し'?(it.by||'sales'):it.own;
+      notify(to, `自動リマインド（${d}日）: ${it.title}（${it.ref}）`, it.id);
+      addEvent(it, ev('sys','system',`自動リマインド — 放置 ${d}日`));
+      n++;
+    }
+    if(d>=rule.esc && !it.escalated){
+      it.escalated=true;
+      const up=rule.escTo(it);
+      notify(up, `エスカレ（${d}日）: ${it.title}（${it.ref}）— ${PEOPLE[it.own]} が未処理`, it.id);
+      addEvent(it, ev('sys','system',`エスカレ — ${PEOPLE[up]} へ（放置 ${d}日）`));
+      e++;
+    }
+  });
+  /* 下書き放置 */
+  (typeof DRAFTS!=='undefined'?DRAFTS:[]).forEach(d=>{
+    if(!d.age) d.age=10;
+    if(d.age>=7 && !d.oldMark){ d.oldMark=true; d.title=(d.title||'')+(d.title&&d.title.includes('古い')?'':'（古い下書き）'); n++; }
+  });
+  notify(state.role, `自動催促を実行: リマインド ${n} 件 / エスカレ ${e} 件`);
+  render();
 }
 function notify(to, text, ref, extra){ inbox[to].unshift(Object.assign({text, ref}, extra||{})); }
 function addEvent(it, e){ it.tl.push(e); }
@@ -791,10 +875,14 @@ function act(kindA, id){
   }
   const gateBefore=gateDone(); const kojiBefore=kojiDone();
   if(kindA==='approve'){
+    if(!canApprove(it)){ notify(state.role, 'この稟議は承認できません（自己承認禁止、または権限外）'); render(); return; }
+    const wasProxy=it.own!==state.role || (it.nominalApprover && it.nominalApprover!==state.role);
     rememberPrev(it); it.status='Done';
-    addEvent(it, ev('sys', me, `${me} が承認 — Status: 承認待ち → Done（Issueは Open のまま）`));
-    recordChg(it, '状態', '承認待ち', 'Done', '承認');
-    notify('sales', `${it.ref}（${it.title}）が承認されました`, it.id);
+    addEvent(it, ev('sys', me, `${me} が${wasProxy?'代理で':''}承認 — Status: 承認待ち → Done${wasProxy?`（名義: ${PEOPLE[it.nominalApprover||it.approver]}）`:''}（Issueは Open のまま）`));
+    recordChg(it, '状態', '承認待ち', 'Done', wasProxy?'代理承認':'承認');
+    const ap=applicantOf(it)||'sales';
+    notify(ap, `${it.ref}（${it.title}）が承認されました${wasProxy?'（代理承認）':''}`, it.id);
+    if(it.by && it.by!==ap) notify(it.by, `${it.ref} が承認されました（代理起票の結果）`, it.id);
     if(it.cancelRoot) applyCancelDeal(it);
   }
   if(kindA==='reject'){
@@ -849,9 +937,12 @@ function act(kindA, id){
 
 function actionsFor(it){
   const r=state.role;
-  if(it.kind==='ringi' && it.status==='承認待ち' && it.own===r) return [['approve','承認して Status=Done','bp'],['reject','差戻し','bd']];
-  if(['ringi','buy'].includes(it.kind) && it.status==='差戻し' && it.by===r) return [['resubmitEdit','修正して再申請','bp'],['withdraw','取り下げ','bg']];
-  if(['ringi','buy'].includes(it.kind) && ['承認待ち','Todo'].includes(it.status) && it.by===r && it.own!==r) return [['nudge','催促する','bg'],['withdraw','取り下げ','bg']];
+  if(it.kind==='ringi' && it.status==='承認待ち' && canApprove(it)){
+    const proxy=it.own!==r || (it.nominalApprover && it.nominalApprover!==r);
+    return [['approve', proxy?'代理で承認して Status=Done':'承認して Status=Done','bp'],['reject','差戻し','bd']];
+  }
+  if(['ringi','buy'].includes(it.kind) && it.status==='差戻し' && (it.by===r || it.applicant===r)) return [['resubmitEdit','修正して再申請','bp'],['withdraw','取り下げ','bg']];
+  if(['ringi','buy'].includes(it.kind) && ['承認待ち','Todo'].includes(it.status) && (it.by===r || it.applicant===r) && it.own!==r) return [['nudge','催促する','bg'],['withdraw','取り下げ','bg']];
   if(it.kind==='buy' && r==='buy' && !['Done','差戻し','取り下げ'].includes(it.status)) return [['buyProg','手配中','bg'],['buyDone','発注済にする','bp']].concat(it.status==='Todo'&&it.by&&it.by!=='buy'?[['buyBack','差戻し（在庫で対応）','bd']]:[]);
   if(it.kind==='lead' && it.open && it.own===r) return [['promote','案件に昇格','bp'],['dropLead','見送り','bg']];
   if(it.repo==='koji' && it.kind==='task' && r==='koji' && it.status==='Todo') return [['taskDone','完了にする','bp']];
@@ -865,7 +956,8 @@ function setRole(id){
   state.role=id; state.view=ROLES[id].view; state.sel=null; state.mScreen='mhome';
   [...$('roles').children].forEach(el=>el.setAttribute('aria-pressed', el.dataset.role===id?'true':'false'));
   $('avatar').textContent=ROLES[id].short;
-  $('hint').innerHTML=ROLES[id].hint + ' いまの担当: <strong>' + PEOPLE[id] + '</strong>';
+  $('hint').innerHTML=ROLES[id].hint + ' いまの担当: <strong>' + PEOPLE[id] + '</strong>'
+    + (ABSENCE[id]?` <span class="pend-badge">不在中 → 代理 ${PEOPLE[ABSENCE[id].proxy]}（〜${ABSENCE[id].until}）</span>`:'');
   render();
 }
 function go(screen, opts={}){
@@ -1511,13 +1603,14 @@ function ledgerTable(rowObjs, treeMode){
       <td class="orgcell${isRoot?'':' sub'}">${org}</td>
       <td>${pill(it.status)}</td>
       <td>${PEOPLE[it.own]||'—'}</td>
+      <td class="ref">${['承認待ち','Todo','差戻し'].includes(it.status)?idleDays(it)+'日':'—'}</td>
       <td><button type="button" class="linkbtn" data-repo="${it.repo}">${it.repo}</button></td>
       <td>${pr?`${pr[0]}/${pr[1]}`:'—'}</td>
       <td>${money}</td>
     </tr>`;
   }).join('');
   return `<div class="table-wrap"><table class="ledger"><thead><tr>
-    <th style="width:36px"></th><th style="width:32%">Title</th><th>部門/拠点</th><th>Status</th><th>Assignees</th><th>Repository</th><th>Sub</th><th>金額/納期</th>
+    <th style="width:36px"></th><th style="width:30%">Title</th><th>部門/拠点</th><th>Status</th><th>Assignees</th><th>放置</th><th>Repository</th><th>Sub</th><th>金額/納期</th>
   </tr></thead><tbody>${body}</tbody></table>
   <button type="button" class="add-row-btn" id="addItem">＋ add an item — 新しい仕事＝表に行を足す（稟議・購買はゲートの子として）</button></div>`;
 }
@@ -1594,16 +1687,22 @@ function renderBoard(){
   const tabs=VIEWS.map(x=>`<button type="button" data-v="${x.id}" aria-selected="${state.view===x.id}">${x.label}${x.id==='handover'?` <span class="ref">${issues.filter(i=>i.handover&&i.open).length}</span>`:''}</button>`).join('')+'<button class="newv" type="button" id="newView">+ New view</button>';
   const n=rowObjs.filter(r=>!r.ctx).length;
   const canPick=['leader','jimu','kanri'].includes(state.role);
+  const canBulk=['leader','kanri'].includes(state.role) && (state.view==='approvals' || state.picked.size);
+  const abs=ABSENCE[state.role];
   $('main').innerHTML=`
     <div class="views">${tabs}</div>
     <p class="gate-banner ${open?'ok':''}">${open?'sfa#841 施工前ゲート開通 — 施工の Blocked 解除済':'sfa#841 施工前ゲート未完了 — 稟議・購買が Done になるまで施工は Blocked'}</p>
     <div class="split">
       <div class="list-pane">
         <div class="filterbar"><span class="ftoken">${v.q}</span><span class="chip">${ROLES[state.role].scope}</span><span class="count">${n} 件（薄い行は親コンテキスト）</span>
-          ${canPick?'<span class="quiet" style="margin:0">拠点長・事務・管理部は行を選んで担当替えできます</span>':''}</div>
+          ${canPick?'<span class="quiet" style="margin:0">拠点長・事務・管理部は行を選んで担当替え／一括承認できます</span>':''}
+          ${['leader','kanri','buy'].includes(state.role)?`<button type="button" class="sp-act" id="absBtn">${abs?`不在中→${PEOPLE[abs.proxy]}`:'不在設定'}</button>`:''}
+          <button type="button" class="sp-act" id="remindBtn">自動催促を実行</button>
+        </div>
         <div class="chg-bar" id="pickBar" style="display:${state.picked.size?'flex':'none'};margin:0;border-radius:0;border-left:0;border-right:0">
           <span><b id="pickCount">${state.picked.size}</b> 件選択</span>
           <button type="button" class="sp-act pri" id="pickAssign">担当を変える</button>
+          ${canBulk?`<button type="button" class="sp-act pri" id="pickBulk">一括承認</button>`:''}
           <button type="button" class="sp-act" id="pickClear">選択解除</button>
         </div>
         ${ledgerTable(rowObjs, v.tree)}
@@ -1613,9 +1712,73 @@ function renderBoard(){
   $('main').querySelectorAll('[data-v]').forEach(b=>b.onclick=()=>{ state.view=b.dataset.v; state.sel=null; state.picked.clear(); render(); });
   const nv=$('newView'); if(nv) nv.onclick=()=>goWip('newview');
   const pa=$('pickAssign'); if(pa) pa.onclick=()=>openAssignModal();
+  const pb=$('pickBulk'); if(pb) pb.onclick=()=>bulkApprove();
   const pc=$('pickClear'); if(pc) pc.onclick=()=>{ state.picked.clear(); render(); };
+  const ab=$('absBtn'); if(ab) ab.onclick=()=>openAbsenceModal();
+  const rb=$('remindBtn'); if(rb) rb.onclick=()=>runAutoRemind();
   bindLedger($('main'), render);
   if(state.sel) renderPanel($('detail'));
+}
+function bulkApprove(){
+  const list=[...state.picked].map(id=>byId(id)).filter(canBulkApprove);
+  const skip=[...state.picked].map(id=>byId(id)).filter(i=>i && i.kind==='ringi' && i.status==='承認待ち' && !canBulkApprove(i));
+  if(!list.length){
+    openSimpleModal('一括承認', `<p class="quiet">一括できる稟議がありません。100万円以上・クレーム・解約、および自己申請は一括不可です。</p>
+      <div class="actions"><button class="bg" type="button" data-mclose2>閉じる</button></div>`,
+      (box, close)=>{ box.querySelector('[data-mclose2]').onclick=close; });
+    return;
+  }
+  openSimpleModal('一括承認', `
+    <p class="quiet"><b>${list.length}</b> 件を承認します。${skip.length?`<span class="warn-badge">${skip.length} 件は一括不可（高額・クレーム・解約・権限外）でスキップ</span>`:''}</p>
+    <ul style="font-size:12px;margin:8px 0;padding-left:18px">${list.map(i=>`<li>${i.ref} ${i.title}</li>`).join('')}</ul>
+    <div class="actions"><button class="bp" type="button" data-ok>まとめて承認</button><button class="bg" type="button" data-cx>キャンセル</button></div>`,
+  (box, close)=>{
+    box.querySelector('[data-cx]').onclick=close;
+    box.querySelector('[data-ok]').onclick=()=>{
+      const ids=list.map(i=>i.id);
+      state.picked.clear();
+      closeModal();
+      ids.forEach(id=>act('approve', id));
+    };
+  });
+}
+function openAbsenceModal(){
+  const cur=ABSENCE[state.role];
+  const opts=Object.entries(PEOPLE).filter(([k])=>k!==state.role && ['leader','kanri','buy','jimu','sales'].includes(k)).map(([k,v])=>`<option value="${k}"${cur&&cur.proxy===k?' selected':''}>${v}</option>`).join('');
+  openSimpleModal('不在設定（代理承認）', `
+    <p class="quiet">不在にすると、あなた宛の承認キューが代理者のInboxに流れます。履歴に「代理」印が付きます。同格以上を選んでください。</p>
+    <form class="form-grid" onsubmit="return false">
+      <div class="full"><label>代理者</label><select name="proxy">${opts}</select></div>
+      <div><label>終了日</label><input name="until" value="${cur?cur.until:'9/30'}"></div>
+      <div class="full"><label>メモ</label><input name="note" value="${cur?cur.note||'':''}" placeholder="出張・休暇など"></div>
+    </form>
+    <div class="actions" style="margin-top:12px">
+      <button class="bp" type="button" data-ok>不在にする</button>
+      ${cur?'<button class="bd" type="button" data-clr>不在を解除</button>':''}
+      <button class="bg" type="button" data-cx>閉じる</button>
+    </div>`,
+  (box, close)=>{
+    box.querySelector('[data-cx]').onclick=close;
+    const clr=box.querySelector('[data-clr]'); if(clr) clr.onclick=()=>{ delete ABSENCE[state.role];
+      /* 名義が自分の承認待ちを自分に戻す */
+      issues.filter(i=>i.kind==='ringi' && i.status==='承認待ち' && i.nominalApprover===state.role).forEach(i=>{ i.own=state.role; i.approver=state.role; });
+      notify(state.role, '不在を解除しました'); closeModal(); render(); };
+    box.querySelector('[data-ok]').onclick=()=>{
+      const proxy=box.querySelector('[name=proxy]').value;
+      const until=box.querySelector('[name=until]').value.trim()||'9/30';
+      const note=box.querySelector('[name=note]').value.trim();
+      ABSENCE[state.role]={proxy, until, note};
+      /* いま自分宛の承認待ちを代理へ流す */
+      issues.filter(i=>i.kind==='ringi' && i.status==='承認待ち' && (i.own===state.role || i.nominalApprover===state.role)).forEach(i=>{
+        i.nominalApprover=i.nominalApprover||state.role;
+        i.own=proxy; i.approver=proxy;
+        addEvent(i, ev('sys','system',`${PEOPLE[state.role]} 不在のため代理: ${PEOPLE[proxy]} へ`));
+        notify(proxy, `代理承認キュー: ${i.title}（${i.ref}）`, i.id);
+      });
+      notify(proxy, `${PEOPLE[state.role]} が不在設定（〜${until}）。承認キューがあなたに流れます`);
+      closeModal(); render();
+    };
+  });
 }
 
 function renderRepo(){
@@ -3041,13 +3204,22 @@ function ringiRoute(type, amount, disc){
   if(disc>12 || amount>=1000000 || ['売上訂正','解約','顧客情報変更'].includes(type)) return 'kanri';
   return 'leader';
 }
-function addRingi(dealId, type, amount, reason, disc=0){
-  const id=nextId(), own=ringiRoute(type, amount, disc);
-  insertIssue({id, ref:nextRef('ringi'), repo:'ringi', kind:'ringi', parent:dealId, title:`${type}の稟議`, status:'承認待ち', open:true, own, by:state.role, approver:own,
+function addRingi(dealId, type, amount, reason, disc=0, applicant){
+  const id=nextId();
+  const ap=applicant||state.role;
+  let nominal=ringiRoute(type, amount, disc);
+  /* 自己承認禁止: 拠点長自身の申請は管理部へ */
+  if(ap===nominal && nominal==='leader') nominal='kanri';
+  if(ap===nominal && nominal==='kanri'){ /* 管理部自身は拠点長に一次（モックではleaderへ） */ nominal='leader'; }
+  const own=effectiveApprover(nominal);
+  const proxyNote=own!==nominal?`（${PEOPLE[nominal]} 不在のため代理: ${PEOPLE[own]}）`:'';
+  const byNote=ap!==state.role?`起票: ${meShort()}（申請者: ${PEOPLE[ap]}）`:`起票: ${meShort()}`;
+  insertIssue({id, ref:nextRef('ringi'), repo:'ringi', kind:'ringi', parent:dealId, title:`${type}の稟議`, status:'承認待ち', open:true, own, by:state.role, applicant:ap, approver:own, nominalApprover:nominal,
     amount:amount?yen(amount):undefined,
-    body:{'案件':`${byId(dealId).ref} ${byId(dealId).title}`,'種類':type,'金額':amount?yen(amount):'—','用途':'決裁の識別。判断理由はタイムラインへ。'},
-    tl:[ev('cm', meShort(), '# 起票', reason||'（理由未記入）'), ev('sys','system',`${PEOPLE[own]} のキューへ（種類と金額で自動判定）`)]});
-  notify(own, `承認依頼: ${type}の稟議（${byId(dealId).ref}）`, id);
+    body:{'案件':`${byId(dealId).ref} ${byId(dealId).title}`,'種類':type,'金額':amount?yen(amount):'—','申請者':PEOPLE[ap],'起票者':meShort(),'用途':'決裁の識別。判断理由はタイムラインへ。'},
+    tl:[ev('cm', meShort(), '# 起票', `${reason||'（理由未記入）'}${ap!==state.role?`\n（代理起票: 申請者 ${PEOPLE[ap]}）`:''}`), ev('sys','system',`${PEOPLE[own]} のキューへ${proxyNote}（種類と金額で自動判定）・${byNote}`)]});
+  notify(own, `承認依頼: ${type}の稟議（${byId(dealId).ref}）${proxyNote}`, id);
+  if(ap!==state.role) notify(ap, `代理で起票されました: ${type}の稟議（${byId(dealId).ref}）`, id);
   return byId(id);
 }
 const FORMS={
@@ -3160,29 +3332,37 @@ const FORMS={
     why:'例外・金額の判断を承認者が行い、理由と結果を残す', stop:'書式ごとの紙・Excelと、承認後の転記', who:'起票=事業部／承認=拠点長・管理部',
     fields:[
       {k:'deal', l:'案件', t:'select', opts:dealOpts, full:true},
+      {k:'applicant', l:'申請者（誰の申請か）', t:'select', opts:applicantOpts, full:true},
       {k:'type', l:'種類', t:'select', opts:()=>['値引','施工着手','高額資材','売上訂正','解約','顧客情報変更','クレーム・トラブル','販売先紹介'].map(x=>[x,x])},
       {k:'amount', l:'金額（円）', t:'number', def:'0'},
       {k:'reason', l:'理由', t:'textarea', full:true},
     ],
     preview:v=>{
-      const own=ringiRoute(v.type, Number(v.amount)||0, 0);
-      return `<div class="note">承認ルート: <b>${PEOPLE[own]}</b>（${own==='kanri'?'100万円以上、または売上訂正・解約・顧客情報変更は管理部':'拠点長の一次承認'}）。案件の子として1行立ち、結果は起票者のInboxに届く。</div>`;
+      const ap=v.applicant||state.role;
+      let own=ringiRoute(v.type, Number(v.amount)||0, 0);
+      if(ap===own && own==='leader') own='kanri';
+      const eff=effectiveApprover(own);
+      return `<div class="note">申請者: <b>${PEOPLE[ap]}</b>${ap!==state.role?'（代理起票）':''} ／ 承認ルート: <b>${PEOPLE[eff]}</b>${eff!==own?`（${PEOPLE[own]} 不在の代理）`:own==='kanri'?'（管理部）':'（拠点長）'}。自己承認はできません。</div>`;
     },
     submit:(v,ctx)=>{
       if(!v.deal) return {err:'案件を選んでください'};
       const amt=Number(v.amount)||0;
+      const ap=v.applicant||state.role;
       if(ctx&&ctx.editId){
-        const it=byId(ctx.editId), own=ringiRoute(v.type, amt, 0);
-        it.status='承認待ち'; it.own=own; it.approver=own; it.formVals=v; it.formKey='ringi';
+        const it=byId(ctx.editId);
+        let nominal=ringiRoute(v.type, amt, 0);
+        if(ap===nominal && nominal==='leader') nominal='kanri';
+        const own=effectiveApprover(nominal);
+        it.status='承認待ち'; it.own=own; it.approver=own; it.nominalApprover=nominal; it.applicant=ap; it.formVals=v; it.formKey='ringi';
         it.title=`${v.type}の稟議`; it.amount=amt?yen(amt):it.amount;
-        it.body=Object.assign({}, it.body, {'種類':v.type,'金額':amt?yen(amt):'—'});
+        it.body=Object.assign({}, it.body, {'種類':v.type,'金額':amt?yen(amt):'—','申請者':PEOPLE[ap]});
         addEvent(it, ev('cm', meShort(), '# 修正して再申請', `${v.type} / ${amt?yen(amt):'金額なし'}。${v.reason||''}`));
         notify(own, `再申請: ${it.title}（${it.ref}）`, it.id);
         return {msg:`${it.ref} を修正して再申請しました。${PEOPLE[own]} のInboxに届いています。`, openLabel:'稟議を開く', open:()=>openIssue(it.id)};
       }
-      const r=addRingi(v.deal, v.type, amt, v.reason);
+      const r=addRingi(v.deal, v.type, amt, v.reason, 0, ap);
       r.formKey='ringi'; r.formVals=v;
-      return {msg:`${r.ref}（${v.type}）を起票しました。${PEOPLE[r.own]} のInboxに届いています。`, openLabel:'稟議を開く', open:()=>openIssue(r.id)};
+      return {msg:`${r.ref}（${v.type}）を起票しました。${PEOPLE[r.own]} のInboxに届いています。${ap!==state.role?` 申請者 ${PEOPLE[ap]} にも通知しました。`:''}`, openLabel:'稟議を開く', open:()=>openIssue(r.id)};
     },
   },
   buy:{
@@ -3250,7 +3430,7 @@ function fieldHtml(f, pre){
     return `<div class="full">${lab}<div class="line">
       <input name="${f.k}n" value="${pre[f.k+'n']??d[0]}" placeholder="品目"><input name="${f.k}q" type="number" value="${pre[f.k+'q']??d[1]}" placeholder="数量"><input name="${f.k}p" type="number" value="${pre[f.k+'p']??d[2]}" placeholder="単価"></div></div>`;
   }
-  const v=val(f.k)!==''?val(f.k):(f.def||'');
+  const v=val(f.k)!==''?val(f.k):(f.k==='applicant'?state.role:(f.def||''));
   let input;
   if(f.t==='select') input=`<select name="${f.k}">${f.opts().map(([o,l])=>`<option value="${o}" ${String(o)===String(v)?'selected':''}>${l}</option>`).join('')}</select>`;
   else if(f.t==='textarea') input=`<textarea name="${f.k}">${v}</textarea>`;
@@ -3494,12 +3674,13 @@ function panelExtras(it){
     h+=`<div class="ctx-new"><span>この案件（${root.ref}）で:</span>${btns}</div>`;
   }
   if(['ringi','buy'].includes(it.kind)){
-    const by=it.by||'sales', ap=it.approver||it.own;
+    const by=it.by||'sales', ap=it.approver||it.own, applicant=it.applicant||by;
     const st=it.status;
     const s1='done', s2=st==='Done'?'done':st==='差戻し'?'back':st==='取り下げ'?'skip':'cur';
+    const nom=it.nominalApprover;
     h+=`<div class="route"><b>${it.kind==='ringi'?'承認ルート':'処理の流れ'}</b>
-      <span class="rs ${s1}">起票 ${PEOPLE[by]}</span><i>→</i>
-      <span class="rs ${s2}">${it.kind==='ringi'?'承認':'手配'} ${PEOPLE[ap]}${s2==='cur'?'（いまここ）':s2==='back'?'（差戻し）':s2==='skip'?'（取り下げ）':''}</span><i>→</i>
+      <span class="rs ${s1}">起票 ${PEOPLE[by]}${applicant!==by?`（申請者 ${PEOPLE[applicant]}）`:''}</span><i>→</i>
+      <span class="rs ${s2}">${it.kind==='ringi'?'承認':'手配'} ${PEOPLE[ap]}${nom&&nom!==ap?`（${PEOPLE[nom]} の代理）`:''}${s2==='cur'?'（いまここ）':s2==='back'?'（差戻し）':s2==='skip'?'（取り下げ）':''}</span><i>→</i>
       <span class="rs ${st==='Done'?'done':''}">${it.kind==='ringi'?'案件に反映':'納期登録'}</span></div>`;
   }
   const docs=docsOf(it);
@@ -4103,6 +4284,11 @@ CAPS.splice(CAPS.findIndex(c=>c.l.startsWith('顧客新規'))+1, 0,
   {l:'変更申請の確認（顧客・物件・外注など）', t:'管理', asis:'顧客情報変更の稟議・マスタ修正の紙回付', plan:'残す（確定まで元の値を表示）', st:'ok', go:()=>go('mgmt',{mgmt:'chgreq'})});
 CAPS.splice(CAPS.findIndex(c=>c.l.startsWith('外注注文書')), 0,
   {l:'経費の確認（経理）', t:'管理', asis:'紙の経費申請の目視確認', plan:'残す（差戻しは理由付きで申請者へ）', st:'ok', go:()=>go('mgmt',{mgmt:'expenses'})});
+CAPS.splice(CAPS.findIndex(c=>c.l.startsWith('稟議起票'))+1, 0,
+  {l:'不在設定・代理承認', t:'管理', asis:'口頭の代理・印鑑の持ち回り', plan:'残す（期間付き・履歴に代理印）', st:'ok', go:()=>{ state.view='approvals'; go('board'); setTimeout(()=>{ const b=document.getElementById('absBtn'); if(b) b.click(); }, 50); }},
+  {l:'一括承認（稟議）', t:'管理', asis:'紙の束でまとめて押印', plan:'残す（高額・クレーム・解約は除外）', st:'ok', go:()=>{ state.view='approvals'; go('board'); }});
+CAPS.splice(CAPS.findIndex(c=>c.l.startsWith('稟議起票')), 0,
+  {l:'代理起票（申請者を分けて持つ）', t:'登録', asis:'事務が営業の代わりに紙で起票', plan:'残す（起票者と申請者を分離）', st:'ok', go:()=>openFormModal('ringi',{applicant:'sales'},{from:'代理起票'})});
 const myCap=CAPS.find(c=>c.l.startsWith('自分の申請')); if(myCap) myCap.l='自分の申請・登録（下書き・申請中・差戻し）';
 
 /* ================= boot ================= */
