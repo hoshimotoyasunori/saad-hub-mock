@@ -836,7 +836,20 @@ function runAutoRemind(){
     if(!d.age) d.age=10;
     if(d.age>=7 && !d.oldMark){ d.oldMark=true; d.title=(d.title||'')+(d.title&&d.title.includes('古い')?'':'（古い下書き）'); n++; }
   });
-  notify(state.role, `自動催促を実行: リマインド ${n} 件 / エスカレ ${e} 件`);
+  /* 要既読の通達（掲載から7日超・未読）を再通知 */
+  let annN=0;
+  ANNOUNCEMENTS.filter(a=>a.mustRead && !a.read && !a.renotified).forEach(a=>{
+    a.renotified=true; annN++;
+    notify(state.role, `通達の再通知（要既読）: ${a.title}`);
+  });
+  /* 月次締め・棚卸の定期通知（モックは毎回1回） */
+  if(!state._periodNotified){
+    state._periodNotified=true;
+    notify('kanri', '月次締めリマインド: 9月締めまであと7日（売上計上の未処理を確認）', null, {screen:'mgmt', opts:{mgmt:'salesrec'}});
+    notify('buy', '棚卸リマインド: 月末棚卸まであと7日（在庫一覧で実数を合わせてください）', null, {screen:'mgmt', opts:{mgmt:'stock'}});
+    n+=2;
+  }
+  notify(state.role, `自動催促を実行: リマインド ${n} 件 / エスカレ ${e} 件 / 通達再通知 ${annN} 件`);
   render();
 }
 function notify(to, text, ref, extra){ inbox[to].unshift(Object.assign({text, ref}, extra||{})); }
@@ -1096,8 +1109,8 @@ function renderInbox(){
 }
 
 const ANNOUNCEMENTS = [
-  {tag:'通達', cls:'urgent', title:'【全社】11月スマホ配布に伴うGWS利用開始の案内', when:'9/22 · 総務', go:null, wip:'ann-gws'},
-  {tag:'通達', cls:'urgent', title:'【営業】10月から見積値引12%超は管理部二次承認が必須になります', when:'9/21 · 管理部', go:'board', view:'approvals'},
+  {tag:'通達', cls:'urgent', title:'【全社】11月スマホ配布に伴うGWS利用開始の案内', when:'9/22 · 総務', go:null, wip:'ann-gws', mustRead:true, posted:'9/18'},
+  {tag:'通達', cls:'urgent', title:'【営業】10月から見積値引12%超は管理部二次承認が必須になります', when:'9/21 · 管理部', go:'board', view:'approvals', mustRead:true, posted:'9/14'},
   {tag:'共有', cls:'', title:'DX定例 9/3 議事録をドライブに掲載しました', when:'9/20 · DX推進部', go:'structure', read:true},
   {tag:'ナレッジ', cls:'know', title:'顧客／物件マスタの仮登録→本登録の手順（eSM移行）', when:'9/18 · 業務改善', go:'crm'},
   {tag:'共有', cls:'', title:'保証期限30日前リードの自動起票を開始（HSE 定期点検）', when:'9/17 · DX推進部', go:'board', view:'mine', read:true},
@@ -1367,7 +1380,7 @@ function renderPortal(){
         <div class="wk-list">${wkRows}</div>
       </div>
       <div class="db-sec">
-        <div class="sec-h"><h3>社内共有・通達</h3><span class="cnt">未読 ${unread}</span><button type="button" class="more" data-ext="know">アーカイブ →</button></div>
+        <div class="sec-h"><h3>社内共有・通達</h3><span class="cnt">未読 ${unread}</span>${unread?`<button type="button" class="more" id="annReadAll">全部既読</button>`:''}<button type="button" class="more" data-ext="know">アーカイブ →</button></div>
         <div class="feed-list">${feed}</div>
       </div>
     </div>
@@ -1403,6 +1416,7 @@ function renderPortal(){
   $('goSpaces').onclick=()=>go('spaces');
   $('main').querySelectorAll('[data-ext]').forEach(b=>b.onclick=()=>openShortcut(b.dataset.ext));
   $('main').querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>openIssue(b.dataset.open));
+  const ara=$('annReadAll'); if(ara) ara.onclick=()=>{ ANNOUNCEMENTS.forEach(a=>a.read=true); audit('通達','全部既読'); render(); };
   $('main').querySelectorAll('[data-ai]').forEach(b=>b.onclick=()=>{
     const a=ANNOUNCEMENTS[Number(b.dataset.ai)];
     a.read=true;
@@ -2195,6 +2209,8 @@ function renderCustomer(cid){
       <button type="button" class="sp-act" id="custChg">変更を申請</button>
       ${['leader','kanri'].includes(state.role)?`<button type="button" class="sp-act" id="custCorr">訂正稟議を起票</button>`:''}
       ${['jimu','kanri','leader'].includes(state.role)&&!c.disabled?`<button type="button" class="sp-act" id="custDis">無効にする</button>`:''}
+      ${['jimu','kanri','leader'].includes(state.role)&&!c.disabled?`<button type="button" class="sp-act" id="custMerge">名寄せ（統合）</button>`:''}
+      ${c.mergedInto?`<span class="warn-badge">名寄せ済 → ${CUSTOMERS[c.mergedInto]?CUSTOMERS[c.mergedInto].name:c.mergedInto}</span>`:''}
       ${chgHistHtml(c)}
     </div>
     <div style="display:grid;grid-template-columns:1fr 1.3fr;gap:14px" class="cust-cols">
@@ -2230,8 +2246,9 @@ function renderCustomer(cid){
     const active=issues.some(i=>i.customer===cid && i.open);
     if(active){ alert('進行中の案件がある顧客は無効化できません'); return; }
     const reason=prompt('無効化の理由（必須）'); if(!reason) return;
-    c.disabled=true; recordChg(c,'状態','有効','無効','無効化'); mlog(c,`無効化: ${reason}`); render();
+    c.disabled=true; recordChg(c,'状態','有効','無効','無効化'); mlog(c,`無効化: ${reason}`); audit('無効化', `${c.name}: ${reason}`, c.id); render();
   };
+  const cm=$('custMerge'); if(cm) cm.onclick=()=>openCustMerge(cid);
   const cb=$('custBack'); if(cb) cb.onclick=()=>{ c.reqSt='差戻し'; c.backNote='電話番号と住所の番地を確認してください'; inbox.jimu=inbox.jimu.filter(n=>n.cust!==cid); if(c.by) notify(c.by, `顧客の仮登録が差戻されました: ${c.name}`, null, {screen:'myreq'}); render(); };
   const cr=$('custRegi'); if(cr) cr.onclick=()=>{
     c.regi='本'; c.reqSt='完了'; c.regiLog=`9/25 ${meShort()} が本登録`;
@@ -2241,6 +2258,38 @@ function renderCustomer(cid){
   };
   $('main').querySelectorAll('[data-gop]').forEach(b=>b.onclick=()=>{ state.customer=null; state.property=b.dataset.gop; state.crmAxis='property'; render(); });
   $('main').querySelectorAll('[data-openb]').forEach(b=>b.onclick=()=>{ state.customer=null; openIssue(b.dataset.openb); });
+}
+function openCustMerge(keepId){
+  const keep=CUSTOMERS[keepId]; if(!keep) return;
+  const others=Object.values(CUSTOMERS).filter(x=>x.id!==keepId && !x.disabled && !x.mergedInto);
+  openSimpleModal(`名寄せ — ${keep.name} に統合`, `
+    <p class="quiet">統合元の顧客を選ぶと、案件・物件・契約を <b>${keep.name}</b> に寄せ、統合元は無効になります。</p>
+    <div class="form-grid"><div class="full"><label>統合元（消える側）</label>
+      <select name="src">${others.map(o=>`<option value="${o.id}">${o.name}（${o.domain}・${o.branch}）</option>`).join('')}</select></div>
+      <div class="full"><label>理由（必須）</label><input name="reason" placeholder="例: 重複登録のため"></div></div>
+    <div class="actions" style="margin-top:12px"><button class="bp" type="button" data-ok>統合する</button><button class="bg" type="button" data-cx>キャンセル</button></div>`,
+  (box, close)=>{
+    box.querySelector('[data-cx]').onclick=close;
+    box.querySelector('[data-ok]').onclick=()=>{
+      const srcId=box.querySelector('[name=src]').value;
+      const reason=(box.querySelector('[name=reason]').value||'').trim();
+      if(!srcId){ alert('統合元を選んでください'); return; }
+      if(!reason){ alert('理由は必須です'); return; }
+      const src=CUSTOMERS[srcId];
+      (src.propertyIds||[]).forEach(pid=>{ if(!(keep.propertyIds||[]).includes(pid)){ keep.propertyIds=keep.propertyIds||[]; keep.propertyIds.push(pid); }
+        const p=PROPERTIES[pid]; if(p){ p.customers=(p.customers||[]).map(x=>x===srcId?keepId:x); if(!(p.customers||[]).includes(keepId)) (p.customers=p.customers||[]).push(keepId); }
+      });
+      (src.contracts||[]).forEach(k=>{ keep.contracts=keep.contracts||[]; keep.contracts.push(Object.assign({},k)); });
+      issues.filter(i=>i.customer===srcId).forEach(i=>{ i.customer=keepId; addEvent(i, ev('sys', meShort(), `顧客名寄せ: ${src.name} → ${keep.name}`)); });
+      src.disabled=true; src.mergedInto=keepId;
+      recordChg(keep,'名寄せ',src.name,keep.name,'名寄せ');
+      mlog(keep,`名寄せ: ${src.name} を統合（${reason}）`);
+      mlog(src,`名寄せ先 ${keep.name} へ統合（${reason}）`);
+      audit('名寄せ', `${src.name} → ${keep.name}: ${reason}`, keepId);
+      notify('jimu', `顧客を名寄せしました: ${src.name} → ${keep.name}`, null, {cust:keepId});
+      close(); state.customer=keepId; render();
+    };
+  });
 }
 function renderProperty(pid){
   const p=PROPERTIES[pid];
@@ -2524,7 +2573,19 @@ function nextRef(repo){ SEQ[repo]=(SEQ[repo]||0)+1; return `${repo}#${SEQ[repo]}
 function nextId(){ SEQ.n++; return 'n'+SEQ.n; }
 function yen(n){ return '¥'+Number(n||0).toLocaleString(); }
 function meShort(){ return PEOPLE[state.role].replace(/（.*）/,''); }
-function mlog(r,text){ (r.log=r.log||[]).unshift(`9/25 ${meShort()}: ${text}`); }
+const AUDIT_LOG=[
+  {at:'09:12', who:'星本', role:'sales', action:'起票', detail:'稟議 ringi#18 値引き', target:'ringi#18'},
+  {at:'09:40', who:'田中', role:'leader', action:'承認', detail:'稟議 ringi#18 を承認', target:'ringi#18'},
+  {at:'10:05', who:'鈴木', role:'buy', action:'発注', detail:'購買 buy#39 を発注済', target:'buy#39'},
+  {at:'11:20', who:'佐藤', role:'jimu', action:'本登録', detail:'顧客 佐藤 一郎 を本登録', target:'c2'},
+];
+function audit(action, detail, target){
+  AUDIT_LOG.unshift({at:nowHM(), who:meShort(), role:state.role, action, detail, target:target||'—'});
+}
+function mlog(r,text){
+  (r.log=r.log||[]).unshift(`9/25 ${meShort()}: ${text}`);
+  audit('記録', text, (r&& (r.no||r.ref||r.name||r.bill||r.id))||'—');
+}
 /* ---- 変更・訂正（チェック2）: 共通ヘルパー ---- */
 const CHANGE_REQS=[];
 function recordChg(target, field, from, to, via){
@@ -2532,6 +2593,7 @@ function recordChg(target, field, from, to, via){
   if(target && target.tl) addEvent(target, ev('sys', meShort(), text));
   else if(target) mlog(target, text);
   (target.chg=target.chg||[]).unshift({at:nowHM(), who:meShort(), field, from, to, via:via||'編集'});
+  audit('変更', text, (target&&(target.ref||target.name||target.id))||'—');
   return text;
 }
 function rememberPrev(it){ if(it && it.status!=null) it._prev={status:it.status, at:nowHM()}; }
@@ -2928,7 +2990,26 @@ const STOCK=[
   {id:'st8', sku:'TRM-A-18', wh:'本部倉庫', qty:60, safety:30, counted:'9/01', log:[]},
 ];
 const WH_ORG={'横浜倉庫':['ES','横浜営業所'],'藤沢倉庫':['HSE','藤沢営業所'],'相模原倉庫':['PCS','相模原営業所'],'本部倉庫':['本部','物流センター']};
-function itemOf(sku){ return ITEMS.find(x=>x.sku===sku)||{name:sku,unit:'',price:0}; }
+function itemOf(sku){ return ITEMS.find(x=>x.sku===sku)||{name:sku,unit:'',price:0,sku}; }
+const FAV_SKUS=['TRM-A-18','KIT-ES-01','SFT-KIT'];
+function rememberFavSku(sku){ if(!sku) return; const i=FAV_SKUS.indexOf(sku); if(i>=0) FAV_SKUS.splice(i,1); FAV_SKUS.unshift(sku); if(FAV_SKUS.length>6) FAV_SKUS.length=6; }
+function buyLines(v){
+  const cart=(v.cart||'').trim();
+  if(cart){
+    return cart.split(/[,、]/).map(p=>p.trim()).filter(Boolean).map(p=>{
+      const [sku,q]=p.split(/[:：]/); const it=itemOf((sku||'').trim()); const qty=Number(q)||1;
+      return it.sku?{it, qty}:null;
+    }).filter(Boolean);
+  }
+  const it=itemOf(v.sku); const qty=Number(v.qty)||0;
+  return (it.sku&&qty)?[{it,qty}]:[];
+}
+function buyDupHits(dealId, lines){
+  if(!dealId) return [];
+  const skus=new Set(lines.map(l=>l.it.sku));
+  return issues.filter(i=>i.kind==='buy' && i.open && i.parent===dealId && i.status!=='Done' && i.status!=='取り下げ'
+    && i.formVals && skus.has(i.formVals.sku));
+}
 const TECHS=['山本（施工L）','井上（技術）','九州防水工業（外注）'];
 const DAYS=['9/28(月)','9/29(火)','9/30(水)','10/1(木)','10/2(金)'];
 const SCHED=[
@@ -3028,7 +3109,9 @@ const MGMT={
     acts:r=>{
       const s=pst(r);
       if(s==='請求前') return [{l:'請求Viewで確認', f:()=>{ state.view='billingv'; go('board'); return 'nav'; }}];
-      if(s==='消込済') return [{l:'消込を解除', f:()=>{
+      if(s==='消込済') return [
+        {l:'領収書を発行', c:'bp', f:()=>{ openDoc({name:`領収書 ${r.bill}`, kind:'receipt', amount:r.amount, cust:r.cust, bill:r.bill, paid:r.paid||'9/25'}, null); }},
+        {l:'消込を解除', f:()=>{
         const reason=prompt('消込解除の理由（必須）'); if(!reason) return;
         rememberPrev(r); r.status='入金待ち'; r.paid=''; mlog(r,`消込解除: ${reason}`);
         recordChg(r,'状態','消込済','入金待ち','消込解除');
@@ -3481,34 +3564,48 @@ const FORMS={
     stop:'電話・FAXでの発注と口頭の納期連絡', who:'営業・施工（申請）／購買（手配）',
     fields:[
       {k:'deal', l:'案件（空欄＝在庫補充）', t:'select', opts:()=>[['','（案件なし・在庫補充）']].concat(dealOpts()), full:true},
-      {k:'sku', l:'品目', t:'select', opts:()=>ITEMS.map(x=>[x.sku, `${x.name}（${yen(x.price)}/${x.unit}）`]), full:true},
+      {k:'sku', l:'品目（よく使う資材を上に）', t:'select', opts:()=>{
+        const fav=FAV_SKUS||['TRM-A-18','KIT-ES-01','SFT-KIT'];
+        const ordered=fav.map(s=>ITEMS.find(x=>x.sku===s)).filter(Boolean).concat(ITEMS.filter(x=>!fav.includes(x.sku)));
+        return ordered.map(x=>[x.sku, `${fav.includes(x.sku)?'★ ':''}${x.name}（${yen(x.price)}/${x.unit}）`]);
+      }, full:true},
       {k:'qty', l:'数量', t:'number', def:'1'},
+      {k:'cart', l:'カートに追加する品目（カンマ区切り SKU:数量。空なら上の1品）', full:true, ph:'例: TRM-A-18:2, SFT-KIT:1'},
       {k:'eta', l:'希望納期', def:'10/2'},
       {k:'memo', l:'メモ', full:true},
     ],
     preview:v=>{
-      const it=itemOf(v.sku), total=it.price*(Number(v.qty)||0);
-      const st=STOCK.filter(s=>s.sku===v.sku).map(s=>`${s.wh} ${s.qty}${it.unit}`).join('、')||'在庫なし（都度発注）';
-      return `<dl class="idb"><dt>金額</dt><dd>${yen(total)}</dd><dt>倉庫在庫</dt><dd>${st}</dd>
-        <dt>承認</dt><dd>${total>=50000?'5万円以上のため拠点長の稟議を同時に起票':'承認不要枠（5万円未満）'}</dd></dl>`;
+      const lines=buyLines(v); if(!lines.length) return '<div class="note warn">品目を選ぶか、カート欄に SKU:数量 を入れてください。</div>';
+      const total=lines.reduce((s,l)=>s+l.it.price*l.qty,0);
+      const dup=buyDupHits(v.deal, lines);
+      return `<dl class="idb"><dt>カート</dt><dd>${lines.map(l=>`${l.it.name} ×${l.qty}`).join('、')}</dd><dt>金額</dt><dd>${yen(total)}</dd>
+        <dt>承認</dt><dd>${total>=50000?'5万円以上のため拠点長の稟議を同時に起票':'承認不要枠（5万円未満）'}</dd></dl>`
+        +(dup.length?`<div class="note warn">同じ案件で進行中の購買があります: ${dup.map(d=>d.ref+' '+d.title).join('、')}</div>`:'');
     },
     submit:(v,ctx)=>{
-      const it=itemOf(v.sku), qty=Number(v.qty)||0; if(!qty) return {err:'数量を入れてください'};
-      if(ctx&&ctx.editId){ const b=byId(ctx.editId); b.status='Todo'; b.own='buy'; b.formVals=v; b.title=`資材発注: ${it.name} ×${qty}`; b.amount=yen(it.price*qty);
-        b.body=Object.assign({},b.body,{'品目':`${it.name}（${it.sku}）`,'数量':`${qty} ${it.unit}`,'希望納期':v.eta||'—'});
-        addEvent(b, ev('cm', meShort(), '# 修正して再申請', `${it.name} ×${qty}。${v.memo||''}`)); notify('buy', `再申請: ${b.title}`, b.id);
+      const lines=buyLines(v); if(!lines.length) return {err:'品目と数量を入れてください'};
+      if(ctx&&ctx.editId){ const l=lines[0], b=byId(ctx.editId); b.status='Todo'; b.own='buy'; b.formVals=v; b.title=`資材発注: ${l.it.name} ×${l.qty}`; b.amount=yen(l.it.price*l.qty);
+        b.body=Object.assign({},b.body,{'品目':`${l.it.name}（${l.it.sku}）`,'数量':`${l.qty} ${l.it.unit}`,'希望納期':v.eta||'—'});
+        addEvent(b, ev('cm', meShort(), '# 修正して再申請', `${l.it.name} ×${l.qty}。${v.memo||''}`)); notify('buy', `再申請: ${b.title}`, b.id);
         return {msg:`${b.ref} を修正して再申請しました（購買 鈴木へ）。`, openLabel:'申請を開く', open:()=>openIssue(b.id)}; }
-      const total=it.price*qty, id=nextId(), deal=v.deal?byId(v.deal):null;
-      const o={id, ref:nextRef('buy'), repo:'buy', kind:'buy', parent:v.deal||null, depth:0, title:`資材発注: ${it.name} ×${qty}`, status:'Todo', open:true, own:'buy', by:state.role, approver:'buy', formKey:'buy', formVals:v,
-        eta:`希望 ${v.eta||'—'}`, amount:yen(total),
-        body:{'案件':deal?`${deal.ref} ${deal.title}`:'（在庫補充）','品目':`${it.name}（${it.sku}）`,'数量':`${qty} ${it.unit}`,'希望納期':v.eta||'—','メモ':v.memo||'—'},
-        tl:[ev('sys','system','購買申請フォームから起票 — Assignees: 鈴木')]};
-      if(!deal){ const [dv,br]=['HSE','藤沢営業所']; o.division=dv; o.branch=br; }
-      insertIssue(o);
-      notify('buy', `購買申請: ${it.name} ×${qty}`, id);
+      const dup=buyDupHits(v.deal, lines);
+      if(dup.length && !confirm(`同じ案件で進行中の購買があります（${dup.map(d=>d.ref).join(', ')}）。それでも申請しますか？`)) return {err:'申請を中止しました（重複）'};
+      const deal=v.deal?byId(v.deal):null;
+      const ids=[]; let totalAll=0;
+      lines.forEach(l=>{
+        const total=l.it.price*l.qty; totalAll+=total; const id=nextId();
+        const o={id, ref:nextRef('buy'), repo:'buy', kind:'buy', parent:v.deal||null, depth:0, title:`資材発注: ${l.it.name} ×${l.qty}`, status:'Todo', open:true, own:'buy', by:state.role, approver:'buy', formKey:'buy', formVals:Object.assign({},v,{sku:l.it.sku,qty:String(l.qty)}),
+          eta:`希望 ${v.eta||'—'}`, amount:yen(total),
+          body:{'案件':deal?`${deal.ref} ${deal.title}`:'（在庫補充）','品目':`${l.it.name}（${l.it.sku}）`,'数量':`${l.qty} ${l.it.unit}`,'希望納期':v.eta||'—','メモ':v.memo||'—'},
+          tl:[ev('sys','system','購買申請フォームから起票 — Assignees: 鈴木')]};
+        if(!deal){ o.division='HSE'; o.branch='藤沢営業所'; }
+        insertIssue(o); ids.push(id); notify('buy', `購買申請: ${l.it.name} ×${l.qty}`, id);
+        rememberFavSku(l.it.sku);
+      });
       let extra='';
-      if(total>=50000 && deal){ const r=addRingi(v.deal,'高額資材',total,`${it.name} ×${qty}（${yen(total)}）`); extra=` 稟議 ${r.ref} も起票しました。`; }
-      return {msg:`購買申請 ${o.ref} を起票しました（購買 鈴木へ）。${extra}`, openLabel:'申請を開く', open:()=>openIssue(id)};
+      if(totalAll>=50000 && deal){ const r=addRingi(v.deal,'高額資材',totalAll,`カート ${lines.length}品目（${yen(totalAll)}）`); extra=` 稟議 ${r.ref} も起票しました。`; }
+      audit('購買申請', `カート ${lines.length}品目 ${yen(totalAll)}`, ids[0]);
+      return {msg:`購買申請 ${ids.length}件（${yen(totalAll)}）を起票しました（購買 鈴木へ）。${extra}`, openLabel:'申請を開く', open:()=>openIssue(ids[0])};
     },
   },
   vendor:{
@@ -3814,31 +3911,45 @@ function docsOf(it){
 }
 function openDoc(d, it){
   ensureModal();
-  const r=rootOf(it), c=r&&r.customer&&CUSTOMERS[r.customer];
+  const r=it?rootOf(it):null, c=r&&r.customer&&CUSTOMERS[r.customer];
   const box=$('modalBox');
   d.sends=d.sends||[];
+  const titleMap={quote:'御見積書', warranty:'保証書', report:'報告書', receipt:'領収書', ack:'注文請書', cover:'送付状', paynotice:'支払通知'};
   const lines=d.kind==='quote'
     ? `<tr><td>調査・点検作業</td><td>1</td><td>120,000</td></tr><tr><td>施工作業一式</td><td>1</td><td>1,380,000</td></tr><tr><td colspan="2">値引</td><td>−180,000</td></tr>`
+    : d.kind==='receipt'
+    ? `<tr><td>上記正に領収いたしました</td><td>1</td><td>${(d.amount||0).toLocaleString()}</td></tr>`
+    : d.kind==='ack'
+    ? `<tr><td>ご注文の件、確かに承りました</td><td>1</td><td>${(d.amount||0).toLocaleString()}</td></tr>`
+    : d.kind==='cover'
+    ? `<tr><td colspan="3">書類一式を同封のうえ送付いたします。ご査収ください。</td></tr>`
+    : d.kind==='paynotice'
+    ? `<tr><td>外注作業完了に伴う支払通知</td><td>1</td><td>${(d.amount||0).toLocaleString()}</td></tr>`
     : `<tr><td colspan="3">${d.kind==='warranty'?'保証内容・保証期間・免責事項':'作業内容・所見・写真（3枚）・申し送り'}</td></tr>`;
+  const who=d.cust||(c?c.name:'お客さま');
   const sendHist=d.sends.length?`<ul class="chg-hist">${d.sends.map(s=>`<li>${s.at} ${s.who} · ${s.how} → ${s.to}</li>`).join('')}</ul>`:'<p class="quiet">まだ送付履歴はありません。</p>';
   box.innerHTML=`<div class="modal-h"><h3>📄 ${d.name}</h3><button class="x" type="button" data-mclose>×</button></div>
-    <div class="paper"><div class="paper-h"><b>${d.kind==='quote'?'御見積書':d.kind==='warranty'?'保証書':'報告書'}</b><span>株式会社サニックス</span></div>
-      <p>${c?c.name:'お客さま'} 御中　／　案件 ${r?r.ref:''} ${r?r.title:''}</p>
+    <div class="paper"><div class="paper-h"><b>${titleMap[d.kind]||'書類'}</b><span>株式会社サニックス</span></div>
+      <p>${who} 御中　／　${r?`案件 ${r.ref} ${r.title}`:(d.bill?`請求 ${d.bill}`:'')}</p>
       <table class="ledger"><thead><tr><th>項目</th><th>数量</th><th>金額（円）</th></tr></thead><tbody>${lines}</tbody></table>
+      ${d.kind==='receipt'?`<p class="quiet">入金日 ${d.paid||'—'} · 控え番号 RC-${(d.bill||'X').replace(/\D/g,'')||'000'}</p>`:''}
       <p class="quiet" style="margin-top:10px">モックの書類ビューア。本番は保存済みPDFを表示・ダウンロード・お客さまへ送付。</p></div>
     <div class="note" style="margin-top:10px"><b>送付履歴</b>${sendHist}</div>
     <div class="actions">
       <button class="bp" type="button" data-send>送付を記録</button>
+      ${d.kind!=='cover'?`<button class="bg" type="button" data-cover>送付状を付ける</button>`:''}
       <button class="bg" type="button" data-mclose2>閉じる</button>
     </div>`;
   $('modal').classList.add('open');
   const close=()=>{ $('modal').classList.remove('open'); box.innerHTML=''; };
   box.querySelector('[data-mclose]').onclick=close; box.querySelector('[data-mclose2]').onclick=close;
+  const cov=box.querySelector('[data-cover]'); if(cov) cov.onclick=()=>{ close(); openDoc({name:`送付状（${d.name}）`, kind:'cover', cust:who}, it); };
   box.querySelector('[data-send]').onclick=()=>{
     const how=prompt('送付方法（メール／郵送／手渡し）','メール'); if(!how) return;
-    const to=prompt('送付先', c?c.name:'お客さま'); if(!to) return;
+    const to=prompt('送付先', who); if(!to) return;
     d.sends.unshift({at:nowHM(), who:meShort(), how, to});
     if(r) addEvent(r, ev('sys', meShort(), `書類送付: ${d.name} を ${how} で ${to} へ`));
+    audit('書類送付', `${d.name} ${how} → ${to}`, r?r.ref:d.bill||'—');
     close(); openDoc(d, it);
   };
 }
@@ -3979,15 +4090,16 @@ Object.assign(MGMT, {
     title:'入出荷', asis:'入荷入力・出荷入力・その他出荷（CSV／Excel）、倉庫ごとの手入力', why:'在庫を実数に合わせ、発注したものが届いたかを確かめる',
     stop:'入出荷をCSVで集めて在庫表に転記すること', who:'購買物流・倉庫・現場',
     rows:()=>syncMoves(),
-    tabs:[{id:'plan', label:'予定', f:r=>['入荷予定','出荷予定'].includes(r.status)},{id:'in', label:'入荷', f:r=>r.type==='入荷'},{id:'out', label:'出荷', f:r=>r.type==='出荷'},{id:'all', label:'すべて', f:r=>true}],
-    cols:[{h:'区分', v:r=>r.type},{h:'品名', v:r=>`<b>${itemOf(r.sku).name}</b>`},{h:'数量', v:r=>`<span class="num-r">${r.qty} ${itemOf(r.sku).unit}</span>`},{h:'倉庫', v:r=>r.wh},{h:'元', v:r=>`<span class="ref">${r.ref}</span>`},{h:'予定日', v:r=>r.date},{h:'状態', v:r=>`<span class="pill ${/予定/.test(r.status)?'wait':'done'}">${r.status}</span>`}],
-    q:r=>r.type+itemOf(r.sku).name+r.wh+r.ref+r.status,
+    tools:[{l:'＋ その他出荷', f:()=>openFormModal('othership',{},{from:'入出荷'})}],
+    tabs:[{id:'plan', label:'予定', f:r=>['入荷予定','出荷予定'].includes(r.status)},{id:'in', label:'入荷', f:r=>r.type==='入荷'},{id:'out', label:'出荷', f:r=>r.type==='出荷'&&!r.other},{id:'other', label:'その他出荷', f:r=>!!r.other},{id:'all', label:'すべて', f:r=>true}],
+    cols:[{h:'区分', v:r=>r.other?`${r.type}（その他）`:r.type},{h:'品名', v:r=>`<b>${itemOf(r.sku).name}</b>`},{h:'数量', v:r=>`<span class="num-r">${r.qty} ${itemOf(r.sku).unit}</span>`},{h:'倉庫', v:r=>r.wh},{h:'元', v:r=>`<span class="ref">${r.ref}</span>`},{h:'予定日', v:r=>r.date},{h:'状態', v:r=>`<span class="pill ${/予定/.test(r.status)?'wait':'done'}">${r.status}</span>`}],
+    q:r=>r.type+itemOf(r.sku).name+r.wh+r.ref+r.status+(r.reason||''),
     acts:r=>{
       if(r.status==='入荷予定') return [{l:'入荷検収', c:'bp', f:()=>{ r.status='入荷済'; stockAdd(r.sku,r.wh,r.qty); mlog(r,`検収 ${r.qty}${itemOf(r.sku).unit}・在庫に加算`); if(r.issue) addEvent(byId(r.issue), ev('sys', meShort(), `入荷検収 — ${r.wh} に ${r.qty}${itemOf(r.sku).unit}`)); }}];
       if(r.status==='出荷予定') return [{l:'出荷登録', c:'bp', f:()=>{ r.status='出荷済'; stockAdd(r.sku,r.wh,-r.qty); mlog(r,`出荷 ${r.qty}${itemOf(r.sku).unit}・在庫から減算`); }}];
       return [];
     },
-    foot:()=>'購買申請が「発注済」になると、ここに入荷予定が自動で1行立つ。検収で在庫一覧の数量が増える。',
+    foot:()=>'購買申請が「発注済」になると、ここに入荷予定が自動で1行立つ。案件以外の出荷は「その他出荷」から。',
   },
   porders:{
     title:'外注注文書・支払', asis:'協力業者依頼・注文書発行（紙）、外注処理（着工前／完工後）、外注実績表、産廃の下請支払', why:'外注に何をいくらで頼んだかを残し、完了確認してから支払う',
@@ -3997,11 +4109,14 @@ Object.assign(MGMT, {
     cols:[{h:'注文書No', v:r=>r.no?`<span class="ref">${r.no}</span>`:'（未発行）'},{h:'外注先', v:r=>`<b>${r.vendor}</b>`},{h:'案件', v:r=>`<span class="ref">${r.deal}</span>`},{h:'作業', v:r=>r.work},{h:'金額', v:r=>`<span class="num-r">${state.role==='koji'?'（非表示）':yen(r.amount)}</span>`},{h:'状態', v:r=>`<span class="pill ${r.status==='支払済'?'done':r.status==='支払待ち'?'wait':'prog'}">${r.status}</span>`}],
     q:r=>r.no+r.vendor+r.deal+r.work+r.status,
     acts:r=>{
-      const n=nextOf(PO_FLOW,r.status); if(!n) return [];
+      const a=[];
+      if(['支払待ち','支払済'].includes(r.status)) a.push({l:'支払通知を開く', f:()=>{ openDoc({name:`支払通知 ${r.no||r.id}`, kind:'paynotice', amount:r.amount, cust:r.vendor}, null); return 'nav'; }});
+      const n=nextOf(PO_FLOW,r.status); if(!n) return a;
       const label={'発行済':'注文書を発行','完了報告待ち':'着工（完了報告待ちへ）','支払待ち':'完了を確認','支払済':'支払済にする'}[n];
-      return [{l:label, c:'bp', f:()=>{ if(n==='発行済'){ SEQ.go=(SEQ.go||310)+1; r.no=`GO-2026-${String(SEQ.go).padStart(4,'0')}`; } r.status=n; mlog(r,label); }}];
+      a.push({l:label, c:'bp', f:()=>{ if(n==='発行済'){ SEQ.go=(SEQ.go||310)+1; r.no=`GO-2026-${String(SEQ.go).padStart(4,'0')}`; } r.status=n; mlog(r,label); }});
+      return a;
     },
-    foot:()=>'発注先は外注・仕入先マスタの「取引中」のみ。保険期限切れの業者は選べない想定。',
+    foot:()=>'発注先は外注・仕入先マスタの「取引中」のみ。保険期限切れの業者は選べない想定。支払待ちから支払通知を開ける。',
   },
   salesrec:{
     title:'売上計上', asis:'売上計上処理（部門別）・売上訂正の稟議兼伝票・売上計上進捗確認・月次締め', why:'いつの売上として確定するかを決める（締め）',
@@ -4070,16 +4185,21 @@ Object.assign(MGMT, {
     tabs:[{id:'open', label:'処理中', f:r=>r.status!=='完了'},{id:'done', label:'完了', f:r=>r.status==='完了'},{id:'all', label:'すべて', f:r=>true}],
     cols:[{h:'案件', v:r=>`<span class="ref">${r.deal}</span>`},{h:'顧客', v:r=>`<b>${r.cust}</b>`},{h:'金額（税込）', v:r=>`<span class="num-r">${yen(r.amount)}</span>`},{h:'書式', v:r=>r.amount>=300000?'工事申込書':'契約書作成依頼WF'},{h:'状態', v:r=>`<span class="pill ${r.status==='完了'?'done':'wait'}">${r.status}</span>`}],
     q:r=>r.deal+r.cust+r.status,
-    acts:r=>{ const n=nextOf(CT_FLOW,r.status); if(!n) return [];
+    acts:r=>{
+      const a=[];
+      if(r.status!=='作成待ち') a.push({l:'注文請書を開く', f:()=>{ openDoc({name:`注文請書 ${r.deal}`, kind:'ack', amount:r.amount, cust:r.cust}, null); return 'nav'; }});
+      const n=nextOf(CT_FLOW,r.status); if(!n) return a;
       const label={'署名待ち':'契約書を作成','受注登録待ち':'署名を確認','完了':'受注登録'}[n];
-      return [{l:label, c:'bp', f:()=>{ r.status=n; mlog(r,label);
+      a.push({l:label, c:'bp', f:()=>{ r.status=n; mlog(r,label);
         if(n==='完了' && r.dealId==='841'){ const j=byId('841-j1'); if(j && j.status!=='Done'){ j.status='Done'; addEvent(j, ev('sys', meShort(), '契約書類整備・受注登録 完了')); } }
-      }}]; },
-    foot:()=>'sfa#841 は受注登録まで進めると、案件台帳の「契約書類整備（jimu#41）」が Done になる。',
+      }});
+      return a;
+    },
+    foot:()=>'sfa#841 は受注登録まで進めると、案件台帳の「契約書類整備（jimu#41）」が Done になる。注文請書は署名待ち以降から開ける。',
   },
 });
 CAPS.splice(CAPS.findIndex(c=>c.l.startsWith('経営BI')), 0,
-  {l:'入出荷（入荷検収・出荷登録）', t:'管理', asis:'入荷入力・出荷入力（CSV・Excel）', plan:'残す（発注済から入荷予定を自動作成）', st:'ok', go:()=>go('mgmt',{mgmt:'moves'})},
+  {l:'入出荷（入荷検収・出荷・その他出荷）', t:'管理', asis:'入荷入力・出荷入力・その他出荷（CSV・Excel）', plan:'残す（発注済から入荷予定を自動作成）', st:'ok', go:()=>go('mgmt',{mgmt:'moves'})},
   {l:'外注注文書・支払', t:'管理', asis:'協力業者依頼・注文書発行（紙）・外注実績表', plan:'残す', st:'ok', go:()=>go('mgmt',{mgmt:'porders'})},
   {l:'売上計上・月次締め', t:'管理', asis:'売上計上処理・売上訂正の稟議兼伝票', plan:'残す（仕訳の確定は会計連携）', st:'ok', go:()=>go('mgmt',{mgmt:'salesrec'})},
   {l:'修理・メーカー依頼', t:'管理', asis:'修理対応・メーカー依頼・DS修理依頼', plan:'残す', st:'ok', go:()=>go('mgmt',{mgmt:'repair'})},
@@ -4132,10 +4252,17 @@ Object.assign(FORMS, {
       {k:'warranty', l:'保証', t:'select', opts:()=>[['保証内','保証内'],['有償','有償']]},
       {k:'symptom', l:'症状', full:true, req:true},
     ],
-    preview:()=>'<div class="note">受け付けると修理・メーカー依頼の一覧に「受付」で載ります。</div>',
+    preview:v=>{
+      const hits=REPAIRS.filter(r=>r.status!=='修理完了' && r.cust===(v.cust||'') && r.item===(v.item||''));
+      return '<div class="note">受け付けると修理・メーカー依頼の一覧に「受付」で載ります。</div>'
+        +(hits.length?`<div class="note warn">同じ顧客・機器で対応中の修理があります: ${hits.map(r=>r.symptom).join('、')}</div>`:'');
+    },
     submit:v=>{ if(!(v.symptom||'').trim()) return {err:'症状を入れてください'};
+      const hits=REPAIRS.filter(r=>r.status!=='修理完了' && r.cust===v.cust && r.item===v.item);
+      if(hits.length && !confirm(`同じ顧客・機器で対応中の修理があります。それでも受け付けますか？`)) return {err:'受付を中止しました（重複）'};
       const it=ITEMS.find(x=>x.name===v.item)||{supplier:'—'};
       REPAIRS.unshift({id:nextId(), by:state.role, formKey:'repair', formVals:v, cust:v.cust, item:v.item, maker:it.supplier, symptom:v.symptom, warranty:v.warranty, status:'受付', log:[`9/25 ${meShort()}: 受付`]});
+      audit('修理受付', `${v.cust} ${v.item}`, v.cust);
       return {msg:`${v.cust} の修理を受け付けました。`, openLabel:'修理一覧を開く', open:()=>go('mgmt',{mgmt:'repair'})}; },
   },
 });
@@ -4315,6 +4442,27 @@ FORMS.deal={
     return {msg:`問い合わせ「${v.title.trim()}」を起票しました（案件台帳に1行）。`, openLabel:'台帳で開く', open:()=>openIssue(id)};
   },
 };
+/* その他出荷（案件以外） */
+FORMS.othership={
+  title:'その他出荷（案件以外）', submitLabel:'出荷予定を登録',
+  asis:'その他出荷（CSV／Excel）・倉庫ごとの手入力', why:'展示・廃棄・拠点間移動など案件に紐づかない出庫を残す',
+  stop:'在庫表への手修正だけして履歴が残らないこと', who:'購買物流・倉庫',
+  fields:[
+    {k:'sku', l:'品目', t:'select', opts:()=>ITEMS.map(x=>[x.sku, `${x.name}`]), full:true},
+    {k:'qty', l:'数量', t:'number', def:'1'},
+    {k:'wh', l:'出庫倉庫', t:'select', opts:()=>Object.keys(WH_ORG).map(w=>[w,w])},
+    {k:'reason', l:'理由', t:'select', opts:()=>[['展示','展示'],['廃棄','廃棄'],['拠点間移動','拠点間移動'],['サンプル','サンプル'],['その他','その他']]},
+    {k:'memo', l:'メモ', full:true},
+  ],
+  preview:v=>{ const it=itemOf(v.sku); const st=STOCK.find(s=>s.sku===v.sku&&s.wh===v.wh); return `<div class="note">在庫 ${st?st.qty+it.unit:'なし'}（${v.wh||'—'}）。登録すると「出荷予定」に載り、出荷登録で在庫から減ります。</div>`; },
+  submit:v=>{
+    const qty=Number(v.qty)||0; if(!qty) return {err:'数量を入れてください'};
+    const it=itemOf(v.sku);
+    MOVES.unshift({id:nextId(), type:'出荷', other:true, sku:v.sku, qty, wh:v.wh||'本部倉庫', ref:`その他/${v.reason||'その他'}`, reason:v.reason, date:'9/25', status:'出荷予定', log:[`9/25 ${meShort()}: その他出荷登録 ${v.memo||''}`]});
+    audit('その他出荷', `${it.name} ×${qty}（${v.reason}）`, v.sku);
+    return {msg:`その他出荷（${it.name} ×${qty}）を登録しました。`, openLabel:'入出荷を開く', open:()=>{ state.mgmtTab=state.mgmtTab||{}; state.mgmtTab.moves='other'; go('mgmt',{mgmt:'moves'}); }};
+  },
+};
 /* 外注注文書の作成（登録型・作成中＝下書き） */
 FORMS.porder={
   title:'外注注文書の作成', submitLabel:'作成中で保存',
@@ -4326,9 +4474,18 @@ FORMS.porder={
     {k:'work', l:'作業内容', req:true, full:true},
     {k:'amount', l:'金額（円）', t:'number', def:'0'},
   ],
-  preview:v=>{ const x=VENDORS.find(y=>y.name===v.vendor); return `<div class="note ${x&&x.ins!=='—'&&x.ins<='2026-11'?'warn':''}">${x?`保険期限 ${x.ins}${x.ins!=='—'&&x.ins<='2026-11'?'（更新確認が必要）':''}`:''}。保存すると「作成中」で一覧に載り、発行は一覧の「注文書を発行」から。</div>`; },
+  preview:v=>{
+    const x=VENDORS.find(y=>y.name===v.vendor);
+    const d=byId(v.deal); const hits=PORDERS.filter(p=>p.status!=='支払済' && p.vendor===v.vendor && p.deal===(d?d.ref:'—'));
+    return `<div class="note ${x&&x.ins!=='—'&&x.ins<='2026-11'?'warn':''}">${x?`保険期限 ${x.ins}${x.ins!=='—'&&x.ins<='2026-11'?'（更新確認が必要）':''}`:''}。保存すると「作成中」で一覧に載り、発行は一覧の「注文書を発行」から。</div>`
+      +(hits.length?`<div class="note warn">同じ外注・案件で進行中の注文書があります: ${hits.map(p=>(p.no||'未発行')+' '+p.work).join('、')}</div>`:'');
+  },
   submit:v=>{ if(!(v.work||'').trim()) return {err:'作業内容を入れてください'};
-    const d=byId(v.deal); PORDERS.unshift({id:nextId(), no:'', vendor:v.vendor, deal:d?d.ref:'—', work:v.work.trim(), amount:Number(v.amount)||0, status:'作成中', by:state.role, log:[`9/25 ${meShort()}: 作成`]});
+    const d=byId(v.deal); const dealRef=d?d.ref:'—';
+    const hits=PORDERS.filter(p=>p.status!=='支払済' && p.vendor===v.vendor && p.deal===dealRef);
+    if(hits.length && !confirm('同じ外注・案件で進行中の注文書があります。それでも作成しますか？')) return {err:'作成を中止しました（重複）'};
+    PORDERS.unshift({id:nextId(), no:'', vendor:v.vendor, deal:dealRef, work:v.work.trim(), amount:Number(v.amount)||0, status:'作成中', by:state.role, log:[`9/25 ${meShort()}: 作成`]});
+    audit('外注注文書', `${v.vendor} ${v.work.trim()}`, dealRef);
     return {msg:'注文書を「作成中」で保存しました。', openLabel:'注文書一覧を開く', open:()=>go('mgmt',{mgmt:'porders'})}; },
 };
 MGMT.porders.tools=[{l:'＋ 注文書を作成', f:()=>openFormModal('porder',{},{from:'外注注文書・支払'})}];
@@ -4379,6 +4536,19 @@ MGMT.chgreq={
   },
   foot:()=>'確定するまで元の値のまま表示されます。申請中は対象に「変更申請中」のバッジが出ます。',
 };
+MGMT.audit={
+  title:'監査ログ', asis:'紙の回付履歴・WFの承認履歴・各Excelの更新者欄を別々に追う', why:'誰が何をしたかを後から説明できる（承認・変更・削除・権限）',
+  stop:'履歴が部門ごとのファイルに散らばること', who:'システム管理者・管理部・監査',
+  rows:()=>AUDIT_LOG,
+  tabs:[{id:'all', label:'すべて', f:r=>true},{id:'chg', label:'変更・名寄せ', f:r=>/変更|名寄せ|無効/.test(r.action)},{id:'apr', label:'承認・起票', f:r=>/承認|起票|申請|発注|購買|修理|外注/.test(r.action)},{id:'doc', label:'書類送付', f:r=>/送付|領収|書類/.test(r.action+r.detail)}],
+  cols:[
+    {h:'日時', v:r=>r.at},{h:'操作者', v:r=>`<b>${r.who}</b>（${PEOPLE[r.role]||r.role}）`},
+    {h:'操作', v:r=>r.action},{h:'内容', v:r=>r.detail},{h:'対象', v:r=>`<span class="ref">${r.target}</span>`},
+  ],
+  q:r=>r.who+r.action+r.detail+r.target+(PEOPLE[r.role]||''),
+  acts:()=>[],
+  foot:()=>'承認・変更・名寄せ・書類送付・無効化などがここに溜まる。閲覧は個人情報を含む操作も記録（モックは全ロール可）。',
+};
 /* 外注の登録申請: 管理部の承認／差戻し */
 MGMT.vendors.acts=(orig=>r=>{
   if(r.status==='登録申請中') return [
@@ -4409,7 +4579,10 @@ CAPS.splice(CAPS.findIndex(c=>c.l.startsWith('外注注文書')), 0,
   {l:'経費の確認（経理）', t:'管理', asis:'紙の経費申請の目視確認', plan:'残す（差戻しは理由付きで申請者へ）', st:'ok', go:()=>go('mgmt',{mgmt:'expenses'})});
 CAPS.splice(CAPS.findIndex(c=>c.l.startsWith('稟議起票'))+1, 0,
   {l:'不在設定・代理承認', t:'管理', asis:'口頭の代理・印鑑の持ち回り', plan:'残す（期間付き・履歴に代理印）', st:'ok', go:()=>{ state.view='approvals'; go('board'); setTimeout(()=>{ const b=document.getElementById('absBtn'); if(b) b.click(); }, 50); }},
-  {l:'一括承認（稟議）', t:'管理', asis:'紙の束でまとめて押印', plan:'残す（高額・クレーム・解約は除外）', st:'ok', go:()=>{ state.view='approvals'; go('board'); }});
+  {l:'一括承認（稟議）', t:'管理', asis:'紙の束でまとめて押印', plan:'残す（高額・クレーム・解約は除外）', st:'ok', go:()=>{ state.view='approvals'; go('board'); }},
+  {l:'監査ログ', t:'管理', asis:'紙・WF・Excelの履歴を別々に追う', plan:'残す（操作の横断ログ）', st:'ok', go:()=>go('mgmt',{mgmt:'audit'})},
+  {l:'顧客の名寄せ（統合）', t:'管理', asis:'重複顧客の手作業統合', plan:'残す（理由必須・案件を寄せる）', st:'ok', go:()=>{ state.crmAxis='customer'; state.customer='c1'; go('crm'); }},
+  {l:'その他出荷（案件以外）', t:'登録', asis:'その他出荷 CSV／Excel', plan:'残す', st:'ok', go:()=>openFormModal('othership',{},{from:'管理一覧'})});
 CAPS.splice(CAPS.findIndex(c=>c.l.startsWith('稟議起票')), 0,
   {l:'代理起票（申請者を分けて持つ）', t:'登録', asis:'事務が営業の代わりに紙で起票', plan:'残す（起票者と申請者を分離）', st:'ok', go:()=>openFormModal('ringi',{applicant:'sales'},{from:'代理起票'})});
 const myCap=CAPS.find(c=>c.l.startsWith('自分の申請')); if(myCap) myCap.l='自分の申請・登録（下書き・申請中・差戻し）';

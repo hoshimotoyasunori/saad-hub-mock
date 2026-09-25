@@ -180,6 +180,7 @@ textarea.fin{min-height:64px;resize:vertical}
 .pick .tt{font-size:13.5px;font-weight:700}
 .pick .ss{font-size:11px;color:var(--muted)}
 .photo-grid{display:flex;gap:8px;margin-top:6px}
+.sign-pad{margin-top:8px;border:1.5px solid var(--line);border-radius:12px;background:#fff;height:120px;touch-action:none;width:100%}
 .photo-grid button{flex:1;aspect-ratio:1;border:1.5px dashed var(--line);border-radius:12px;background:#fafbfd;
   font-size:20px;color:var(--muted);cursor:pointer}
 .photo-grid button.has{border-style:solid;background:#e8f1fb;border-color:var(--accent)}
@@ -852,15 +853,19 @@ function ringiFormView(){
   <button class="abtn p" style="margin-top:12px;${ok?'':'opacity:.4'}" data-msend="ringi">申請する</button>${mDraftBtn('ringiForm')}`;
 }
 function buyFormView(){
-  const it=M_ITEMS.find(x=>x[0]===mfv('item')), qty=Number(mfv('qty'))||0, total=it?it[1]*qty:0;
-  const ok=mfv('deal')&&it&&qty;
+  const cart=state.mf.cart||[];
+  const favNames=['防除薬剤A 18L','安全具セット','床下換気扇 UF-2'];
+  const ordered=favNames.map(n=>M_ITEMS.find(x=>x[0]===n)).filter(Boolean).concat(M_ITEMS.filter(x=>!favNames.includes(x[0])));
+  const lines=cart.length?cart:(mfv('item')?[{n:mfv('item'),q:Number(mfv('qty'))||1}]:[]);
+  const total=lines.reduce((s,l)=>{ const it=M_ITEMS.find(x=>x[0]===l.n); return s+(it?it[1]*l.q:0); },0);
+  const ok=mfv('deal')&&lines.length;
   return `<div class="dethead"><button class="backbtn" data-back="1">‹ 戻る</button><h2>資材を注文</h2>
-  <div class="sub">案件に紐づけて申請。購買が発注すると納期が案件に載ります</div></div>
+  <div class="sub">複数品目をカートに入れて申請。よく使う資材を上に表示</div></div>
   <div class="slabel">① どの案件？</div>${mdealPick()}
-  <div class="slabel">② 品目</div><div class="chips">${M_ITEMS.map(([n,p])=>`<button class="chip" data-mf="item:${n}" aria-pressed="${mfv('item')===n}">${n}<br><span style="font-size:10.5px;font-weight:500">${p.toLocaleString()}円</span></button>`).join('')}</div>
-  <div class="slabel">③ 数量</div>${mchips('qty',['1','2','3','5','10'])}
-  <div class="slabel">④ いつまでに？</div>${mchips('eta',['明日','3日後','来週'])}
-  ${it&&qty?`<div class="card" style="margin-top:10px"><div class="fsum"><span>合計</span><b>${total.toLocaleString()}円</b></div>
+  <div class="slabel">② 品目（タップでカートへ · ★よく使う）</div><div class="chips">${ordered.map(([n,p])=>`<button class="chip" data-cartadd="${n}" aria-pressed="${cart.some(c=>c.n===n)}">${favNames.includes(n)?'★ ':''}${n}<br><span style="font-size:10.5px;font-weight:500">${p.toLocaleString()}円</span></button>`).join('')}</div>
+  ${cart.length?`<div class="card" style="margin-top:8px">${cart.map((l,i)=>`<div class="kvrow"><span>${l.n} ×${l.q}</span><button class="abtn g" data-cartq="${i}" style="padding:4px 8px;min-height:0">数量</button><button class="abtn g" data-cartrm="${i}" style="padding:4px 8px;min-height:0">外す</button></div>`).join('')}</div>`:''}
+  <div class="slabel">③ いつまでに？</div>${mchips('eta',['明日','3日後','来週'])}
+  ${ok?`<div class="card" style="margin-top:10px"><div class="fsum"><span>合計（${lines.length}品目）</span><b>${total.toLocaleString()}円</b></div>
     <div class="s">${total>=50000?'5万円以上 — 拠点長の承認が自動で付きます':'承認不要枠（5万円未満）'}</div></div>`:''}
   <button class="abtn p" style="margin-top:12px;${ok?'':'opacity:.4'}" data-msend="buy">申請する</button>${mDraftBtn('buyForm')}`;
 }
@@ -914,12 +919,14 @@ function _doMSendBody(kind){
     toast(`✓ 申請しました — ${route}へ`); render(); return;
   }
   if(kind==='buy'){
-    const it=M_ITEMS.find(x=>x[0]===mfv('item')), qty=Number(mfv('qty'))||0;
-    if(!mfv('deal')||!it||!qty){ toast('案件・品目・数量を選んでください'); return; }
-    const total=it[1]*qty;
-    addHist(mfv('deal'), `<b>資材を申請 — ${it[0]} ×${qty}</b><div class="m">${total.toLocaleString()}円 · 希望 ${mfv('eta')||'指定なし'}${total>=50000?' · 拠点長の承認付き':''}</div>`);
-    addReq('buyForm', `資材 ${it[0]} ×${qty}（${DEALS[mfv('deal')].cust}）`);
-    if(total>=50000) pushNotif('boss',{ic:'📦',tt:`承認依頼: 資材 ${it[0]} ×${qty}`,ss:`${total.toLocaleString()}円`,go:{deal:mfv('deal')}});
+    const cart=state.mf.cart||[];
+    const lines=cart.length?cart:(mfv('item')?[{n:mfv('item'),q:Number(mfv('qty'))||1}]:[]);
+    if(!mfv('deal')||!lines.length){ toast('案件と品目を選んでください'); return; }
+    const total=lines.reduce((s,l)=>{ const it=M_ITEMS.find(x=>x[0]===l.n); return s+(it?it[1]*l.q:0); },0);
+    const label=lines.map(l=>`${l.n}×${l.q}`).join('、');
+    addHist(mfv('deal'), `<b>資材を申請 — ${label}</b><div class="m">${total.toLocaleString()}円 · 希望 ${mfv('eta')||'指定なし'}${total>=50000?' · 拠点長の承認付き':''}</div>`);
+    addReq('buyForm', `資材 ${lines.length}品目（${DEALS[mfv('deal')].cust}）`);
+    if(total>=50000) pushNotif('boss',{ic:'📦',tt:`承認依頼: 資材カート ${lines.length}品目`,ss:`${total.toLocaleString()}円`,go:{deal:mfv('deal')}});
     state.mf={}; state.sub=null;
     toast('✓ 申請しました — 購買（鈴木さん）へ届きました'); render(); return;
   }
@@ -971,11 +978,13 @@ function quoteView(){
   <button class="abtn p" style="margin-top:12px;${mfv('deal')&&sub?'':'opacity:.4'}" data-msend2="quote">見積を登録する</button>${mDraftBtn('quote')}`;
 }
 function photoView(){
-  return `<div class="dethead"><button class="backbtn" data-back="1">‹ 戻る</button><h2>写真を報告</h2><div class="sub">撮ると案件に自動で紐づき、報告書に入ります</div></div>
+  const n=[0,1,2,3,4].filter(i=>state.mf['ph'+i]).length;
+  return `<div class="dethead"><button class="backbtn" data-back="1">‹ 戻る</button><h2>写真を報告</h2><div class="sub">撮ると案件に自動で紐づき、報告書に入ります。送信前は差し替え可（タップでON/OFF）</div></div>
   <div class="slabel">① どの案件？</div>${mdealPick()}
   <div class="slabel">② 種類</div>${mchips('ptype',['調査','作業前','作業後','その他'])}
-  <div class="slabel">③ 写真</div><div class="photo-grid">${[0,1,2].map(i=>`<button data-mfp="${i}" class="${state.mf['ph'+i]?'has':''}">${state.mf['ph'+i]?'✓':'📷'}</button>`).join('')}</div>
-  <button class="abtn p" style="margin-top:12px;${mfv('deal')?'':'opacity:.4'}" data-msend2="photo">送信する</button>`;
+  <div class="slabel">③ 写真（${n}/5 · 上限20枚想定）</div><div class="photo-grid">${[0,1,2,3,4].map(i=>`<button data-mfp="${i}" class="${state.mf['ph'+i]?'has':''}">${state.mf['ph'+i]?'✓ 差替':'📷'}</button>`).join('')}</div>
+  <p class="note">送信後は追加のみ（差し替え不可）。長辺1600pxに圧縮して送ります（モック）。</p>
+  <button class="abtn p" style="margin-top:12px;${mfv('deal')&&n?'':'opacity:.4'}" data-msend2="photo">送信する</button>`;
 }
 function expenseView(){
   return `<div class="dethead"><button class="backbtn" data-back="1">‹ 戻る</button><h2>経費を申請</h2><div class="sub">領収書は写真を撮るだけ。今月の締切 9/30 17:00</div></div>
@@ -1049,8 +1058,10 @@ function doMSend2(kind){
     state.mf={}; state.sub=null; toast('✓ 見積を登録しました'+(disc?' — 値引きの稟議も起票':'')); render(); return;
   }
   if(kind==='photo'){ if(!d){ toast('案件を選んでください'); return; }
-    const n=[0,1,2].filter(i=>state.mf['ph'+i]).length;
-    addHist(mfv('deal'), `<b>写真を報告（${mfv('ptype')||'その他'}）</b><div class="m">${n}枚 — 報告書に自動で入ります</div>`);
+    const n=[0,1,2,3,4].filter(i=>state.mf['ph'+i]).length;
+    if(!n){ toast('写真を1枚以上撮ってください'); return; }
+    if(!confirm(`写真${n}枚を送信します。送信後は差し替えできません。よろしいですか？`)) return;
+    addHist(mfv('deal'), `<b>写真を報告（${mfv('ptype')||'その他'}）</b><div class="m">${n}枚 — 報告書に自動で入ります（送信後は追加のみ）</div>`);
     state.mf={}; state.sub=null; toast(`✓ 写真${n}枚を送信しました`); render(); return; }
   if(kind==='keihi'){ const amt=Number(mfv('amount'))||0; if(!amt||!mfv('cat')){ toast('区分と金額を入れてください'); return; }
     addReq('keihi', `経費 ${mfv('cat')} ${amt.toLocaleString()}円`); state.mf={}; state.sub=null; toast('✓ 経費を申請しました — 経理へ'); render(); return; }
@@ -1101,13 +1112,18 @@ function renderSheet(){
   if(state.sheet==='done'){
     title='完了を報告';
     const p=state.pick;
-    body=`<div class="slabel">① 写真（作業前・後）</div>
-      <div class="photo-grid">${[0,1,2].map(i=>`<button data-pk="ph:${i}" class="${p['ph'+i]?'has':''}">${p['ph'+i]?'✓':'＋'}</button>`).join('')}</div>
+    const pn=[0,1,2].filter(i=>p['ph'+i]).length;
+    body=`<div class="slabel">① 写真（作業前・中・後 · 必須3枚 · タップで差し替え）</div>
+      <div class="photo-grid">${[0,1,2].map(i=>`<button data-pk="ph:${i}" class="${p['ph'+i]?'has':''}">${p['ph'+i]?'✓ 差替':'＋'}</button>`).join('')}</div>
       <div class="slabel">② チェック</div>
       <div class="chips">${['清掃・復旧OK','近隣あいさつ済み','追加作業なし'].map(c=>`<button class="chip" data-pk="chk:${c}" aria-pressed="${(p.chk||[]).includes(c)}">${c}</button>`).join('')}</div>
+      <div class="slabel">③ お客さまのサイン（指）</div>
+      <canvas class="sign-pad" id="signPad" width="320" height="120"></canvas>
+      <div class="btnrow" style="margin-top:6px"><button class="abtn g" type="button" data-signclr="1">サインを消す</button>
+        <span class="s">${p.signed?'✓ サイン済':'枠内を指でなぞってください'}</span></div>
       <textarea placeholder="申し送りがあれば" id="doneTxt"></textarea>
-      <button class="abtn g" style="margin-top:12px" data-send="done">📷 完了を送信</button>
-      <p class="note">送信すると管理部に「請求できます」の通知が飛びます。金額はこの画面に出ません。</p>`;
+      <button class="abtn g" style="margin-top:12px;${pn>=3&&p.signed?'':'opacity:.4'}" data-send="done">📷 完了を送信</button>
+      <p class="note">送信すると管理部に「請求できます」の通知が飛びます。金額はこの画面に出ません。送信後の写真は追加のみ。</p>`;
   }
   sh.innerHTML=`<div class="grab"></div><div class="shead"><h3>${title}</h3><button data-close="1">✕</button></div><div class="sbody">${body}</div>`;
   wireSheet();
@@ -1130,6 +1146,19 @@ function wireSheet(){
     else state.pick[k]=state.pick[k]===v?null:v;
     renderSheet();
   });
+  const pad=$('signPad');
+  if(pad){
+    const ctx=pad.getContext('2d'); ctx.strokeStyle='#0c1222'; ctx.lineWidth=2.5; ctx.lineCap='round';
+    if(state.pick.signed){ ctx.fillStyle='#e8f1fb'; ctx.fillRect(0,0,pad.width,pad.height); ctx.fillStyle='#0c1222'; ctx.font='14px sans-serif'; ctx.fillText('（サイン済）', 12, 60); }
+    let draw=false;
+    const pos=e=>{ const r=pad.getBoundingClientRect(); const t=e.touches?e.touches[0]:e; return {x:(t.clientX-r.left)*pad.width/r.width, y:(t.clientY-r.top)*pad.height/r.height}; };
+    const start=e=>{ e.preventDefault(); draw=true; const p=pos(e); ctx.beginPath(); ctx.moveTo(p.x,p.y); };
+    const move=e=>{ if(!draw) return; e.preventDefault(); const p=pos(e); ctx.lineTo(p.x,p.y); ctx.stroke(); state.pick.signed=true; };
+    const end=()=>{ draw=false; };
+    pad.addEventListener('mousedown',start); pad.addEventListener('mousemove',move); window.addEventListener('mouseup',end);
+    pad.addEventListener('touchstart',start,{passive:false}); pad.addEventListener('touchmove',move,{passive:false}); pad.addEventListener('touchend',end);
+  }
+  const sc=sh.querySelector('[data-signclr]'); if(sc) sc.onclick=()=>{ state.pick.signed=false; renderSheet(); };
   sh.querySelectorAll('[data-send]').forEach(b=>b.onclick=()=>{
     if(b.dataset.send==='report'){
       const p=state.pick; if(!p.deal||!p.result){toast('予定と結果を選んでください');return;}
@@ -1141,10 +1170,14 @@ function wireSheet(){
       render();
     }
     if(b.dataset.send==='done'){
+      const p=state.pick; const pn=[0,1,2].filter(i=>p['ph'+i]).length;
+      if(pn<3){ toast('作業前・中・後の写真3枚が必要です'); return; }
+      if(!p.signed){ toast('お客さまのサインが必要です'); return; }
+      if(!confirm('この内容で完了報告を送信します。よろしいですか？')) return;
       const t=state.sheetDeal||'d3';
       state.done[t]=true;
       const nm=t==='d1'?'佐藤さま宅（シロアリ防除）':'グリーンハイツ（貯水槽清掃）';
-      pushNotif('sales',{ic:'🛠',tt:`${nm}の施工が完了しました`,ss:'山本さんが完了報告（写真3枚）',go:{deal:t}});
+      pushNotif('sales',{ic:'🛠',tt:`${nm}の施工が完了しました`,ss:'山本さんが完了報告（写真3枚・サイン済）',go:{deal:t}});
       pushNotif('boss',{ic:'🧾',tt:'施工完了 — 請求の準備ができます',ss:nm,go:{deal:t}});
       closeSheet(); state.deal=null; state.tab='home';
       toast('✓ 完了を報告しました — 管理部へ通知');
@@ -1357,6 +1390,17 @@ function wireView(){
   v.querySelectorAll('[data-mfm]').forEach(b=>b.onclick=()=>{ const i=b.dataset.mfm.indexOf(':'), k=b.dataset.mfm.slice(0,i), val=b.dataset.mfm.slice(i+1);
     state.mf[k]=state.mf[k]||[]; const j=state.mf[k].indexOf(val); j>=0?state.mf[k].splice(j,1):state.mf[k].push(val); const y=v.scrollTop; render(); $('view').scrollTop=y; });
   v.querySelectorAll('[data-mfp]').forEach(b=>b.onclick=()=>{ const k='ph'+b.dataset.mfp; state.mf[k]=!state.mf[k]; const y=v.scrollTop; render(); $('view').scrollTop=y; });
+  v.querySelectorAll('[data-cartadd]').forEach(b=>b.onclick=()=>{
+    state.mf.cart=state.mf.cart||[]; const n=b.dataset.cartadd; const ex=state.mf.cart.find(c=>c.n===n);
+    if(ex) ex.q+=1; else state.mf.cart.push({n,q:1});
+    const y=v.scrollTop; render(); $('view').scrollTop=y;
+  });
+  v.querySelectorAll('[data-cartrm]').forEach(b=>b.onclick=()=>{ state.mf.cart.splice(+b.dataset.cartrm,1); const y=v.scrollTop; render(); $('view').scrollTop=y; });
+  v.querySelectorAll('[data-cartq]').forEach(b=>b.onclick=()=>{
+    const l=state.mf.cart[+b.dataset.cartq]; if(!l) return;
+    const q=prompt('数量', String(l.q)); if(!q) return; l.q=Math.max(1, Number(q)||1);
+    const y=v.scrollTop; render(); $('view').scrollTop=y;
+  });
   v.querySelectorAll('[data-mdoc]').forEach(b=>b.onclick=()=>{ const i=+b.dataset.mdoc; state.mdoc=state.mdoc===i?-1:i; render(); });
   v.querySelectorAll('[data-noff]').forEach(b=>b.onclick=()=>{ const o=b.dataset.noff, a=state.notifOff, i=a.indexOf(o); i>=0?a.splice(i,1):a.push(o); render(); });
   const kq=$('knowQ'); if(kq) kq.addEventListener('input',e=>{ state.knowQ=e.target.value; render(); const el=$('knowQ'); el.focus(); el.setSelectionRange(el.value.length,el.value.length); });
