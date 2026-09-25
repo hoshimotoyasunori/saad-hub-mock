@@ -64,15 +64,14 @@ body.is-mobile .shell{height:auto;min-height:100%}
 .portal{display:grid;grid-template-columns:minmax(0,1fr) 260px;background:#fff;min-height:100%}
 @media(max-width:960px){.portal{grid-template-columns:1fr}.db-main{order:1}.db-rail{order:2}.db-rail{border-right:0;border-left:0;border-top:1px solid var(--line)}}
 .db-side{padding:16px 14px;border-right:1px solid var(--line);background:#fff;position:relative;min-width:0}
-/* 全画面共通サイドバー（ポータル左欄と同じ中身を案件台帳・マスタ等でも開閉） */
-.body-row{flex:1;min-height:0;display:flex;overflow:hidden;position:relative}
-.global-side{flex:none;width:0;overflow:hidden;opacity:0;border-right:0;background:#fff;padding:0;transition:width .16s ease,opacity .12s,padding .16s}
-.app.side-open .global-side{width:232px;opacity:1;border-right:1px solid var(--line);padding:14px 12px 18px;overflow:auto}
-.global-side .side-head{display:flex;align-items:center;gap:8px;margin:0 0 10px}
-.global-side .side-head h3{margin:0;font-size:13px;flex:1}
-.global-side .side-x{border:1px solid var(--line);background:#fff;border-radius:6px;width:26px;height:26px;font-size:12px;line-height:1;color:var(--muted);padding:0}
-.global-side .side-x:hover{border-color:var(--teal);color:var(--teal-deep)}
-.app.mobile .global-side,.app.mobile.side-open .global-side{display:none;width:0;padding:0;border:0}
+/* 全画面共通サイドバー＝レイアウトの一部（オーバーレイ禁止。☰は開閉のみ） */
+.body-row{flex:1;min-height:0;display:flex;flex-direction:row;overflow:hidden;background:#fff}
+.global-side{flex:none;width:0;min-width:0;max-width:0;overflow:hidden;border-right:0;background:#fff;padding:0;box-sizing:border-box}
+.app.side-open .global-side{width:232px;min-width:232px;max-width:232px;border-right:1px solid var(--line);padding:16px 14px;overflow-x:hidden;overflow-y:auto}
+.global-side .db-side-toggle{float:right;margin:0 0 8px 8px;border:1px solid var(--line);background:#fff;border-radius:6px;width:26px;height:26px;font-size:12px;line-height:1;color:var(--muted);padding:0}
+.global-side .db-side-toggle:hover{border-color:var(--teal);color:var(--teal-deep)}
+.body-row > .main{flex:1 1 auto;min-width:0;width:auto}
+.app.mobile .global-side,.app.mobile.side-open .global-side{display:none!important;width:0!important;min-width:0!important;max-width:0!important;padding:0!important;border:0!important}
 .gheader .menubtn{border:0;background:#243049;color:#c5d0e0;border-radius:8px;padding:6px 10px;font-size:14px;flex:none;line-height:1}
 .gheader .menubtn[aria-expanded="true"]{background:var(--teal);color:#fff}
 .db-me{display:flex;align-items:center;gap:9px;margin-bottom:16px}
@@ -485,7 +484,7 @@ tr.is-picked{background:#f0faf9}
 
   <div class="app" id="app">
     <div class="gheader">
-      <button type="button" class="menubtn" id="navBtn" title="道具箱（アプリ・ショートカット）" aria-label="道具箱を開く" aria-expanded="false">☰</button>
+      <button type="button" class="menubtn" id="navBtn" title="サイドバーを閉じる" aria-label="サイドバーを閉じる" aria-expanded="true">☰</button>
       <div class="brand">SA</div><strong style="font-size:12.5px">SAAD</strong>
       <div class="gnav" id="gnav"></div>
       <input class="search" id="search" placeholder="／ 横断検索（Enter）">
@@ -501,7 +500,7 @@ tr.is-picked{background:#f0faf9}
     <div class="notif" id="notif"></div>
     <div class="notif" id="newMenu"></div>
     <div class="body-row" id="bodyRow">
-      <aside class="global-side" id="globalSide" aria-label="道具箱" hidden></aside>
+      <aside class="global-side" id="globalSide" aria-label="サイドバー"></aside>
       <div class="main" id="main"></div>
     </div>
   </div>
@@ -778,7 +777,7 @@ const BOARD_NEW={
 };
 
 let state = { role:'sales', screen:'portal', view:'all', sel:null, repo:null, wipKey:null, mScreen:'mhome', customer:null, property:null, crmAxis:'customer', crmQ:'', crmDomain:'', crmBranch:'', crmRegi:'', crmFilterOpen:false, crmPage:0,
-  sideOpen:false,
+  sideOpen:true,
   picked:new Set(),
   sortKey:'upd', sortDir:'desc',
   scope:'role', /* role | self | branch | all */
@@ -1297,22 +1296,23 @@ function syncGlobalSide(){
   app.classList.toggle('side-open', open);
   if(btn){
     btn.setAttribute('aria-expanded', open?'true':'false');
-    btn.setAttribute('aria-label', open?'道具箱を閉じる':'道具箱を開く');
-    btn.title=open?'道具箱を閉じる':'道具箱（アプリ・ショートカット）';
+    btn.setAttribute('aria-label', open?'サイドバーを閉じる':'サイドバーを開く');
+    btn.title=open?'サイドバーを閉じる':'サイドバー（アプリ・ショートカット）';
   }
   if(!open){
     side.hidden=true;
     side.innerHTML='';
     return;
   }
+  /* ポータル左欄と同じ見た目（オーバーレイ見出しや×は付けない） */
   side.hidden=false;
-  side.innerHTML=`<div class="side-head"><h3>道具箱</h3><button type="button" class="side-x" id="sideClose" title="閉じる" aria-label="サイドバーを閉じる">«</button></div>${navSideBodyHtml()}`;
+  side.innerHTML=`<button type="button" class="db-side-toggle" id="sideClose" title="サイドバーを閉じる" aria-label="サイドバーを閉じる">«</button>${navSideBodyHtml()}`;
   bindNavSide(side);
-  const cx=$('sideClose'); if(cx) cx.onclick=()=>{ state.sideOpen=false; syncGlobalSide(); };
+  const cx=$('sideClose');
+  if(cx) cx.onclick=()=>{ state._sideTouched=true; state.sideOpen=false; syncGlobalSide(); };
 }
-function openNavDrawer(){ state.sideOpen=true; syncGlobalSide(); }
-function closeNavDrawer(){ state.sideOpen=false; syncGlobalSide(); }
-function toggleNavDrawer(){ state.sideOpen=!state.sideOpen; syncGlobalSide(); }
+function setSideOpen(v){ state._sideTouched=true; state.sideOpen=!!v; syncGlobalSide(); }
+function toggleSide(){ setSideOpen(!state.sideOpen); }
 
 function renderWip(){
   const w=WIP[state.wipKey]||{
@@ -1446,8 +1446,7 @@ function renderPortal(){
   issues.forEach(i=>(i.tl||[]).forEach(e=>{ if(e.t==='sys') recent.push({id:i.id, ref:i.ref, text:e.text}); }));
   const rec=recent.slice(-4).reverse().map(e=>`<li><button type="button" data-open="${e.id}"><b>${e.ref}</b><br>${e.text}</button></li>`).join('');
 
-  /* 左の道具箱はグローバルサイドバー（☰）で全画面共通。ポータルでは自動で開く */
-  if(!state._sideTouched) state.sideOpen=true;
+  /* 左サイドバーは #globalSide（☰で開閉）。ポータル本体には重ねない */
   $('main').innerHTML=`<div class="portal">
     <div class="db-main">
       <div class="sec-h"><h3>自分の申請・登録</h3><button type="button" class="more" id="goMy">すべて →</button></div>
@@ -4742,11 +4741,10 @@ $('bellBtn').onclick=()=>{ $('newMenu').classList.remove('open'); $('notif').cla
 $('newBtn').onclick=()=>{ $('notif').classList.remove('open'); renderNewMenu(); $('newMenu').classList.toggle('open'); };
 $('myBtn').onclick=()=>{ $('newMenu').classList.remove('open'); go('myreq'); };
 $('navBtn').onclick=()=>{
-  state._sideTouched=true;
   $('notif').classList.remove('open'); $('newMenu').classList.remove('open');
-  toggleNavDrawer();
+  toggleSide();
 };
-document.addEventListener('keydown',e=>{ if(e.key==='Escape' && state.sideOpen){ state._sideTouched=true; closeNavDrawer(); } });
+document.addEventListener('keydown',e=>{ if(e.key==='Escape' && state.sideOpen) setSideOpen(false); });
 $('search').addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); state.searchQ=e.target.value; go('search'); }});
 $('app').addEventListener('wheel', e=>{
   const main=$('main'); if(!main) return;
