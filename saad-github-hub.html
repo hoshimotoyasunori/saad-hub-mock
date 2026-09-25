@@ -14,23 +14,23 @@
 }
 *{box-sizing:border-box}
 html,body{margin:0;height:100%}
-body{font-family:var(--font);color:var(--ink);background:radial-gradient(1200px 600px at 10% -10%,#d7e8e8 0%,transparent 55%),linear-gradient(165deg,#e8edf4,#d5dde8);overflow:hidden}
-body.is-mobile{height:auto;min-height:100%;overflow:auto}
+body{font-family:var(--font);color:var(--ink);background:var(--panel);overflow:hidden}
+body.is-mobile{height:auto;min-height:100%;overflow:auto;background:var(--bg,#eef1f6)}
 button,select,input,textarea{font:inherit}button{cursor:pointer}
 
-/* シェル: モック画面のみ（デモ帯なし） */
-.shell{max-width:1280px;margin:0 auto;padding:12px;height:100%;display:flex;flex-direction:column;min-height:0}
+/* シェル: 画面いっぱいにモックのみ（余白・カード枠なし） */
+.shell{max-width:none;margin:0;padding:0;width:100%;height:100%;display:flex;flex-direction:column;min-height:0}
 body.is-mobile .shell{height:auto;min-height:100%}
-/* 開発用ペルソナ切替（ヘッダ・使い方の右）。?dev=0 で非表示 */
-.roles{display:none;flex:none;align-items:center;gap:3px;margin-left:6px;padding-left:8px;border-left:1px solid #31405c;max-width:min(420px,38vw);overflow-x:auto;overflow-y:hidden}
+/* 開発用ペルソナ: プルダウン（?dev=0 で非表示） */
+.roles{display:none;flex:none;align-items:center;margin-left:6px;padding-left:8px;border-left:1px solid #31405c}
 body.dev-roles .roles{display:flex}
-.role{border:1px solid #31405c;background:#243049;border-radius:999px;padding:4px 8px;font-size:10.5px;color:#9fb0c9;white-space:nowrap;flex:none}
-.role:hover{color:#e8eef7;border-color:#4a5d7a}
-.role[aria-pressed="true"]{background:var(--teal);border-color:var(--teal);color:#fff;font-weight:600}
-.role .b{display:inline-block;min-width:13px;margin-left:3px;border-radius:999px;background:var(--rose);color:#fff;font-size:9px;padding:0 4px;text-align:center;line-height:14px}
+.roles select{appearance:none;-webkit-appearance:none;border:1px solid #31405c;background:#243049 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='%239fb0c9' d='M0 0l5 6 5-6z'/%3E%3C/svg%3E") no-repeat right 8px center;color:#e8eef7;border-radius:7px;padding:5px 22px 5px 9px;font-size:11.5px;max-width:148px;cursor:pointer}
+.roles select:hover,.roles select:focus{border-color:var(--teal);outline:none}
+.roles .role-badge{margin-left:4px;min-width:14px;border-radius:999px;background:var(--rose);color:#fff;font-size:9px;padding:1px 5px;line-height:14px;display:none}
+.roles .role-badge.on{display:inline-block}
 
 /* Hub本体: ヘッダー固定 / mainだけが中でスクロール */
-.app{position:relative;flex:1 1 auto;min-height:0;background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);overflow:hidden;display:flex;flex-direction:column}
+.app{position:relative;flex:1 1 auto;min-height:0;width:100%;background:var(--panel);border:0;border-radius:0;box-shadow:none;overflow:hidden;display:flex;flex-direction:column}
 .gheader{flex:none;display:flex;align-items:center;gap:8px;padding:9px 12px;background:var(--ink);color:#e8eef7;flex-wrap:nowrap;min-width:0}
 .brand{width:26px;height:26px;border-radius:6px;background:linear-gradient(135deg,#1aa6ab,#0a4f52);display:grid;place-items:center;font-size:10px;font-weight:700;flex:none}
 .gnav{display:flex;gap:2px;margin-left:6px;flex:none;flex-wrap:nowrap}
@@ -503,7 +503,7 @@ tr.is-picked{background:#f0faf9}
     <div class="gheader">
       <div class="brand">SA</div><strong style="font-size:12.5px">SAAD</strong>
       <div class="gnav" id="gnav"></div>
-      <div class="roles" id="roles" title="開発用: 役割（ペルソナ）切替" aria-label="開発用ペルソナ切替"></div>
+      <div class="roles" id="roles"></div>
       <input class="search" id="search" title="顧客・物件・案件番号をまとめて探す（Enterで横断検索）" aria-label="横断検索：顧客名・物件名・案件番号" placeholder="顧客・物件・案件番号を探す">
       <button type="button" class="iconbtn" id="newBtn">＋ 新規</button>
       <button type="button" class="iconbtn" id="myBtn">自分の申請<span class="b" id="myCount" style="display:none">0</span></button>
@@ -1038,8 +1038,7 @@ function actionsFor(it){
 /* ================= navigation ================= */
 function setRole(id){
   state.role=id; state.view=ROLES[id].view; state.sel=null; state.mScreen='mhome';
-  const box=$('roles');
-  if(box)[...box.children].forEach(el=>el.setAttribute('aria-pressed', el.dataset.role===id?'true':'false'));
+  const sel=$('roleSel'); if(sel && sel.value!==id) sel.value=id;
   document.title='SAAD Hub — '+ROLES[id].label+'（'+PEOPLE[id]+'）';
   render();
 }
@@ -1110,13 +1109,10 @@ function render(){
   renderCov();
 }
 function renderRoleBadges(){
-  const box=$('roles'); if(!box) return;
-  [...box.children].forEach(el=>{
-    const n=(inbox[el.dataset.role]||[]).length;
-    let b=el.querySelector('.b');
-    if(n>0){ if(!b){ b=document.createElement('span'); b.className='b'; el.appendChild(b);} b.textContent=n; }
-    else if(b) b.remove();
-  });
+  const badge=$('roleBadge'); if(!badge) return;
+  const n=(inbox[state.role]||[]).length;
+  if(n>0){ badge.textContent=n; badge.classList.add('on'); badge.title='この役割の Inbox '+n+' 件'; }
+  else { badge.textContent=''; badge.classList.remove('on'); }
 }
 function renderGnav(){
   const items=[['portal','ポータル'],['structure','構成'],['board','案件台帳'],['crm','マスタ'],['mgmt','管理'],['spaces','スペース'],['manual','使い方']];
@@ -4841,10 +4837,12 @@ const myCap=CAPS.find(c=>c.l.startsWith('自分の申請')); if(myCap) myCap.l='
   document.body.classList.toggle('dev-roles', show);
   const box=$('roles');
   if(!box) return;
+  box.innerHTML=`<select id="roleSel" title="開発用: 役割（ペルソナ）切替" aria-label="開発用ペルソナ切替"></select><span class="role-badge" id="roleBadge"></span>`;
+  const sel=$('roleSel');
   Object.entries(ROLES).forEach(([id,r])=>{
-    const b=document.createElement('button'); b.type='button'; b.className='role'; b.textContent=r.label; b.dataset.role=id;
-    b.title='開発用ペルソナ: '+r.label; b.onclick=()=>setRole(id); box.appendChild(b);
+    const o=document.createElement('option'); o.value=id; o.textContent=r.label; sel.appendChild(o);
   });
+  sel.onchange=()=>setRole(sel.value);
 })();
 $('bellBtn').onclick=()=>{ $('newMenu').classList.remove('open'); $('notif').classList.toggle('open'); };
 $('newBtn').onclick=()=>{ $('notif').classList.remove('open'); renderNewMenu(); $('newMenu').classList.toggle('open'); };
