@@ -265,12 +265,9 @@ h2.page{margin:0 0 6px;font-size:17px}
 .gate-banner.ok{background:#e8f6ee;border-color:#b7e0c5;color:#1a7f4b}
 .repo-banner{flex:none;margin:0;padding:8px 14px;font-size:12px;background:#eef2f7;border-bottom:1px solid var(--line);color:var(--muted)}
 
-/* リスト｜詳細のワークスペース */
-.split{flex:1;min-height:0;display:grid;grid-template-columns:1fr;overflow:hidden}
-.has-panel .split{grid-template-columns:minmax(340px,46%) minmax(0,54%)}
-@media(max-width:960px){.has-panel .split{grid-template-columns:1fr}.has-panel .list-pane{display:none}}
-.list-pane{min-height:0;height:100%;display:flex;flex-direction:column;overflow:hidden;background:#fff}
-.has-panel .list-pane{border-right:1px solid var(--line)}
+/* リスト｜詳細 — 詳細は右オーバーレイ（テーブル幅は変えない） */
+.split{flex:1;min-height:0;display:grid;grid-template-columns:1fr;overflow:hidden;position:relative}
+.list-pane{min-height:0;height:100%;display:flex;flex-direction:column;overflow:hidden;background:#fff;min-width:0}
 .list-pane .filterbar{flex:none}
 .table-wrap{min-height:0;overflow:auto;overscroll-behavior:contain}
 /* 文書ページ（構成・使い方など）の表は全行展開。スクロールは #main 側だけ */
@@ -278,14 +275,7 @@ h2.page{margin:0 0 6px;font-size:17px}
 .list-pane > .table-wrap,
 .split > .table-wrap{flex:1 1 auto}
 .main > .table-wrap{flex:1 1 auto}
-/* 詳細オープン時は幅が狭いので重要列を優先、余りは横スクロール */
-.has-panel .ledger th:nth-child(6),
-.has-panel .ledger td:nth-child(6),
-.has-panel .ledger th:nth-child(7),
-.has-panel .ledger td:nth-child(7){display:none}
-.has-panel .row-title{min-width:140px}
-table.ledger{width:100%;border-collapse:collapse;font-size:12px;min-width:520px}
-.has-panel table.ledger{min-width:380px}
+table.ledger{width:100%;border-collapse:collapse;font-size:12px;min-width:720px}
 table.ledger th{text-align:left;font-weight:600;color:var(--muted);padding:8px 10px;border-bottom:1px solid var(--line);background:#fbfcfe;position:sticky;top:0;z-index:1}
 table.ledger td{padding:7px 10px;border-bottom:1px solid #e8edf5;vertical-align:middle}
 table.ledger tr:hover td{background:#f3f8f8}
@@ -346,13 +336,21 @@ table.man .who{white-space:nowrap;font-weight:600}
 .add-row-btn{display:block;width:100%;border:0;background:transparent;padding:10px 12px;text-align:left;font-size:12.5px;color:var(--muted);cursor:pointer;flex:none;border-top:1px solid var(--line)}
 .add-row-btn:hover{color:#0969da;background:#f6f8fa}
 
-/* panel — リストと独立して縦スクロール（本文｜メタもそれぞれ） */
-.detail{display:none;min-height:0;height:100%;border-left:0;background:#fff;overflow:hidden}
-.has-panel .detail{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(200px,.85fr);overflow:hidden}
-@media(max-width:960px){.has-panel .detail{display:flex;flex-direction:column;overflow:auto}}
+/* panel — 右から被せるオーバーレイ（リスト幅は維持） */
+.detail{
+  display:none;position:absolute;top:0;right:0;bottom:0;
+  width:min(560px,92vw);max-width:100%;
+  z-index:30;background:#fff;overflow:hidden;
+  border-left:1px solid var(--line);
+  box-shadow:-12px 0 28px rgba(15,23,42,.14);
+}
+.has-panel .detail{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(180px,.78fr)}
+@media(max-width:720px){
+  .has-panel .detail{width:100%;grid-template-columns:1fr;display:flex;flex-direction:column;overflow:auto}
+}
 .dmain{padding:14px 16px 20px;border-right:1px solid var(--line);overflow:auto;overscroll-behavior:contain;min-height:0}
 .dside{padding:14px 12px;background:#f8fafc;overflow:auto;overscroll-behavior:contain;min-height:0}
-@media(max-width:960px){.dmain{border-right:0;border-bottom:1px solid var(--line)}}
+@media(max-width:720px){.dmain{border-right:0;border-bottom:1px solid var(--line)}}
 .badge{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;border-radius:999px;padding:2px 9px;background:#e8f6ee;color:var(--open)}
 .badge.closed{background:#ece8f6;color:var(--done)}
 .x{border:0;background:transparent;font-size:18px;color:var(--muted);line-height:1}
