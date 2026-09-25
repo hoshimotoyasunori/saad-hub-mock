@@ -16,8 +16,8 @@
 
 | 区分 | 説明 |
 | --- | --- |
-| 本モックの正 | 本リポの HTML ＋ 本書 ＋ [README.md](./README.md) |
-| 社内の詳細設計（参照） | `SANIX/SAAD_UI/docs/mobile-ux-design.md`（スマホ設計正本）／`github-inspired-ui-proposal.md`／`saad-hub-manual.md`／`system-page-structure.md` |
+| 本モックの正 | 本リポの HTML ＋ 本書 ＋ [README.md](./README.md) ＋ [asis-capability-coverage.md](./asis-capability-coverage.md) |
+| 社内の詳細設計（参照） | `SANIX/SAAD_UI/docs/mobile-ux-design.md`（スマホ設計正本）／`github-inspired-ui-proposal.md`／`saad-hub-manual.md`／`system-page-structure.md`／**`asis-capability-coverage.md`（導入状況の社内正本）** |
 | より広い要望台帳（参照） | `SANIX/SAAD_UI/docs/requirements.md`（ポータル全体・Vue探索期の要望台帳。本モック専用ではない） |
 
 **結論:** 「この GitHub 公開モック専用の要件定義書」として **本書を用意する。**  

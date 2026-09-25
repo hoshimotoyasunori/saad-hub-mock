@@ -6,6 +6,15 @@
 - **公開URL**: https://hoshimotoyasunori.github.io/saad-hub-mock/
 - **リポジトリ**: https://github.com/hoshimotoyasunori/saad-hub-mock
 - **要件定義**: [requirements.md](./requirements.md)
+- **ASIS由来の導入状況（必読）**: [asis-capability-coverage.md](./asis-capability-coverage.md) — 何が導入済／未導入か、なぜASISで要ったか、無駄な管理をやめる方針
+
+---
+
+## ASISとの関係（要約）
+
+全業務の網羅が目的ではない。一方で **一覧・各種管理画面（探す／承認する／締める）** は新でも置き場所が要る。刷新は「必要な管理を残し、Excel多重転記などの無駄な管理をやめる」こと。機能を何でも1画面にまとめない。
+
+詳細な導入済・未導入の台帳は常に **[asis-capability-coverage.md](./asis-capability-coverage.md)** を正とする（Hubを変えたら同ファイルも更新）。
 
 ---
 
@@ -13,11 +22,12 @@
 
 ```
 saad-hub-mock/
-├── index.html              ← 公開の正入口（切替シェル）
-├── saad-github-hub.html    ← PC版（GitHub型台帳）
-├── saad-mobile-hub.html    ← スマホ版（ジョブ型）
-├── requirements.md         ← 本モックの要件定義
-└── README.md               ← 本ファイル
+├── index.html                   ← 公開の正入口（切替シェル）
+├── saad-github-hub.html         ← PC版（GitHub型台帳）
+├── saad-mobile-hub.html         ← スマホ版（ジョブ型）
+├── requirements.md              ← 本モックの要件定義
+├── asis-capability-coverage.md  ← ASIS由来機能の導入状況（正本コピー）
+└── README.md                    ← 本ファイル
 ```
 
 | ファイル | 役割 |
@@ -25,6 +35,7 @@ saad-hub-mock/
 | `index.html` | **唯一の公開入口。** iframe で PC/スマホを載せ替え。下部に「自動 / PC / スマホ」切替バー |
 | `saad-github-hub.html` | **PC向け本体。** 案件台帳・View・パネル・Inbox など GitHub 風の台帳UI |
 | `saad-mobile-hub.html` | **スマホ向け本体。** 下部タブ＋ジョブ（今日やること／報告／承認）。Issue 語彙は出さない |
+| `asis-capability-coverage.md` | **導入状況の常時台帳。** ASISでなぜ要ったか／残す・やめる・吸収／✅🟡⬜ |
 
 開発比較用に各 HTML を単体で開くこともできますが、**デモの正は `index.html`（Pages のルート）**です。
 
