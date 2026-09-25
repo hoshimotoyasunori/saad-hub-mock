@@ -744,8 +744,10 @@ let issues = [
   {id:'841', ref:'sfa#841', repo:'sfa', kind:'deal', depth:0, parent:null, customer:'c1', property:'p1', division:'ES', branch:'横浜営業所', title:'ES-2026-0841 調査依頼（物件A）', status:'In Progress', open:true, own:'sales',
     body:{'顧客 / 物件':'サンプル社 / 横浜支店ビル','用途':'案件の識別。工程・ゲート・請求はすべてこの下の子Issue。'},
     tl:[ev('cm','星本','# 案件メモ','ES枠の調査依頼。見積合意まで完了。'), ev('sys','system','Project「地区・案件台帳」に追加 — 進み: 対応中')]},
-  {id:'841-p0', ref:'sfa#843', repo:'sfa', kind:'phase', depth:1, parent:'841', title:'引合・受付', status:'Done', open:true, own:'sales', body:{'用途':'工程まとまり'}, tl:[ev('sys','system','完了 — 子2件 Done')]},
-  {id:'841-p1', ref:'sfa#845', repo:'sfa', kind:'phase', depth:1, parent:'841', title:'商談・見積', status:'Done', open:true, own:'sales', body:{'用途':'工程まとまり'}, tl:[]},
+  {id:'841-p0', ref:'sfa#843', repo:'sfa', kind:'phase', depth:1, parent:'841', title:'引合・受付', status:'Done', open:true, own:'sales', body:{'用途':'工程まとまり'}, tl:[ev('sys','system','完了 — 受付確認・一次振り分け Done')]},
+  {id:'841-p0-t1', ref:'sfa#843a', repo:'sfa', kind:'task', depth:2, parent:'841-p0', title:'受付確認・仮登録', status:'Done', open:true, own:'sales', body:{'用途':'リード〜案件化の入口確認'}, tl:[ev('sys','system','受付確認完了')]},
+  {id:'841-p0-t2', ref:'sfa#843b', repo:'sfa', kind:'task', depth:2, parent:'841-p0', title:'一次振り分け', status:'Done', open:true, own:'sales', body:{'用途':'Assignees を営業へ'}, tl:[ev('sys','system','Assignees: 星本')]},
+  {id:'841-p1', ref:'sfa#845', repo:'sfa', kind:'phase', depth:1, parent:'841', title:'商談・見積', status:'Done', open:true, own:'sales', body:{'用途':'工程まとまり'}, tl:[ev('sys','system','完了 — 子2件 Done')]},
   {id:'841-t1', ref:'sfa#846', repo:'sfa', kind:'task', depth:2, parent:'841-p1', title:'現地調査の日程調整', status:'Done', open:true, own:'sales', body:{'メモ':'木曜14:00で確定'}, tl:[ev('cm','星本','# 現地調整','顧客は火・木午後のみ。技術の空きと合わせ木14:00。')]},
   {id:'841-t2', ref:'sfa#847', repo:'sfa', kind:'task', depth:2, parent:'841-p1', title:'見積ドラフト作成', status:'Done', open:true, own:'sales', body:{'見積':'¥1,500,000（12%値引前提）','関連':'ringi#12 値引起案'}, tl:[ev('sys','system','値引 12% は ringi#12 の承認待ち')]},
   {id:'841-gate', ref:'sfa#850', repo:'sfa', kind:'gate', depth:1, parent:'841', title:'施工前ゲート（決裁・購買）', status:'In Progress', open:true, own:'sales', gate:true,
@@ -833,7 +835,7 @@ let state = { role:'sales', screen:'portal', view:'all', sel:null, repo:null, wi
   period:'all', /* all | month | last | custom */
   savedViews:[],
   colHide:{},
-  expanded:new Set(['841','841-gate','841-p1']),
+  expanded:new Set(['841','841-p0','841-gate','841-p1']),
   detailW:null };
 function isMobile(){
   /* スマホUIは saad-mobile-hub.html（ジョブ型）に分離。
@@ -849,6 +851,28 @@ function progressOf(it){ const k=kids(it.id); if(!k.length) return null; return 
 function gateDone(){ return kids('841-gate').filter(i=>i.status!=='取り下げ').every(i=>i.status==='Done'); }
 function kojiDone(){ return ['841-k1','841-k2'].every(id=>byId(id).status==='Done'); }
 function allKidsDone(id){ return kids(id).every(i=>i.status==='Done' && (!kids(i.id).length || allKidsDone(i.id))); }
+/** parent連鎖から depth を再計算し、孤児・循環・重複refを直す／検出する（モック整合の要） */
+function normalizeIssueGraph(){
+  const seen=new Set();
+  const refs=new Map();
+  issues.forEach(it=>{
+    if(seen.has(it.id)) console.warn('[SAAD] duplicate issue id', it.id);
+    seen.add(it.id);
+    if(refs.has(it.ref)) console.warn('[SAAD] duplicate ref', it.ref, refs.get(it.ref), it.id);
+    else refs.set(it.ref, it.id);
+  });
+  issues.forEach(it=>{
+    if(!it.parent){ it.depth=0; return; }
+    const walk=[];
+    let p=it.parent; let guard=0;
+    while(p && guard++<50){
+      if(walk.includes(p) || p===it.id){ console.warn('[SAAD] cycle at', it.id); it.parent=null; it.depth=0; return; }
+      if(!byId(p)){ console.warn('[SAAD] missing parent', it.id, '→', p); it.parent=null; it.depth=0; return; }
+      walk.push(p); p=byId(p).parent;
+    }
+    it.depth=walk.length;
+  });
+}
 /* 進み（Status）の画面表記 — 内部キーは英語のまま／表示は現場向け日本語 */
 const STATUS_JA={
   'Todo':'未着手',
@@ -1814,13 +1838,27 @@ function rowsForView(){
       return true;
     }).map(i=>({it:i, ctx:false}));
   } else {
-    const hit=issues.filter(v.f);
+    /* ヒット＋祖先に加え、祖先／ヒット直下の子をすべて載せる（詳細の子Issueと一覧の整合） */
+    const hitIds=new Set(issues.filter(v.f).map(i=>i.id));
     const set=new Map();
-    hit.forEach(i=>{
-      let p=i.parent; const chain=[];
-      while(p){ chain.unshift(p); const par=byId(p); p=par&&par.parent; }
-      chain.forEach(cid=>{ if(!set.has(cid)) set.set(cid,{it:byId(cid), ctx:true}); });
-      set.set(i.id,{it:i, ctx:false});
+    const mark=(id, asHit)=>{
+      const it=byId(id); if(!it) return;
+      const prev=set.get(id);
+      if(!prev) set.set(id,{it, ctx:!asHit});
+      else if(prev.ctx && asHit) set.set(id,{it, ctx:false});
+    };
+    hitIds.forEach(id=>{
+      mark(id, true);
+      let p=byId(id) && byId(id).parent;
+      while(p){ mark(p, false); p=byId(p) && byId(p).parent; }
+    });
+    hitIds.forEach(id=>{
+      let p=byId(id) && byId(id).parent;
+      while(p){
+        kids(p).forEach(c=>mark(c.id, hitIds.has(c.id)));
+        p=byId(p) && byId(p).parent;
+      }
+      kids(id).forEach(c=>mark(c.id, hitIds.has(c.id)));
     });
     base=issues.filter(i=>set.has(i.id)).map(i=>set.get(i.id));
   }
@@ -1831,7 +1869,7 @@ function rowsForView(){
   /* 期間（モックは更新の新しさで近似） */
   if(state.period==='month') base=base.filter(({it,ctx})=>ctx||idleDays(it)<=30);
   if(state.period==='last') base=base.filter(({it,ctx})=>ctx||idleDays(it)<=60);
-  /* 並び替え（ヒット行のみ。ctxは親の直後に維持するためヒットだけソートして再構成は簡略） */
+  /* 並び替え */
   const sk=state.sortKey||'upd';
   const dir=state.sortDir==='asc'?1:-1;
   const hits=base.filter(r=>!r.ctx);
@@ -1846,12 +1884,24 @@ function rowsForView(){
     return cmp*dir;
   });
   if(!v.tree){
-    const ordered=[];
-    hits.forEach(h=>{
-      let p=h.it.parent; const chain=[];
-      while(p){ chain.unshift(p); const par=byId(p); p=par&&par.parent; }
-      chain.forEach(cid=>{ if(!ordered.find(x=>x.it.id===cid)) ordered.push({it:byId(cid), ctx:true}); });
-      ordered.push(h);
+    /* ヒットの並びを根に反映しつつ、set内の子孫は issues 順で欠かさず出す */
+    const inBase=new Map(base.map(r=>[r.it.id,r]));
+    const rootOf=it=>{
+      let top=it; let p=it.parent;
+      while(p && inBase.has(p)){ top=byId(p); p=top.parent; }
+      return top.id;
+    };
+    const rootOrder=[];
+    hits.forEach(h=>{ const r=rootOf(h.it); if(!rootOrder.includes(r)) rootOrder.push(r); });
+    const ordered=[]; const emitted=new Set();
+    rootOrder.forEach(rid=>{
+      issues.forEach(i=>{
+        if(!inBase.has(i.id) || emitted.has(i.id)) return;
+        let x=i; let under=false;
+        while(x){ if(x.id===rid){ under=true; break; } x=x.parent?byId(x.parent):null; }
+        if(!under) return;
+        emitted.add(i.id); ordered.push(inBase.get(i.id));
+      });
     });
     return ordered;
   }
@@ -2207,8 +2257,7 @@ function bindSplitResize(){
   const run=()=>applySplitWidths();
   run();
   requestAnimationFrame(run);
-  const det=$('detail'), split=document.querySelector('#main .split'), scrim=$('splitScrim');
-  if(scrim) scrim.onclick=()=>{ state.sel=null; render(); };
+  const det=$('detail'), split=document.querySelector('#main .split');
   if(!det||!split) return;
   let h=det.querySelector('.det-resize');
   if(!h){
@@ -3232,12 +3281,13 @@ function mpill(s){
   return `<span class="pill ${m[s]||''}">${s}</span>`;
 }
 function insertIssue(o){
-  if(!o.parent){ issues.push(o); return o; }
-  const par=byId(o.parent); o.depth=par.depth+1;
+  if(!o.parent){ o.depth=0; issues.push(o); normalizeIssueGraph(); return o; }
+  const par=byId(o.parent); o.depth=(par?par.depth:0)+1;
   const inSub=i=>{ let p=i.parent; while(p){ if(p===o.parent) return true; const x=byId(p); p=x&&x.parent; } return false; };
   let idx=issues.indexOf(par);
   issues.forEach((i,k)=>{ if(inSub(i)) idx=Math.max(idx,k); });
   issues.splice(idx+1,0,o); state.expanded.add(o.parent);
+  normalizeIssueGraph();
   return o;
 }
 function openDeals(){ return issues.filter(i=>i.kind==='deal' && i.open); }
@@ -5002,6 +5052,7 @@ $('app').addEventListener('wheel', e=>{
   e.preventDefault();
   main.scrollTop+=e.deltaY;
 },{passive:false});
+normalizeIssueGraph();
 setRole('sales');
 </script>
 </body>
