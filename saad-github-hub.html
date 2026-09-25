@@ -1832,8 +1832,9 @@ function ledgerTable(rowObjs, treeMode, opts){
     const isRoot=it.depth===0;
     const org=orgLabel(it, true);
     const pick=canPick && !ctx && it.open && ['deal','lead','task','ringi','buy','bill','support'].includes(it.kind);
+    const pickTd=canPick?`<td class="pickcell">${pick?`<input type="checkbox" data-pick="${it.id}" ${state.picked.has(it.id)?'checked':''} aria-label="選択">`:''}</td>`:'';
     return `<tr class="d${it.depth}${state.sel===it.id?' is-selected':''}${it.gate?' is-gate':''}${it.blocked?' is-blocked':''}${ctx?' ctx':''}${state.picked.has(it.id)?' is-picked':''}">
-      <td>${pick?`<input type="checkbox" data-pick="${it.id}" ${state.picked.has(it.id)?'checked':''}>`:'—'}</td>
+      ${pickTd}
       <td><div class="row-title">
         <button type="button" class="chev${(hasKids&&treeMode)?'':' ghost'}" data-exp="${it.id}" aria-expanded="${exp}" aria-label="${exp?'折りたたむ':'展開する'}" title="${hasKids&&treeMode?(exp?'折りたたむ':'子を開く'):''}">▶</button>
         <span class="dot${it.open?'':' closed'}"></span>
@@ -1849,7 +1850,7 @@ function ledgerTable(rowObjs, treeMode, opts){
     </tr>`;
   }).join('');
   return `<div class="table-wrap"><table class="ledger"><thead><tr>
-    <th style="width:36px"></th><th style="width:30%">Title</th><th>部門/拠点</th><th>Status</th><th>Assignees</th><th>放置</th><th>Repository</th><th>Sub</th><th>金額/納期</th>
+    ${canPick?'<th class="pickcell" title="複数選択（担当替え・一括承認）"></th>':''}<th style="width:30%">Title</th><th>部門/拠点</th><th>Status</th><th>Assignees</th><th>放置</th><th>Repository</th><th>Sub</th><th>金額/納期</th>
   </tr></thead><tbody>${body}</tbody></table>
   <button type="button" class="add-row-btn" id="addItem">＋ add an item — 新しい仕事＝表に行を足す（稟議・購買はゲートの子として）</button></div>`;
 }
