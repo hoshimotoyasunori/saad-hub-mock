@@ -267,10 +267,23 @@ h2.page{margin:0 0 6px;font-size:17px}
 
 /* リスト｜詳細のワークスペース（従来の横並び） */
 .split{flex:1;min-height:0;display:grid;grid-template-columns:1fr;overflow:hidden}
-.has-panel .split{grid-template-columns:minmax(340px,46%) minmax(0,54%)}
-@media(max-width:960px){.has-panel .split{grid-template-columns:1fr}.has-panel .list-pane{display:none}}
+.has-panel .split{grid-template-columns:minmax(280px,1fr) 6px var(--det-w, 52%); align-items:stretch}
+@media(max-width:960px){.has-panel .split{grid-template-columns:1fr}.has-panel .list-pane,.has-panel .split-resizer{display:none}}
 .list-pane{min-height:0;height:100%;display:flex;flex-direction:column;overflow:hidden;background:#fff}
-.has-panel .list-pane{border-right:1px solid var(--line)}
+.has-panel .list-pane{border-right:0;min-width:0}
+.split-resizer{display:none}
+.has-panel .split-resizer{
+  display:block;width:6px;padding:0;margin:0;border:0;cursor:ew-resize;touch-action:none;
+  background:#e8edf5;position:relative;z-index:2;align-self:stretch;
+}
+.has-panel .split-resizer::after{
+  content:"";position:absolute;left:1px;top:50%;transform:translateY(-50%);
+  width:4px;height:40px;border-radius:2px;background:#c9d2e0;
+}
+.has-panel .split-resizer:hover,.split.resizing .split-resizer{background:#d7ecec}
+.has-panel .split-resizer:hover::after,.split.resizing .split-resizer::after{background:var(--teal)}
+.split.resizing{user-select:none;cursor:ew-resize}
+.split.resizing .list-pane,.split.resizing .detail{pointer-events:none}
 .list-pane .filterbar{flex:none}
 .table-wrap{min-height:0;overflow:auto;overscroll-behavior:contain}
 /* 文書ページ（構成・使い方など）の表は全行展開。スクロールは #main 側だけ */
@@ -817,7 +830,8 @@ let state = { role:'sales', screen:'portal', view:'all', sel:null, repo:null, wi
   period:'all', /* all | month | last | custom */
   savedViews:[],
   colHide:{},
-  expanded:new Set(['841','841-gate','841-p1']) };
+  expanded:new Set(['841','841-gate','841-p1']),
+  detailW:null };
 function isMobile(){
   /* スマホUIは saad-mobile-hub.html（ジョブ型）に分離。
      このファイルはPC版専用。営業・施工でもフォン枠に落とさない。 */
@@ -2003,6 +2017,7 @@ function renderBoard(){
           <button type="button" class="bg" id="pgNext" ${state.boardPage>=pages-1?'disabled':''}>もっと見る ▶</button>
         </div>
       </div>
+      <button type="button" class="split-resizer" id="splitResizer" aria-label="詳細パネルの幅を変更" title="ドラッグで幅を変更（最小420px〜画面の半分）"></button>
       <aside class="detail" id="detail"></aside>
     </div>`;
   $('main').querySelectorAll('[data-v]').forEach(b=>b.onclick=()=>{ state.view=b.dataset.v; state.sel=null; state.picked.clear(); state.boardPage=0; render(); });
@@ -2033,7 +2048,7 @@ function renderBoard(){
   const pp=$('pgPrev'); if(pp) pp.onclick=()=>{ state.boardPage--; render(); };
   const pn=$('pgNext'); if(pn) pn.onclick=()=>{ state.boardPage++; render(); };
   bindLedger($('main'), render);
-  if(state.sel) renderPanel($('detail'));
+  if(state.sel){ renderPanel($('detail')); bindSplitResize(); }
 }
 function bulkApprove(){
   const list=[...state.picked].map(id=>byId(id)).filter(canBulkApprove);
@@ -2151,17 +2166,68 @@ function renderRepo(){
         </div>
         ${nAll?ledgerTable(rowObjs,true,{kidsOf:kidsInRepo}):'<div class="pad" style="flex:1"><p class="quiet">このアプリのデモIssueはまだありません。案件台帳の他リポ行を参照。</p></div>'}
       </div>
+      <button type="button" class="split-resizer" id="splitResizer" aria-label="詳細パネルの幅を変更" title="ドラッグで幅を変更（最小420px〜画面の半分）"></button>
       <aside class="detail" id="detail"></aside>
     </div>`;
   if(nAll){
     const ea=$('repoExpAll'); if(ea) ea.onclick=()=>{ allInRepo.forEach(i=>{ if(kidsInRepo(i.id).length) state.expanded.add(i.id); }); render(); };
     const ca=$('repoColAll'); if(ca) ca.onclick=()=>{ allInRepo.forEach(i=>state.expanded.delete(i.id)); render(); };
-    bindLedger($('main'), render); if(state.sel) renderPanel($('detail'));
+    bindLedger($('main'), render); if(state.sel){ renderPanel($('detail')); bindSplitResize(); }
   }
-  else if(state.sel){ renderPanel($('detail')); }
+  else if(state.sel){ renderPanel($('detail')); bindSplitResize(); }
 }
 
 /* ================= panel ================= */
+const DET_W_MIN=420;
+function clampDetW(px, splitW){
+  const half=Math.floor((splitW||window.innerWidth)/2);
+  const min=Math.min(DET_W_MIN, half);
+  const max=Math.max(min, half);
+  const n=Number(px);
+  return Math.max(min, Math.min(max, Number.isFinite(n)?n:Math.round(half*0.96)));
+}
+function loadDetW(splitW){
+  if(state.detailW!=null) return clampDetW(state.detailW, splitW);
+  try{ const s=sessionStorage.getItem('saad-det-w'); if(s) return clampDetW(s, splitW); }catch(_){}
+  return clampDetW(Math.round((splitW||window.innerWidth)*0.52), splitW);
+}
+function applySplitWidths(){
+  const split=document.querySelector('#main .split');
+  if(!split || !state.sel) return;
+  const w=loadDetW(split.clientWidth||undefined);
+  state.detailW=w;
+  split.style.setProperty('--det-w', w+'px');
+}
+function bindSplitResize(){
+  const run=()=>applySplitWidths();
+  run();
+  requestAnimationFrame(run);
+  const h=$('splitResizer'), split=document.querySelector('#main .split');
+  if(!h||!split||h.dataset.bound) return;
+  h.dataset.bound='1';
+  h.addEventListener('pointerdown', e=>{
+    e.preventDefault(); e.stopPropagation();
+    split.classList.add('resizing');
+    try{ h.setPointerCapture(e.pointerId); }catch(_){}
+    const move=ev=>{
+      const rect=split.getBoundingClientRect();
+      const w=clampDetW(rect.right-ev.clientX, rect.width);
+      state.detailW=w;
+      split.style.setProperty('--det-w', w+'px');
+    };
+    const up=ev=>{
+      split.classList.remove('resizing');
+      try{ h.releasePointerCapture(ev.pointerId); }catch(_){}
+      h.removeEventListener('pointermove', move);
+      h.removeEventListener('pointerup', up);
+      h.removeEventListener('pointercancel', up);
+      try{ sessionStorage.setItem('saad-det-w', String(state.detailW)); }catch(_){}
+    };
+    h.addEventListener('pointermove', move);
+    h.addEventListener('pointerup', up);
+    h.addEventListener('pointercancel', up);
+  });
+}
 function renderPanel(root){
   const it=byId(state.sel); if(!it||!root) return;
   const hideCost = state.role==='koji';
@@ -4897,6 +4963,7 @@ $('aiBtn').onclick=()=>{ $('notif').classList.remove('open'); $('newMenu').class
 $('aiClose').onclick=closeAiPanel;
 $('aiScrim').onclick=closeAiPanel;
 $('aiForm').onsubmit=e=>{ e.preventDefault(); aiSend($('aiInput').value); };
+window.addEventListener('resize',()=>{ if(state.sel) applySplitWidths(); });
 document.addEventListener('keydown',e=>{
   if(e.key!=='Escape') return;
   if(state.aiOpen){ closeAiPanel(); return; }
