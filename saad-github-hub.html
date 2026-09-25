@@ -347,7 +347,7 @@ table.man .who{white-space:nowrap;font-weight:600}
 /* panel — 台帳エリア内の右オーバーレイ（本文｜メタの2カラムは従来どおり） */
 .detail{
   display:none;position:absolute;top:0;right:0;bottom:0;
-  width:var(--det-w, 52%);max-width:50%;min-width:min(420px,50%);
+  width:var(--det-w, 52%);max-width:66.666%;min-width:min(420px,66.666%);
   z-index:5;background:#fff;overflow:hidden;
   border-left:1px solid var(--line);
   box-shadow:-10px 0 28px rgba(15,23,42,.12);
@@ -2182,11 +2182,12 @@ function renderRepo(){
 /* ================= panel ================= */
 const DET_W_MIN=420;
 function clampDetW(px, splitW){
-  const half=Math.floor((splitW||window.innerWidth)/2);
-  const min=Math.min(DET_W_MIN, half);
-  const max=Math.max(min, half);
+  const area=splitW||window.innerWidth;
+  const maxCap=Math.floor(area*2/3);
+  const min=Math.min(DET_W_MIN, maxCap);
+  const max=Math.max(min, maxCap);
   const n=Number(px);
-  return Math.max(min, Math.min(max, Number.isFinite(n)?n:Math.round(half*0.96)));
+  return Math.max(min, Math.min(max, Number.isFinite(n)?n:Math.round(maxCap*0.78)));
 }
 function loadDetW(splitW){
   if(state.detailW!=null) return clampDetW(state.detailW, splitW);
@@ -2213,7 +2214,7 @@ function bindSplitResize(){
     h=document.createElement('button');
     h.type='button'; h.className='det-resize';
     h.setAttribute('aria-label','詳細パネルの幅を変更');
-    h.title='ドラッグで幅を変更（最小420px〜台帳エリアの半分）';
+    h.title='ドラッグで幅を変更（最小420px〜台帳エリアの2/3）';
     det.prepend(h);
   }
   if(h.dataset.bound) return;
