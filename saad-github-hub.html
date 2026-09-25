@@ -433,6 +433,19 @@ table.man .who{white-space:nowrap;font-weight:600}
 .form-grid label .req{color:var(--rose);margin-left:3px}
 .form-grid input,.form-grid select,.form-grid textarea{width:100%;border:1px solid var(--line);border-radius:8px;padding:7px 9px;font-size:12.5px;background:#fff}
 .form-grid textarea{min-height:60px;resize:vertical}
+.lookup{position:relative}
+.lookup-q{width:100%;border:1px solid var(--line);border-radius:8px;padding:7px 9px;font-size:12.5px}
+.lookup-sel{margin-top:6px;font-size:12.5px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.lookup-sel b{font-weight:700}
+.lookup-sel .quiet{color:var(--muted);font-weight:500}
+.lookup-hits{position:absolute;left:0;right:0;top:100%;z-index:40;background:#fff;border:1px solid var(--line);border-radius:8px;box-shadow:var(--shadow);max-height:220px;overflow:auto;margin-top:2px}
+.lookup-hits button{display:block;width:100%;text-align:left;border:0;border-bottom:1px solid #eef1f5;background:#fff;padding:8px 10px;font:inherit;cursor:pointer}
+.lookup-hits button:hover{background:#f3f8fd}
+.lookup-hits .meta{font-size:11px;color:var(--muted)}
+.via-wrap .chips{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 8px}
+.via-wrap .chip{border:1px solid var(--line);background:#fff;border-radius:999px;padding:4px 10px;font-size:11.5px;cursor:pointer}
+.via-wrap .chip[aria-pressed="true"]{border-color:var(--teal);background:#e8f5f1;font-weight:700}
+.via-wrap input{width:100%;border:1px solid var(--line);border-radius:8px;padding:7px 9px;font-size:12.5px}
 .form-grid .line{display:grid;grid-template-columns:minmax(0,1fr) 80px 120px;gap:6px}
 .form-prev{max-width:760px;margin-top:12px}
 .form-prev .idb{margin:0}
@@ -800,6 +813,38 @@ function propIssues(pid){
   const all=new Set(roots.map(r=>r.id));
   issues.forEach(i=>{ let p=i.parent; while(p){ if(all.has(p)){ all.add(i.id); break;} const par=byId(p); p=par&&par.parent; } });
   return issues.filter(i=>all.has(i.id));
+}
+
+const VIA_CHIPS=['電話','Webフォーム','管理会社から','紹介','FAX','飛込み','予定どおり','保証期限アラート','DM・チラシ','展示会・イベント','既存顧客からの追加依頼','再訪・継続','社内回付','その他'];
+function ensureCustMaster(id){
+  if(!id) return null;
+  if(CUSTOMERS[id]) return CUSTOMERS[id];
+  const r=crmRows().find(x=>x.id===id); if(!r) return null;
+  CUSTOMERS[id]={id, name:r.name, kind:r.kind||'個人', domain:r.domain, branch:r.branch, addr:'—', since:'—', contact:'—', last:r.last||'—', regi:r.regi||'本', propertyIds:[], contracts:[{name:'（未設定）', until:r.until||'—', warn:!!r.warn}], gen:true};
+  return CUSTOMERS[id];
+}
+function ensurePropMaster(id){
+  if(!id) return null;
+  if(PROPERTIES[id]) return PROPERTIES[id];
+  const r=propRows().find(x=>x.id===id); if(!r) return null;
+  PROPERTIES[id]={id, name:r.name, structure:r.structure||'—', addr:r.addr||'—', domain:r.domain, branch:r.branch, use:'—', built:'—', units:'—', water:'—', customers:[], last:r.last||'—', regi:r.regi||'本', contracts:[], gen:true};
+  return PROPERTIES[id];
+}
+function lookupSearch(kind, q){
+  const s=(q||'').trim().toLowerCase();
+  if(kind==='customer'){
+    let list=crmRows().filter(r=>r.regi!=='取消');
+    if(s) list=list.filter(r=>(r.name||'').toLowerCase().includes(s)||(r.branch||'').includes(q)||(r.domain||'').toLowerCase().includes(s));
+    return list.slice(0,12).map(r=>({id:r.id, title:r.name, meta:`${r.kind||'顧客'} · ${r.domain}・${(r.branch||'').replace('営業所','')}${r.regi==='仮'?' · 仮':''}`}));
+  }
+  let list=propRows().filter(r=>r.regi!=='取消');
+  if(s) list=list.filter(r=>(r.name||'').toLowerCase().includes(s)||(r.addr||'').toLowerCase().includes(s)||(r.branch||'').includes(q)||(r.structure||'').includes(q));
+  return list.slice(0,12).map(r=>({id:r.id, title:r.name, meta:`${r.structure||'物件'} · ${r.domain}・${(r.branch||'').replace('営業所','')}${r.addr&&r.addr!=='—'?' · '+r.addr:''}${r.regi==='仮'?' · 仮':''}`}));
+}
+function lookupLabel(kind, id){
+  if(!id) return '';
+  if(kind==='customer'){ const c=ensureCustMaster(id); return c?`${c.name}${c.regi==='仮'?'（仮）':''}`:''; }
+  const p=ensurePropMaster(id); return p?p.name:'';
 }
 function propStats(pid){
   const list=propIssues(pid);
@@ -2757,7 +2802,7 @@ function crmOpenActs(ctx){
 }
 function buildActivityPre(ctx){
   ctx=ctx||{};
-  const pre={ dtype:'dt1', via:'電話', title:'', memo:'', cust:'', prop:'' };
+  const pre={ dtype:'dt1', via:'', title:'', memo:'', cust:'', prop:'' };
   if(ctx.cust && CUSTOMERS[ctx.cust]){
     const c=CUSTOMERS[ctx.cust];
     pre.cust=c.id;
@@ -4354,7 +4399,25 @@ function fieldHtml(f, pre){
   }
   const v=val(f.k)!==''?val(f.k):(f.k==='applicant'?state.role:(f.def||''));
   let input;
-  if(f.t==='select') input=`<select name="${f.k}">${f.opts().map(([o,l])=>`<option value="${o}" ${String(o)===String(v)?'selected':''}>${l}</option>`).join('')}</select>`;
+  if(f.t==='lookup'){
+    const kind=f.lookup||'customer';
+    const label=lookupLabel(kind, v);
+    const unset=f.unset||'（未定のまま進める）';
+    input=`<div class="lookup" data-lookup="${f.k}" data-kind="${kind}">
+      <input type="hidden" name="${f.k}" value="${v||''}">
+      <input type="search" class="lookup-q" placeholder="${f.ph||'名前で検索（2文字〜）'}" autocomplete="off" ${v?'disabled':''}>
+      <div class="lookup-sel">${label?`<b>${label}</b> <button type="button" class="linkbtn" data-lu-clear>選び直す</button>`:`<span class="quiet">${unset}</span>`}</div>
+      <div class="lookup-hits" hidden></div>
+      <p class="quiet" style="margin:4px 0 0;font-size:11px">一覧から選ばず、検索して確定します。未定のまま登録もできます。</p>
+    </div>`;
+  } else if(f.t==='via'){
+    const chips=(f.chips||VIA_CHIPS).map(x=>`<button type="button" class="chip" data-via-chip="${x}" aria-pressed="${v===x}">${x}</button>`).join('');
+    input=`<div class="via-wrap">
+      <div class="chips">${chips}</div>
+      <input name="${f.k}" value="${(v||'').toString().replace(/"/g,'&quot;')}" placeholder="チップに無い場合はここに入力（例: 既存顧客からの追加依頼）" autocomplete="off">
+      <p class="quiet" style="margin:4px 0 0;font-size:11px">よく使うきっかけはチップ、それ以外は自由入力です。</p>
+    </div>`;
+  } else if(f.t==='select') input=`<select name="${f.k}">${f.opts().map(([o,l])=>`<option value="${o}" ${String(o)===String(v)?'selected':''}>${l}</option>`).join('')}</select>`;
   else if(f.t==='textarea') input=`<textarea name="${f.k}">${v}</textarea>`;
   else input=`<input name="${f.k}" ${f.t==='number'?'type="number"':''} value="${v}">`;
   return `<div class="${f.full?'full':''}">${lab}${input}</div>`;
@@ -4478,12 +4541,52 @@ function formBodyHtml(key, pre, mode){
     </div>`;
 }
 /* ctx: {draftId, editId} / hooks: {done(res), cancel(dirty, vals), drafted(msg)} */
+function bindLookupFields(root, upd){
+  root.querySelectorAll('[data-lookup]').forEach(box=>{
+    const k=box.dataset.lookup, kind=box.dataset.kind||'customer';
+    const hid=box.querySelector(`input[name="${k}"]`);
+    const q=box.querySelector('.lookup-q');
+    const hits=box.querySelector('.lookup-hits');
+    const sel=box.querySelector('.lookup-sel');
+    const paintSel=()=>{
+      const id=hid.value, label=lookupLabel(kind, id);
+      sel.innerHTML=label?`<b>${label}</b> <button type="button" class="linkbtn" data-lu-clear>選び直す</button>`:`<span class="quiet">${kind==='customer'?'（顧客未定のまま進める）':'（物件未定のまま進める）'}</span>`;
+      const clr=sel.querySelector('[data-lu-clear]');
+      if(clr) clr.onclick=()=>{ hid.value=''; q.disabled=false; q.value=''; q.focus(); hits.hidden=true; paintSel(); upd(); };
+    };
+    const showHits=(list)=>{
+      if(!list.length){ hits.innerHTML='<div class="quiet" style="padding:8px 10px">該当なし。別のキーワードで試すか、未定のまま進められます。</div>'; hits.hidden=false; return; }
+      hits.innerHTML=list.map(r=>`<button type="button" data-lu-pick="${r.id}"><b>${r.title}</b><div class="meta">${r.meta}</div></button>`).join('');
+      hits.hidden=false;
+      hits.querySelectorAll('[data-lu-pick]').forEach(b=>b.onclick=()=>{
+        const id=b.dataset.luPick;
+        if(kind==='customer') ensureCustMaster(id); else ensurePropMaster(id);
+        hid.value=id; q.value=''; q.disabled=true; hits.hidden=true; paintSel(); upd();
+      });
+    };
+    q.addEventListener('input',()=>{
+      const s=q.value.trim();
+      if(s.length<1){ hits.hidden=true; return; }
+      showHits(lookupSearch(kind, s));
+    });
+    q.addEventListener('focus',()=>{ if(q.value.trim().length>=1) showHits(lookupSearch(kind, q.value)); });
+    document.addEventListener('click',e=>{ if(!box.contains(e.target)) hits.hidden=true; }, true);
+    paintSel();
+  });
+  root.querySelectorAll('.via-wrap').forEach(wrap=>{
+    const inp=wrap.querySelector('input[name]');
+    const sync=()=>wrap.querySelectorAll('[data-via-chip]').forEach(c=>c.setAttribute('aria-pressed', c.dataset.viaChip===inp.value?'true':'false'));
+    wrap.querySelectorAll('[data-via-chip]').forEach(c=>c.onclick=()=>{ inp.value=c.dataset.viaChip; sync(); inp.dispatchEvent(new Event('input',{bubbles:true})); });
+    inp.addEventListener('input', sync); sync();
+  });
+}
 function bindForm(root, key, ctx, hooks){
   const f=FORMS[key];
   const vals=()=>{ const o={}; root.querySelectorAll('[data-fm] [name]').forEach(el=>{ if(el.name==='__file') o.__files=[...el.files].map(x=>x.name).join('、'); else o[el.name]=el.value; }); return o; };
   const initial=JSON.stringify(vals());
   const upd=()=>{ const p=root.querySelector('[data-fprev]'); if(p) p.innerHTML=(f.preview?f.preview(vals(),ctx):'')+dupWarn(key,vals(),ctx); };
   const fm=root.querySelector('[data-fm]');
+  bindLookupFields(root, upd);
   fm.addEventListener('input',upd); fm.addEventListener('change',upd); upd();
   root.querySelector('[data-fsubmit]').onclick=()=>{
     const v=vals(); const res=(ctx&&ctx.editRec&&f.resubmit)?f.resubmit(v, ctx.editRec):f.submit(v, ctx||{});
@@ -5158,14 +5261,14 @@ FORMS.deal={
   stop:'メールでの報告とExcel3種への転記', who:'営業・受付・事務',
   fields:[
     {k:'dtype', l:'取引形態', t:'select', opts:()=>DEALTYPES.map(d=>[d.id,d.name])},
-    {k:'cust', l:'どの顧客に？（未定可）', t:'select', opts:()=>[['','（顧客未定）']].concat(Object.values(CUSTOMERS).filter(c=>c.regi!=='取消').map(c=>[c.id, `${c.name}${c.regi==='仮'?'（仮）':''}`]))},
-    {k:'prop', l:'どの物件で？（未定可）', t:'select', opts:()=>[['','（物件未定）']].concat(Object.values(PROPERTIES).filter(p=>p.regi!=='取消').map(p=>[p.id,p.name]))},
-    {k:'via', l:'きっかけ', t:'select', opts:()=>['電話','Webフォーム','管理会社から','紹介','FAX','飛込み'].map(x=>[x,x])},
+    {k:'cust', l:'どの顧客に？（検索して選択・未定可）', t:'lookup', lookup:'customer', full:true, ph:'顧客名で検索（例: サンプル / 佐藤）', unset:'（顧客未定のまま進める）'},
+    {k:'prop', l:'どの物件で？（検索して選択・未定可）', t:'lookup', lookup:'property', full:true, ph:'物件名・住所で検索（例: 青葉ビル / みなとみらい）', unset:'（物件未定のまま進める）'},
+    {k:'via', l:'きっかけ', t:'via', full:true, def:''},
     {k:'title', l:'何の活動？（例: 初回訪問・調査・見積提示）', req:true, full:true, def:'（例）外壁の現地調査'},
     {k:'memo', l:'メモ・申し送り', t:'textarea', full:true},
   ],
   preview:v=>{
-    const dt=DEALTYPES.find(d=>d.id===v.dtype)||{}, c=CUSTOMERS[v.cust], p=PROPERTIES[v.prop];
+    const dt=DEALTYPES.find(d=>d.id===v.dtype)||{}, c=v.cust?ensureCustMaster(v.cust):null, p=v.prop?ensurePropMaster(v.prop):null;
     const org=c?`${c.domain}・${c.branch}`:(p?`${p.domain}・${p.branch}`:'（起票後に部門・拠点を確定）');
     const link=[c?`顧客: <b>${c.name}</b>`:null, p?`物件: <b>${p.name}</b>`:null].filter(Boolean).join(' ／ ')||'<span class="warn-badge">顧客・物件とも未定</span>（活動内容だけで登録可）';
     const dup=v.prop?issues.filter(i=>i.depth===0 && i.open && ['lead','deal'].includes(i.kind) && i.property===v.prop):[];
@@ -5177,7 +5280,8 @@ FORMS.deal={
   },
   submit:v=>{
     if(!(v.title||'').trim()||v.title.startsWith('（例）')) return {err:'何の活動かを入れてください'};
-    const c=v.cust?CUSTOMERS[v.cust]:null, p=v.prop?PROPERTIES[v.prop]:null, dt=DEALTYPES.find(d=>d.id===v.dtype)||{}, id=nextId();
+    if(!(v.via||'').trim()) return {err:'きっかけを選ぶか、入力してください'};
+    const c=v.cust?ensureCustMaster(v.cust):null, p=v.prop?ensurePropMaster(v.prop):null, dt=DEALTYPES.find(d=>d.id===v.dtype)||{}, id=nextId();
     const division=c?c.domain:(p?p.domain:'ES');
     const branch=c?c.branch:(p?p.branch:'横浜営業所');
     const custLabel=c?c.name:(v.memo&&/顧客/.test(v.memo)?'（メモ参照・未紐づけ）':'（未定）');

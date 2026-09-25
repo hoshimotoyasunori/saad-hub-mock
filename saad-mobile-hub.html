@@ -237,6 +237,7 @@ textarea.fin{min-height:64px;resize:vertical}
 .kvrow{display:flex;gap:10px;font-size:15px;padding:8px 0;border-bottom:1px solid #e6ebf2}
 .kvrow:last-child{border-bottom:0}
 .kvrow .kt{flex:0 0 86px;color:var(--muted);font-weight:600}
+.linkish{border:0;background:0;color:var(--accent);font:inherit;font-weight:700;cursor:pointer;padding:0}
 
 /* お知らせ */
 .ann-from{font-size:12.6px;font-weight:700;color:var(--muted);display:flex;gap:8px;align-items:center}
@@ -629,6 +630,75 @@ function popCrmNav(){
   if(!prev) return false;
   state.sub=prev.sub; state.custSel=prev.custSel; state.propSel=prev.propSel;
   return true;
+}
+const VIA_CHIPS=['電話','Webフォーム','管理会社から','紹介','FAX','飛込み','予定どおり','保証期限アラート','DM・チラシ','展示会','既存からの追加','再訪・継続','社内回付','その他'];
+
+function actSearchCust(q){
+  const s=(q||'').trim();
+  let list=CUSTS.filter(c=>c.regi!=='取消');
+  if(s) list=list.filter(c=>(c.name||'').includes(s)||(c.addr||'').includes(s)||(c.branch||'').includes(s));
+  return list.slice(0,8);
+}
+function actSearchProp(q){
+  const s=(q||'').trim();
+  let list=PROPS.filter(p=>p.regi!=='取消');
+  if(s) list=list.filter(p=>(p.name||'').includes(s)||(p.addr||'').includes(s)||(p.info||'').includes(s));
+  return list.slice(0,8);
+}
+function wireActPlanPickers(){
+  const cq=$('actCustQ'), ch=$('actCustHits'), pq=$('actPropQ'), ph=$('actPropHits');
+  const paint=()=>{
+    if(ch&&cq){
+      const list=cq.value.trim()?actSearchCust(cq.value):[];
+      ch.innerHTML=list.map(c=>`<button class="pick" data-actpick-cust="${c.id}"><span>👤</span><span><div class="tt">${c.name}</div><div class="ss">${c.kind} · ${c.domain}・${(c.branch||'').replace('営業所','')}</div></span></button>`).join('')
+        ||(cq.value.trim()?'<p class="quiet">該当なし</p>':'');
+    }
+    if(ph&&pq){
+      const list=pq.value.trim()?actSearchProp(pq.value):[];
+      ph.innerHTML=list.map(p=>`<button class="pick" data-actpick-prop="${p.id}"><span>🏠</span><span><div class="tt">${p.name}</div><div class="ss">${p.structure||''} · ${p.addr||p.info||''}</div></span></button>`).join('')
+        ||(pq.value.trim()?'<p class="quiet">該当なし</p>':'');
+    }
+  };
+  if(cq) cq.addEventListener('input', paint);
+  if(pq) pq.addEventListener('input', paint);
+  const sh=$('sheet');
+  sh.querySelectorAll('[data-actpick-cust]').forEach(b=>b.onclick=()=>{
+    const c=custById(b.dataset.actpickCust); if(!c) return;
+    state.pick.custId=c.id; state.pick.cust=c.name; state.actPlanCtx=Object.assign({},state.actPlanCtx,{custId:c.id});
+    if(cq) cq.value=''; renderSheet();
+  });
+  sh.querySelectorAll('[data-actpick-prop]').forEach(b=>b.onclick=()=>{
+    const p=propById(b.dataset.actpickProp); if(!p) return;
+    state.pick.propId=p.id; state.pick.prop=p.name; state.actPlanCtx=Object.assign({},state.actPlanCtx,{propId:p.id});
+    if(p.cust) state.pick.cust=p.cust;
+    if(pq) pq.value=''; renderSheet();
+  });
+  /* re-bind after paint - use event delegation on hits containers */
+  if(ch) ch.onclick=e=>{
+    const b=e.target.closest('[data-actpick-cust]'); if(!b) return;
+    const c=custById(b.dataset.actpickCust); if(!c) return;
+    state.pick.custId=c.id; state.pick.cust=c.name;
+    state.actPlanCtx=Object.assign({},state.actPlanCtx||{},{custId:c.id});
+    renderSheet();
+  };
+  if(ph) ph.onclick=e=>{
+    const b=e.target.closest('[data-actpick-prop]'); if(!b) return;
+    const p=propById(b.dataset.actpickProp); if(!p) return;
+    state.pick.propId=p.id; state.pick.prop=p.name;
+    if(p.cust){ state.pick.cust=p.cust; if(p.custId) state.pick.custId=p.custId; }
+    state.actPlanCtx=Object.assign({},state.actPlanCtx||{},{propId:p.id});
+    renderSheet();
+  };
+  sh.querySelectorAll('[data-actclr]').forEach(b=>b.onclick=()=>{
+    if(b.dataset.actclr==='cust'){ state.pick.cust=null; state.pick.custId=null; if(state.actPlanCtx) state.actPlanCtx.custId=null; }
+    else { state.pick.prop=null; state.pick.propId=null; if(state.actPlanCtx) state.actPlanCtx.propId=null; }
+    renderSheet();
+  });
+  const vf=$('actViaFree');
+  if(vf){
+    vf.addEventListener('input',()=>{ state.pick.via=vf.value; });
+    /* when chip sets via, clear free if chip match - handled by data-pk */
+  }
 }
 function openActPlanSheet(ctx){
   state.actPlanCtx=ctx||{};
@@ -1552,14 +1622,24 @@ function renderSheet(){
     if(state.actPlanStep==='new'){
       const pick=state.pick;
       title='新規の活動';
-      body=`<p class="quiet" style="margin:0 0 8px">${name?`<b>${name}</b> への活動予定`:'顧客または物件を選んで活動内容を入れます'}。管理台帳では同じ行が案件として見えます。</p>
-        ${!c&&!p?`<div class="slabel">① 対象</div>
-        <div class="chips">${CUSTS.slice(0,3).map(x=>`<button class="chip" data-pk="cust:${x.name}" aria-pressed="${pick.cust===x.name}">${x.name}</button>`).join('')}
-        ${PROPS.slice(0,4).map(x=>`<button class="chip" data-pk="prop:${x.name}" aria-pressed="${pick.prop===x.name}">${x.name}</button>`).join('')}</div>`:''}
-        <div class="slabel">${c||p?'①':'②'} 何の活動？</div>
+      const custLbl=c?c.name:(pick.custId?(custById(pick.custId)||{}).name:pick.cust)||'';
+      const propLbl=p?p.name:(pick.propId?(propById(pick.propId)||{}).name:pick.prop)||'';
+      const needPick=!c&&!p;
+      body=`<p class="quiet" style="margin:0 0 8px">${name?`<b>${name}</b> への活動予定`:'顧客・物件は検索して選びます（未定可）'}。管理台帳では同じ行が案件として見えます。</p>
+        ${needPick?`<div class="slabel">① 顧客（検索）</div>
+        <input class="searchbox" id="actCustQ" placeholder="顧客名でさがす" value="" inputmode="search">
+        <div id="actCustHits" style="margin:6px 0 8px"></div>
+        <div class="s" id="actCustSel">${custLbl?`選択中: <b>${custLbl}</b> <button type="button" class="linkish" data-actclr="cust">クリア</button>`:'未選択（未定可）'}</div>
+        <div class="slabel">物件（検索）</div>
+        <input class="searchbox" id="actPropQ" placeholder="物件名・住所でさがす" value="" inputmode="search">
+        <div id="actPropHits" style="margin:6px 0 8px"></div>
+        <div class="s" id="actPropSel">${propLbl?`選択中: <b>${propLbl}</b> <button type="button" class="linkish" data-actclr="prop">クリア</button>`:'未選択（未定可）'}</div>`
+        :`<div class="card" style="margin:0 0 10px"><div class="k">対象</div><div class="t">${name}</div><div class="s">${axis}</div></div>`}
+        <div class="slabel">${needPick?'②':'①'} 何の活動？</div>
         <div class="chips">${['初回訪問','現地調査','見積提示','契約説明','再アプローチ','その他'].map(x=>`<button class="chip" data-pk="title:${x}" aria-pressed="${pick.title===x}">${x}</button>`).join('')}</div>
-        <div class="slabel">きっかけ</div>
-        <div class="chips">${['電話','Webフォーム','紹介','飛込み','予定どおり'].map(x=>`<button class="chip" data-pk="via:${x}" aria-pressed="${pick.via===x}">${x}</button>`).join('')}</div>
+        <div class="slabel">きっかけ（チップ or 自由入力）</div>
+        <div class="chips">${VIA_CHIPS.map(x=>`<button class="chip" data-pk="via:${x}" aria-pressed="${pick.via===x}">${x}</button>`).join('')}</div>
+        <input class="searchbox" id="actViaFree" placeholder="上記以外はここに入力" value="${(pick.via && !VIA_CHIPS.includes(pick.via))?pick.via:''}">
         <textarea placeholder="メモ（任意）" id="actMemo"></textarea>
         <button class="abtn p" style="margin-top:12px${!pick.title?';opacity:.4':''}" data-send="actnew" ${pick.title?'':'disabled'}>予定を登録する</button>
         <button class="abtn w" style="margin-top:8px" data-actstep="choose">‹ 戻る</button>`;
@@ -1737,14 +1817,17 @@ function wireSheet(){
     }
     if(b.dataset.send==='actnew'){
       const p=state.pick; const ctx=state.actPlanCtx||{};
-      const c=ctx.custId&&custById(ctx.custId);
-      const pr=ctx.propId&&propById(ctx.propId);
+      const c=(ctx.custId&&custById(ctx.custId))||(p.custId&&custById(p.custId))||CUSTS.find(x=>x.name===p.cust);
+      const pr=(ctx.propId&&propById(ctx.propId))||(p.propId&&propById(p.propId))||PROPS.find(x=>x.name===p.prop);
       if(!p.title){ toast('活動の種類を選んでください'); return; }
+      const viaFree=(($('actViaFree')||{}).value||'').trim();
+      const via=(viaFree||p.via||'').trim();
+      if(!via){ toast('きっかけを選ぶか入力してください'); return; }
       const cust=c?c.name:(p.cust||(pr&&pr.cust)||'（未設定）');
       const prop=pr?pr.name:(p.prop||'');
-      const addr=pr?pr.addr:(c?((c.info||'').split('·').pop()||'').trim():'');
-      const tel=c?(c.info.match(/0\d[\d-]+/)||[])[0]:'';
-      const id=createMobileActivity({cust, prop, title:p.title, via:p.via||'', memo:($('actMemo')||{}).value||'', addr, tel, dom:(c&&c.domain)||(pr&&pr.domain)||'ES'});
+      const addr=pr?(pr.addr||''):(c?(c.addr||''):'');
+      const tel=c?((c.contact||'').match(/0\d[\d-]+/)||[])[0]:'';
+      const id=createMobileActivity({cust, prop, title:p.title, via, memo:($('actMemo')||{}).value||'', addr, tel, dom:(c&&c.domain)||(pr&&pr.domain)||'ES'});
       closeSheet(); state.actPlanStep='choose'; state.deal=id; state.tab='deals'; state.sub=null;
       toast('✓ 活動予定を登録しました');
       render(); return;
@@ -1758,6 +1841,7 @@ function wireSheet(){
   sh.querySelectorAll('[data-dealgo]').forEach(b=>b.onclick=()=>{
     closeSheet(); state.deal=b.dataset.dealgo; state.tab='deals'; state.sub=null; render();
   });
+  if(state.sheet==='actplan' && state.actPlanStep==='new') wireActPlanPickers();
 }
 
 /* ================= SAAD AI（通常画面遷移でチャット） ================= */
