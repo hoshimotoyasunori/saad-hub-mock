@@ -287,6 +287,9 @@ ASISの「リスト」「管理画面」「進捗表」は、だいたい次の�
 - ハガキ一括印刷、実PDF・メール送付
 
 致命抜けの実装進捗は [hub-asis-critical-impl-plan.md](./hub-asis-critical-impl-plan.md)（P1〜P3 ✅）。
+
+**役割別の通し確認**は [role-scenarios/00_index.md](./role-scenarios/00_index.md)（営業〜相談室・約70シナリオ＋E2E）。洗い出し本体は [role-verification-scenarios.md](./role-verification-scenarios.md)。
+
 ### 意図的にやめる（⛔）
 
 - Excel進捗表／販路日報／日次管理表への**多重転記**
