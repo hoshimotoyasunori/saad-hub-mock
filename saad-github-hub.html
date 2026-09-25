@@ -1296,6 +1296,15 @@ function act(kindA, id){
     notify(ap, `${it.ref}（${it.title}）が承認されました${wasProxy?'（代理承認）':''}`, it.id);
     if(it.by && it.by!==ap) notify(it.by, `${it.ref} が承認されました（代理起票の結果）`, it.id);
     if(it.cancelRoot) applyCancelDeal(it);
+    if(it.contractChange || (it.body&&it.body['種類'])==='契約変更') applyContractChange(it);
+    if(it.voidTarget){
+      const tgt=byId(it.voidTarget);
+      if(tgt){ rememberPrev(tgt); tgt.voided=true; tgt.status='取消済';
+        addEvent(tgt, ev('sys', me, `取消稟議 ${it.ref} により承認取消`));
+        recordChg(tgt,'状態','Done','取消済','承認取消');
+        const root=rootOf(tgt); if(root){ root.contractWfOk=false; addEvent(root, ev('sys', me, `稟議 ${tgt.ref} の取消によりゲート再判定`)); }
+      }
+    }
     /* P1-2: 契約書作成依頼WF承認 → 案件にフラグ */
     if((it.body&&it.body['種類'])==='契約書作成依頼' || /契約書作成依頼/.test(it.title||'')){
       const root=rootOf(it); if(root){ root.contractWfOk=true; root.contractWfId=it.id;
@@ -1334,6 +1343,37 @@ function act(kindA, id){
     recordChg(it,'状態',it._prev.status,'Done','請求発行');
     notify('sales', 'billing#77 請求書を発行しました', it.id);
   }
+  if(kindA==='billRed'){
+    const reason=prompt('請求赤伝の理由（必須）'); if(!reason){ render(); return; }
+    rememberPrev(it); it.status='赤伝'; it.red=true; it.redReason=reason;
+    addEvent(it, ev('sys', me, `請求赤伝 — ${reason}`));
+    recordChg(it,'状態','Done','赤伝','請求赤伝');
+    notify('sales', `請求が赤伝になりました: ${it.ref} — ${reason}`, it.id);
+    notify('kanri', `請求赤伝: ${it.ref}`, it.id);
+  }
+  if(kindA==='billReissue'){
+    const reason=prompt('再発行の理由（必須）'); if(!reason){ render(); return; }
+    rememberPrev(it);
+    const old=it.ref;
+    SEQ.bill=(SEQ.bill||80)+1;
+    it.ref=`billing#${SEQ.bill}`;
+    it.status='Done'; it.red=false; it.reissueOf=old;
+    addEvent(it, ev('sys', me, `請求再発行 ${old} → ${it.ref} — ${reason}`));
+    recordChg(it,'請求No',old,it.ref,'再発行');
+    notify('sales', `請求を再発行しました: ${it.ref}（元 ${old}）`, it.id);
+  }
+  if(kindA==='buyCancelOk'){
+    rememberPrev(it); it.status='取消済'; it.open=false;
+    addEvent(it, ev('sys', me, `発注後取消を確定 — ${it.cancelReason||''}`));
+    recordChg(it,'状態','取消依頼','取消済','発注後取消');
+    notify(it.by||'sales', `購買取消が確定しました: ${it.ref}`, it.id);
+  }
+  if(kindA==='buyCancelNo'){
+    rememberPrev(it); it.status='Done';
+    addEvent(it, ev('sys', me, '発注後取消依頼を却下 — 発注済のまま'));
+    recordChg(it,'状態','取消依頼','Done','取消却下');
+    notify(it.by||'sales', `購買取消が却下されました: ${it.ref}`, it.id);
+  }
   if(kindA==='closeDeal'){
     rememberPrev(it); it.open=false; it.status='Done';
     addEvent(it, ev('sys', me, '全工程完了 — 案件を Close（紫）。作業メモの Close とは違い、これが唯一の Close。'));
@@ -1362,10 +1402,14 @@ function actionsFor(it){
   }
   if(['ringi','buy'].includes(it.kind) && it.status==='差戻し' && (it.by===r || it.applicant===r)) return [['resubmitEdit','修正して再申請','bp'],['withdraw','取り下げ','bg']];
   if(['ringi','buy'].includes(it.kind) && ['承認待ち','Todo'].includes(it.status) && (it.by===r || it.applicant===r) && it.own!==r) return [['nudge','催促する','bg'],['withdraw','取り下げ','bg']];
-  if(it.kind==='buy' && r==='buy' && !['Done','差戻し','取り下げ'].includes(it.status)) return [['buyProg','手配中','bg'],['buyDone','発注済にする','bp']].concat(it.status==='Todo'&&it.by&&it.by!=='buy'?[['buyBack','差戻し（在庫で対応）','bd']]:[]);
+  if(it.kind==='buy' && r==='buy' && it.status==='取消依頼') return [['buyCancelOk','取消を確定','bd'],['buyCancelNo','取消を却下','bg']];
+  if(it.kind==='buy' && r==='buy' && !['Done','差戻し','取り下げ','取消依頼','取消済'].includes(it.status)) return [['buyProg','手配中','bg'],['buyDone','発注済にする','bp']].concat(it.status==='Todo'&&it.by&&it.by!=='buy'?[['buyBack','差戻し（在庫で対応）','bd']]:[]);
   if(it.kind==='lead' && it.open && it.own===r) return [['promote','案件に昇格','bp'],['dropLead','見送り','bg']];
   if(it.repo==='koji' && it.kind==='task' && r==='koji' && it.status==='Todo') return [['taskDone','完了にする','bp']];
   if(it.kind==='bill' && r==='kanri' && it.status==='Todo') return [['billDone','請求書発行 → Done','bp']];
+  if(it.kind==='bill' && r==='kanri' && it.status==='Done') return [['billRed','赤伝（取消）','bd'],['billReissue','再発行','bp']];
+  if(it.kind==='bill' && r==='kanri' && it.status==='赤伝') return [['billReissue','再発行','bp']];
+  if(it.kind==='bill' && it.status==='停止') return [];
   if(it.kind==='deal' && it.id==='841' && (r==='kanri'||r==='leader') && it.open && allKidsDone('841')) return [['closeDeal','案件を完了（Close）','bp']];
   return [];
 }
@@ -3303,6 +3347,8 @@ function fillPropertyDetail(root, pid){
       <span style="margin-left:8px">変更・訂正:</span>
       <button type="button" class="sp-act" id="propEdit">編集</button>
       <button type="button" class="sp-act" id="propChg">変更を申請</button>
+      ${['jimu','kanri','leader'].includes(state.role)&&!p.disabled?`<button type="button" class="sp-act" id="propDis">無効にする</button>`:''}
+      ${p.disabled?'<span class="warn-badge">無効</span>':''}
       ${chgHistHtml(p)}
     </div>
     <dl class="idb">
@@ -3341,6 +3387,12 @@ function fillPropertyDetail(root, pid){
     label:p.name, confirmRole:'jimu', target:p, targetKind:'property',
     fields:[{k:'addr',l:'所在地',cur:p.addr},{k:'structure',l:'構造',cur:p.structure}],
   });
+  const pd=$('propDis'); if(pd) pd.onclick=()=>{
+    const active=issues.some(i=>i.property===pid && i.open);
+    if(active){ alert('進行中の案件がある物件は無効化できません'); return; }
+    const reason=prompt('無効化の理由（必須）'); if(!reason) return;
+    p.disabled=true; recordChg(p,'状態','有効','無効','無効化'); mlog(p,`無効化: ${reason}`); audit('物件無効化', `${p.name}: ${reason}`, pid); render();
+  };
   const pr2=$('propRegi'); if(pr2) pr2.onclick=()=>{ p.regi='本'; p.reqSt='完了'; inbox.jimu=inbox.jimu.filter(n=>n.prop!==pid); if(p.by) notify(p.by, `物件が本登録されました: ${p.name}`, null, {prop:pid}); render(); };
   const pb2=$('propBack'); if(pb2) pb2.onclick=()=>{ p.reqSt='差戻し'; p.backNote='築年と構造を確認してください'; inbox.jimu=inbox.jimu.filter(n=>n.prop!==pid); if(p.by) notify(p.by, `物件の仮登録が差戻されました: ${p.name}`, null, {screen:'myreq'}); render(); };
   root.querySelectorAll('[data-goc]').forEach(b=>b.onclick=()=>{ state.property=null; state.customer=b.dataset.goc; state.crmAxis='customer'; render(); });
@@ -3710,11 +3762,11 @@ function chgBarForIssue(it){
   const canUndo=['leader','kanri'].includes(state.role) && it._prev;
   const canAssign=['leader','jimu','kanri'].includes(state.role) && it.open && ['deal','lead','task','support','ringi','buy','bill'].includes(it.kind);
   if(it.kind==='deal' && it.open){
-    btns.push(['editDeal','編集','bg'],['corrRingi','訂正稟議を起票','bg'],['loseDeal','失注にする','bg'],['cancelDeal','解約の稟議','bg']);
+    btns.push(['editDeal','編集','bg'],['chgContract','契約変更の稟議','bg'],['corrRingi','訂正稟議を起票','bg'],['loseDeal','失注にする','bg'],['cancelDeal','解約・クーリングオフ','bg']);
   }
   if(it.kind==='lead' && it.open) btns.push(['editLead','編集','bg']);
-  if(it.kind==='ringi' && it.status==='Done') btns.push(['corrRingi','訂正稟議を起票','bg']);
-  if(it.kind==='buy' && it.status==='Done') btns.push(['chgBuy','変更を申請','bg']);
+  if(it.kind==='ringi' && it.status==='Done') btns.push(['corrRingi','訂正稟議を起票','bg'],['voidRingi','取消稟議','bg']);
+  if(it.kind==='buy' && it.status==='Done') btns.push(['chgBuy','変更を申請','bg'],['cancelBuy','発注後の取消依頼','bg']);
   if(it.kind==='bill' && it.status==='Done') btns.push(['corrBill','訂正稟議を起票','bg']);
   if(canAssign) btns.push(['assign','担当を変える','bg']);
   if(it.handover && it.own===state.role) btns.push(['acceptHO','引き継ぎを確認','bp']);
@@ -3767,6 +3819,76 @@ function bindChgBar(root, it){
     else if(a==='acceptHO'){ acceptHandover(it); render(); }
     else if(a==='loseDeal') openLoseDeal(it);
     else if(a==='cancelDeal') openCancelDeal(it);
+    else if(a==='chgContract') openContractChange(it);
+    else if(a==='cancelBuy') openBuyCancel(it);
+    else if(a==='voidRingi') openVoidRingi(it);
+  });
+}
+function openContractChange(it){
+  const root=rootOf(it)||it;
+  const curAmt=(root.body&&root.body['契約金額'])||'';
+  openSimpleModal('契約変更の稟議 — '+root.ref, `
+    <p class="quiet">受注後の金額・工期変更は契約変更の稟議（管理部）。承認後に契約書類・施工予定・請求予定へ波及します。</p>
+    <form class="form-grid" onsubmit="return false">
+      <div><label>変更後金額（税込・円）</label><input name="amount" type="number" value="${String(curAmt).replace(/[^\d]/g,'')||''}"></div>
+      <div><label>工期・予定の変更</label><input name="schedule" placeholder="例: 施工を10/5→10/12へ"></div>
+      <div class="full"><label>理由<span class="req">*</span></label><textarea name="reason" placeholder="追加工事・値引合意・工期変更など"></textarea></div>
+    </form>
+    <div class="actions" style="margin-top:12px"><button class="bp" type="button" data-ok>契約変更の稟議を起票</button><button class="bg" type="button" data-cx>キャンセル</button></div>`,
+  (box, close)=>{
+    box.querySelector('[data-cx]').onclick=close;
+    box.querySelector('[data-ok]').onclick=()=>{
+      const reason=box.querySelector('[name=reason]').value.trim();
+      const amount=Number(box.querySelector('[name=amount]').value)||0;
+      const schedule=box.querySelector('[name=schedule]').value.trim();
+      if(!reason) return;
+      const id=nextId();
+      insertIssue({id, ref:nextRef('ringi'), repo:'ringi', kind:'ringi', parent:root.id, title:'契約変更の稟議', status:'承認待ち', open:true, own:'kanri', by:state.role, approver:'kanri',
+        formKey:'ringi', formVals:{type:'契約変更', deal:root.id, amount:String(amount), reason},
+        contractChange:{amount, schedule, reason},
+        body:{'種類':'契約変更','案件':root.ref,'変更後金額':amount?yen(amount):'—','工期':schedule||'—','理由':reason},
+        tl:[ev('cm', meShort(), '# 起票', `契約変更: ${reason}\n金額: ${amount?yen(amount):'変更なし'}\n工期: ${schedule||'変更なし'}`), ev('sys','system','管理部キューへ')]});
+      notify('kanri', `契約変更の稟議: ${root.ref}`, id);
+      closeModal(); openIssue(id);
+    };
+  });
+}
+function openBuyCancel(it){
+  openSimpleModal('発注後の取消依頼 — '+it.ref, `
+    <p class="quiet">発注済の購買は削除せず、取消依頼として購買へ送ります。キャンセル料は経費へ（運用）。</p>
+    <form class="form-grid" onsubmit="return false">
+      <div class="full"><label>取消理由<span class="req">*</span></label><textarea name="reason"></textarea></div>
+    </form>
+    <div class="actions" style="margin-top:12px"><button class="bp" type="button" data-ok>取消を依頼</button><button class="bg" type="button" data-cx>キャンセル</button></div>`,
+  (box, close)=>{
+    box.querySelector('[data-cx]').onclick=close;
+    box.querySelector('[data-ok]').onclick=()=>{
+      const reason=box.querySelector('[name=reason]').value.trim(); if(!reason) return;
+      rememberPrev(it); it.status='取消依頼'; it.cancelReason=reason;
+      addEvent(it, ev('cm', meShort(), '# 発注後取消依頼', reason));
+      recordChg(it,'状態','Done','取消依頼','発注後取消');
+      notify('buy', `発注後の取消依頼: ${it.ref} — ${reason}`, it.id);
+      closeModal(); render(); toast('購買へ取消依頼を送りました');
+    };
+  });
+}
+function openVoidRingi(it){
+  openSimpleModal('承認済み稟議の取消 — '+it.ref, `
+    <p class="quiet">承認済み稟議は削除できません。取消稟議を起票し、ゲート再判定の材料にします。</p>
+    <form class="form-grid" onsubmit="return false">
+      <div class="full"><label>取消理由<span class="req">*</span></label><textarea name="reason"></textarea></div>
+    </form>
+    <div class="actions" style="margin-top:12px"><button class="bp" type="button" data-ok>取消稟議を起票</button><button class="bg" type="button" data-cx>キャンセル</button></div>`,
+  (box, close)=>{
+    box.querySelector('[data-cx]').onclick=close;
+    box.querySelector('[data-ok]').onclick=()=>{
+      const reason=box.querySelector('[name=reason]').value.trim(); if(!reason) return;
+      const root=rootOf(it)||it;
+      const r=addRingi(root.id,'承認取消',0,`元稟議 ${it.ref} の取消。${reason}`,0);
+      r.body['元稟議']=it.ref; r.voidTarget=it.id;
+      notify(r.own, `承認取消の稟議: ${it.ref}`, r.id);
+      closeModal(); openIssue(r.id);
+    };
   });
 }
 function openLoseDeal(it){
@@ -3803,55 +3925,117 @@ function loseDeal(root, why, memo){
 function openCancelDeal(it){
   const root=rootOf(it)||it;
   const impact=cancelImpact(root);
-  openSimpleModal('解約の稟議 — '+root.ref, `
-    <p class="quiet">受注後の中止は解約の稟議（管理部）です。承認されると下の関連をまとめて止めます。</p>
+  const afterKoji=issues.some(i=>rootOf(i)===root && i.repo==='koji' && ['Done','In Progress'].includes(i.status));
+  openSimpleModal('解約・クーリングオフ — '+root.ref, `
+    <p class="quiet">受注後の中止は解約の稟議（管理部）です。承認されると下の関連をまとめて止めます。${afterKoji?' <b>施工着手後</b>のため返金・原状回復の確認が入ります。':''}</p>
     <div class="note warn" style="margin:0 0 10px"><b>承認後に止まるもの</b><ul style="margin:6px 0 0;padding-left:18px">${impact.map(x=>`<li>${x}</li>`).join('')||'<li>（関連する進行中の行はありません）</li>'}</ul></div>
     <form class="form-grid" onsubmit="return false">
-      <div class="full"><label>解約理由<span class="req">*</span></label><textarea name="reason" placeholder="お客さま都合・クーリングオフ・当社都合など"></textarea></div>
+      <div class="full"><label>区分<span class="req">*</span></label>
+        <select name="kind"><option value="">選ぶ</option>
+          <option value="クーリングオフ">クーリングオフ（契約から8日以内・優先）</option>
+          <option value="施工後解約">施工後解約（返金・原状回復）</option>
+          <option value="解約">その他解約</option></select></div>
+      <div class="full"><label>理由<span class="req">*</span></label><textarea name="reason" placeholder="お客さま都合・当社都合など"></textarea></div>
     </form>
     <div class="actions" style="margin-top:12px"><button class="bp" type="button" data-ok>解約の稟議を起票</button><button class="bg" type="button" data-cx>キャンセル</button></div>`,
   (box, close)=>{
     box.querySelector('[data-cx]').onclick=close;
     box.querySelector('[data-ok]').onclick=()=>{
-      const reason=box.querySelector('[name=reason]').value.trim(); if(!reason) return;
+      const kind=box.querySelector('[name=kind]').value;
+      const reason=box.querySelector('[name=reason]').value.trim();
+      if(!kind){ box.querySelector('[name=kind]').focus(); return; }
+      if(!reason) return;
       const id=nextId();
-      const impactList=cancelImpact(root);
-      insertIssue({id, ref:nextRef('ringi'), repo:'ringi', kind:'ringi', parent:root.id, title:'解約の稟議', status:'承認待ち', open:true, own:'kanri', by:state.role, approver:'kanri',
-        formKey:'ringi', formVals:{type:'解約', deal:root.id, amount:'', reason}, cancelRoot:root.id, cancelImpact:impactList,
-        body:{'種類':'解約','案件':root.ref,'波及':impactList.join('、')||'なし','理由':reason},
-        tl:[ev('cm', meShort(), '# 起票', `解約理由: ${reason}\n承認後に止まるもの: ${impactList.join('、')||'なし'}`), ev('sys','system','管理部キューへ — 担当: 佐藤')]});
-      notify('kanri', `解約の稟議: ${root.title}（${root.ref}）`, id);
+      const impactList=cancelImpact(root, kind);
+      const title=kind==='クーリングオフ'?'クーリングオフの稟議':(kind==='施工後解約'?'施工後解約の稟議':'解約の稟議');
+      insertIssue({id, ref:nextRef('ringi'), repo:'ringi', kind:'ringi', parent:root.id, title, status:'承認待ち', open:true, own:'kanri', by:state.role, approver:'kanri',
+        formKey:'ringi', formVals:{type:kind==='クーリングオフ'?'クーリングオフ':kind, deal:root.id, amount:'', reason},
+        cancelRoot:root.id, cancelImpact:impactList, cancelKind:kind,
+        body:{'種類':kind,'案件':root.ref,'波及':impactList.join('、')||'なし','理由':reason},
+        tl:[ev('cm', meShort(), '# 起票', `${kind}: ${reason}\n承認後に止まるもの: ${impactList.join('、')||'なし'}`),
+            ev('sys','system',kind==='クーリングオフ'?'管理部キューへ（優先・即日）':'管理部キューへ — 担当: 佐藤')]});
+      notify('kanri', `${kind}: ${root.title}（${root.ref}）`, id);
+      if(kind==='クーリングオフ') notify('koji', `クーリングオフ申請中 — 施工を即停止準備: ${root.ref}`, root.id);
       closeModal(); openIssue(id);
     };
   });
 }
-function cancelImpact(root){
+function cancelImpact(root, kind){
   const list=[];
   issues.filter(i=>rootOf(i)===root && i.open).forEach(i=>{
-    if(i.kind==='buy' && i.status!=='Done') list.push(`購買 ${i.ref}（${i.status}）を取消`);
-    if(i.kind==='bill' && i.status!=='Done') list.push(`請求 ${i.ref} を発行停止`);
+    if(i.kind==='buy' && i.status!=='Done' && i.status!=='取消済') list.push(`購買 ${i.ref}（${i.status}）を取消`);
+    if(i.kind==='bill' && i.status!=='Done' && i.status!=='赤伝') list.push(`請求 ${i.ref} を発行停止`);
+    if(i.kind==='bill' && i.status==='Done') list.push(`請求 ${i.ref} を赤伝候補（返金）`);
     if(i.repo==='koji' && i.status!=='Done') list.push(`施工 ${i.ref} を停止`);
+    if(i.repo==='koji' && i.status==='Done' && kind==='施工後解約') list.push(`施工済 ${i.ref} — 原状回復・返金確認`);
   });
   const po=(typeof PORDERS!=='undefined'?PORDERS:[]).filter(p=>p.deal===root.ref && !['支払済','取消'].includes(p.status));
   po.forEach(p=>list.push(`外注注文書 ${p.no||'（作成中）'} を取消`));
-  const w=(typeof WARRANTIES!=='undefined'?WARRANTIES:[]).filter(w=>w.deal===root.ref || (w.cid && w.cid===root.customer));
-  /* 保証は案件紐づけが弱いので物件ベースで注意書き */
   if(root.property) list.push(`保証書（物件側）は発行・送付を停止（解約後に無効化）`);
+  if(kind==='クーリングオフ') list.push('施工予定の未割当／割当を即解除');
   return [...new Set(list)];
+}
+function applyContractChange(ringi){
+  const root=rootOf(ringi); if(!root) return;
+  const ch=ringi.contractChange||{};
+  if(ch.amount){
+    root.body=root.body||{};
+    const old=root.body['契約金額']||root.body['金額']||'';
+    root.body['契約金額']=yen(ch.amount);
+    if(root.body['金額']) root.body['金額']=yen(ch.amount);
+    recordChg(root,'契約金額',old,yen(ch.amount),'契約変更承認');
+    (typeof CONTRACTS!=='undefined'?CONTRACTS:[]).filter(c=>c.deal===root.ref || c.dealId===root.id).forEach(c=>{
+      c.amount=ch.amount; mlog(c,`契約変更 ${ringi.ref}: 金額→${yen(ch.amount)}`);
+    });
+    issues.filter(i=>rootOf(i)===root && i.kind==='bill' && !['Done','停止','赤伝'].includes(i.status)).forEach(i=>{
+      rememberPrev(i); i.amount=yen(ch.amount); if(i.body) i.body['金額']=yen(ch.amount);
+      addEvent(i, ev('sys','system',`契約変更により金額更新（${ringi.ref}）`));
+    });
+  }
+  if(ch.schedule){
+    root.body=root.body||{};
+    const old=root.body['工期']||'';
+    root.body['工期']=ch.schedule;
+    recordChg(root,'工期',old,ch.schedule,'契約変更承認');
+    notify('koji', `工期変更: ${root.ref} — ${ch.schedule}`, root.id, {screen:'mgmt', opts:{mgmt:'schedule'}});
+  }
+  addEvent(root, ev('cm', meShort(), '# 契約変更', `稟議 ${ringi.ref} 承認。${ch.reason||''}`));
+  notify(ringi.by||'sales', `契約変更が承認されました: ${root.ref}`, root.id);
 }
 function applyCancelDeal(ringi){
   const root=byId(ringi.cancelRoot); if(!root) return;
+  const kind=ringi.cancelKind||(ringi.body&&ringi.body['種類'])||'解約';
   const stopped=[];
   issues.filter(i=>rootOf(i)===root && i.open && i.id!==ringi.id).forEach(i=>{
-    if(['buy','ringi'].includes(i.kind) && i.status!=='Done'){ rememberPrev(i); i.status='取り下げ'; i.open=false; stopped.push(i.ref); addEvent(i, ev('sys','system',`解約承認により自動取消（${ringi.ref}）`)); }
-    else if(i.repo==='koji' || i.kind==='bill'){ rememberPrev(i); i.status='停止'; i.blocked=true; stopped.push(i.ref); addEvent(i, ev('sys','system',`解約承認により停止（${ringi.ref}）`)); }
+    if(['buy','ringi'].includes(i.kind) && !['Done','取消済'].includes(i.status)){ rememberPrev(i); i.status='取り下げ'; i.open=false; stopped.push(i.ref); addEvent(i, ev('sys','system',`${kind}承認により自動取消（${ringi.ref}）`)); }
+    else if(i.repo==='koji' || i.kind==='bill'){
+      rememberPrev(i);
+      if(i.kind==='bill' && i.status==='Done'){ i.status='赤伝'; i.red=true; i.redReason=`${kind}（${ringi.ref}）`; }
+      else { i.status='停止'; i.blocked=true; }
+      stopped.push(i.ref); addEvent(i, ev('sys','system',`${kind}承認により停止／赤伝（${ringi.ref}）`));
+    }
   });
-  (typeof PORDERS!=='undefined'?PORDERS:[]).filter(p=>p.deal===root.ref && !['支払済','取消'].includes(p.status)).forEach(p=>{ p.status='取消'; mlog(p,`解約承認により取消（${ringi.ref}）`); stopped.push(p.no||'注文書'); });
-  rememberPrev(root); root.open=false; root.status='解約'; root.cancelRef=ringi.ref;
-  recordChg(root,'状態',root._prev?root._prev.status:'In Progress','解約','解約承認');
-  addEvent(root, ev('cm', meShort(), '# 解約', `稟議 ${ringi.ref} 承認。停止・取消: ${stopped.join('、')||'なし'}`));
-  ringi.body=ringi.body||{}; ringi.body['実行結果']=`停止・取消 ${stopped.length} 件: ${stopped.join('、')||'なし'}`;
-  notify(ringi.by||'sales', `解約が承認され、関連を停止しました: ${root.ref}`, root.id);
+  (typeof PORDERS!=='undefined'?PORDERS:[]).filter(p=>p.deal===root.ref && !['支払済','取消'].includes(p.status)).forEach(p=>{ p.status='取消'; mlog(p,`${kind}承認により取消（${ringi.ref}）`); stopped.push(p.no||'注文書'); });
+  (typeof WARRANTIES!=='undefined'?WARRANTIES:[]).filter(w=>w.deal===root.ref || (root.customer && w.cid===root.customer)).forEach(w=>{
+    if(!['送付済','無効'].includes(w.status)){ w.status='無効'; mlog(w,`${kind}により無効化（${ringi.ref}）`); stopped.push(w.no||'保証書'); }
+  });
+  if(typeof UNASSIGNED!=='undefined'){
+    for(let i=UNASSIGNED.length-1;i>=0;i--){
+      const u=UNASSIGNED[i];
+      if(u.deal===String(root.id) || u.ref===root.ref){ UNASSIGNED.splice(i,1); stopped.push('施工未割当'); }
+    }
+  }
+  (typeof CONTRACTS!=='undefined'?CONTRACTS:[]).filter(c=>c.deal===root.ref || c.dealId===root.id).forEach(c=>{
+    c.status='白紙'; mlog(c,`${kind}承認により白紙（${ringi.ref}）`);
+  });
+  rememberPrev(root); root.open=false; root.status=kind==='クーリングオフ'?'クーリングオフ':kind; root.cancelRef=ringi.ref; root.cancelKind=kind;
+  recordChg(root,'状態',root._prev?root._prev.status:'In Progress',root.status,kind+'承認');
+  const refund=kind==='クーリングオフ'||kind==='施工後解約'?'／返金・精算を経理へ連絡':'';
+  addEvent(root, ev('cm', meShort(), '# '+kind, `稟議 ${ringi.ref} 承認。停止・取消: ${stopped.join('、')||'なし'}${refund}`));
+  ringi.body=ringi.body||{}; ringi.body['実行結果']=`停止・取消 ${stopped.length} 件: ${stopped.join('、')||'なし'}${refund}`;
+  notify(ringi.by||'sales', `${kind}が承認され、関連を停止しました: ${root.ref}`, root.id);
+  notify('koji', `${kind}承認 — 施工停止: ${root.ref}`, root.id);
+  if(kind==='クーリングオフ'||kind==='施工後解約') notify('kanri', `${kind}承認 — 返金・精算確認: ${root.ref}`, root.id);
 }
 
 function mpill(s){
@@ -4301,14 +4485,15 @@ const MGMT={
     ],
     q:r=>r.cust+r.prop+r.kind+r.branch+r.status+r.ch+r.domain,
     acts:r=>{
-      if(r.status==='対象') return [{l:`案内済にする（${r.ch}）`, f:()=>{ r.status='案内済'; mlog(r,`${r.ch}で点検案内`); }}];
+      if(r.status==='対象') return [{l:`案内済にする（${r.ch}）`, f:()=>{ r.status='案内済'; mlog(r,`${r.ch}で点検案内`); }},{l:'対象外にする', f:()=>{ const reason=prompt('対象外にする理由（必須）'); if(!reason) return; r.status='対象外'; mlog(r,`対象外: ${reason}`); }}];
       if(r.status==='未実施') return [{l:'再案内する', f:()=>{ r.status='案内済'; mlog(r,'期限超過のため再案内'); }}];
-      if(r.status==='案内済') return [{l:'アポ確定（10/2）', f:()=>{ r.status='アポ済'; mlog(r,'点検日 10/2 で確定'); }}];
+      if(r.status==='案内済') return [{l:'アポ確定（10/2）', f:()=>{ r.status='アポ済'; mlog(r,'点検日 10/2 で確定'); }},{l:'対象外にする', f:()=>{ const reason=prompt('対象外にする理由（必須）'); if(!reason) return; r.status='対象外'; mlog(r,`対象外: ${reason}`); }}];
       if(r.status==='アポ済') return [{l:'点検済にする', c:'bp', f:()=>{ r.status='点検済'; mlog(r,'点検実施・結果を登録'); }}];
+      if(r.status==='対象外') return [{l:'対象に戻す', f:()=>{ r.status='対象'; mlog(r,'対象に復帰'); }}];
       if(r.lead) return [{l:'リードを開く', f:()=>{ openIssue(r.lead); return 'nav'; }}];
       return [{l:'保証更新のリードを起票', f:()=>{ const it=newLeadFrom(r, `保証更新の提案（${r.prop}）`, '定期点検の結果から'); r.lead=it.id; mlog(r,`リード ${it.ref} を起票`); }}];
     },
-    foot:all=>`未実施 ${all.filter(r=>r.status==='未実施').length} 件 ／ アポ待ち ${all.filter(r=>r.status==='案内済').length} 件。点検済からそのまま保証更新のリードを起票でき、案件台帳に1行立つ。`,
+    foot:all=>`未実施 ${all.filter(r=>r.status==='未実施').length} 件 ／ アポ待ち ${all.filter(r=>r.status==='案内済').length} 件 ／ 対象外 ${all.filter(r=>r.status==='対象外').length} 件。点検済からそのまま保証更新のリードを起票でき、案件台帳に1行立つ。`,
   },
   warranty:{
     title:'保証書管理',
@@ -4495,12 +4680,18 @@ const MGMT={
       {id:'order', label:'都度発注品', f:r=>!r.stock},
     ],
     cols:[
-      {h:'SKU', v:r=>`<span class="ref">${r.sku}</span>`},{h:'品名', v:r=>`<b>${r.name}</b>`+(r.note?` <span class="warn-badge">${r.note}</span>`:'')},{h:'分類', v:r=>r.cat},
+      {h:'SKU', v:r=>`<span class="ref">${r.sku}</span>`},{h:'品名', v:r=>`<b>${r.name}</b>`+(r.disabled?' <span class="warn-badge">無効</span>':'')+(r.note?` <span class="warn-badge">${r.note}</span>`:'')},{h:'分類', v:r=>r.cat},
       {h:'単位', v:r=>r.unit},{h:'単価', v:r=>`<span class="num-r">${yen(r.price)}</span>`},{h:'仕入先', v:r=>r.supplier},{h:'区分', v:r=>r.stock?'在庫品':'都度発注'},
     ],
     q:r=>r.sku+r.name+r.cat+r.supplier,
-    acts:r=>[{l:'購買申請へ', f:()=>{ go('form',{form:'buy', pre:{sku:r.sku}}); return 'nav'; }}],
-    foot:()=>'見積作成・購買申請はこの単価を参照する。',
+    acts:r=>{
+      const a=[];
+      if(!r.disabled) a.push({l:'購買申請へ', f:()=>{ go('form',{form:'buy', pre:{sku:r.sku}}); return 'nav'; }});
+      if(!r.disabled) a.push({l:'無効にする', f:()=>{ const reason=prompt('無効化の理由（必須）'); if(!reason) return; r.disabled=true; mlog(r,`無効化: ${reason}`); }});
+      else a.push({l:'有効に戻す', f:()=>{ r.disabled=false; mlog(r,'有効化'); }});
+      return a;
+    },
+    foot:()=>'見積作成・購買申請はこの単価を参照する。無効にしたSKUは新規見積・発注から外す。',
   },
 };
 
@@ -4858,7 +5049,7 @@ const FORMS={
     fields:[
       {k:'deal', l:'案件', t:'select', opts:dealOpts, full:true},
       {k:'applicant', l:'申請者（誰の申請か）', t:'select', opts:applicantOpts, full:true},
-      {k:'type', l:'種類', t:'select', opts:()=>['値引','契約書作成依頼','外注差益割れ','外注保証','契約稟議（規定外支払）','契約稟議（先方契約書・法務）','契約稟議（紹介手数料・経理）','施工着手','高額資材','下請','売上訂正','解約','顧客情報変更','クレーム・トラブル','販売先紹介'].map(x=>[x,x])},
+      {k:'type', l:'種類', t:'select', opts:()=>['値引','契約書作成依頼','契約変更','外注差益割れ','外注保証','契約稟議（規定外支払）','契約稟議（先方契約書・法務）','契約稟議（紹介手数料・経理）','施工着手','高額資材','下請','売上訂正','解約','クーリングオフ','施工後解約','承認取消','顧客情報変更','クレーム・トラブル','販売先紹介'].map(x=>[x,x])},
       {k:'amount', l:'金額（円）', t:'number', def:'0'},
       {k:'reason', l:'理由', t:'textarea', full:true},
     ],
@@ -5757,18 +5948,18 @@ Object.assign(MGMT, {
     title:'外注注文書・支払', asis:'協力業者依頼・注文書発行（紙）、外注処理（着工前／完工後）、外注実績表、産廃の下請支払', why:'外注に何をいくらで頼んだかを残し、完了確認してから支払う',
     stop:'注文書の手書き・外注実績表への転記', who:'施工リーダー・購買・経理',
     rows:()=>PORDERS,
-    tabs:[{id:'open', label:'進行中', f:r=>r.status!=='支払済'},{id:'pay', label:'支払待ち', f:r=>r.status==='支払待ち'},{id:'all', label:'すべて', f:r=>true}],
-    cols:[{h:'注文書No', v:r=>r.no?`<span class="ref">${r.no}</span>`:'（未発行）'},{h:'外注先', v:r=>`<b>${r.vendor}</b>`},{h:'案件', v:r=>`<span class="ref">${r.deal}</span>`},{h:'作業', v:r=>r.work},{h:'金額', v:r=>`<span class="num-r">${state.role==='koji'?'（非表示）':yen(r.amount)}</span>`},{h:'状態', v:r=>`<span class="pill ${r.status==='支払済'?'done':r.status==='支払待ち'?'wait':'prog'}">${r.status}</span>`}],
+    tabs:[{id:'open', label:'進行中', f:r=>!['支払済','取消','改訂済'].includes(r.status)},{id:'pay', label:'支払待ち', f:r=>r.status==='支払待ち'},{id:'all', label:'すべて', f:r=>true}],
+    cols:[{h:'注文書No', v:r=>r.no?`<span class="ref">${r.no}</span>${r.ver?` <span class="quiet">v${r.ver}</span>`:''}`:'（未発行）'},{h:'外注先', v:r=>`<b>${r.vendor}</b>`},{h:'案件', v:r=>`<span class="ref">${r.deal}</span>`},{h:'作業', v:r=>r.work},{h:'金額', v:r=>`<span class="num-r">${state.role==='koji'?'（非表示）':yen(r.amount)}</span>`},{h:'状態', v:r=>`<span class="pill ${r.status==='支払済'?'done':r.status==='支払待ち'?'wait':r.status==='取消'||r.status==='改訂済'?'back':'prog'}">${r.status}</span>`}],
     q:r=>r.no+r.vendor+r.deal+r.work+r.status,
     acts:r=>{
       const a=[];
       if(['支払待ち','支払済'].includes(r.status)) a.push({l:'支払通知を開く', f:()=>{ openDoc({name:`支払通知 ${r.no||r.id}`, kind:'paynotice', amount:r.amount, cust:r.vendor}, null); return 'nav'; }});
       const n=nextOf(PO_FLOW,r.status); if(!n) return a;
       const label={'発行済':'注文書を発行','完了報告待ち':'着工（完了報告待ちへ）','支払待ち':'完了を確認','支払済':'支払済にする'}[n];
-      a.push({l:label, c:'bp', f:()=>{ if(n==='発行済'){ SEQ.go=(SEQ.go||310)+1; r.no=`GO-2026-${String(SEQ.go).padStart(4,'0')}`; } r.status=n; mlog(r,label); }});
+      a.push({l:label, c:'bp', f:()=>{ if(n==='発行済'){ SEQ.go=(SEQ.go||310)+1; r.no=`GO-2026-${String(SEQ.go).padStart(4,'0')}`; r.ver=r.ver||1; } r.status=n; mlog(r,label); }});
       return a;
     },
-    foot:()=>'発注先は外注・仕入先マスタの「取引中」のみ。保険期限切れの業者は選べない想定。支払待ちから支払通知を開ける。',
+    foot:()=>'発注先は外注・仕入先マスタの「取引中」のみ。発行後は版重ね再発行・取消が可能。支払待ちから支払通知を開ける。',
   },
   salesrec:{
     title:'売上計上', asis:'売上計上処理（部門別）・売上訂正の稟議兼伝票・売上計上進捗確認・月次締め', why:'いつの売上として確定するかを決める（締め）',
@@ -5814,10 +6005,15 @@ Object.assign(MGMT, {
     stop:'取引先ごとに別システム・別Excelを持つこと（違いはこの表の属性で持つ）', who:'法人営業部・ES管理部・経理',
     rows:()=>DEALTYPES,
     tabs:[{id:'all', label:'すべて', f:r=>true}],
-    cols:[{h:'取引形態', v:r=>`<b>${r.name}</b>`},{h:'請求先', v:r=>r.billTo},{h:'必要書類', v:r=>r.docs},{h:'手数料', v:r=>r.fee},{h:'保証書の送付先', v:r=>r.warranty},{h:'特記', v:r=>r.note}],
+    cols:[{h:'取引形態', v:r=>`<b>${r.name}</b>`+(r.disabled?' <span class="warn-badge">無効</span>':'')},{h:'請求先', v:r=>r.billTo},{h:'必要書類', v:r=>r.docs},{h:'手数料', v:r=>r.fee},{h:'保証書の送付先', v:r=>r.warranty},{h:'特記', v:r=>r.note}],
     q:r=>r.name+r.billTo+r.docs+r.fee+r.note,
-    acts:r=>[{l:'この形態の案件を探す', f:()=>{ state.searchQ=r.name.replace(/（.*）/,''); go('search'); return 'nav'; }}],
-    foot:()=>'案件を起票するとき取引形態を選ぶと、請求先・書類・手数料・保証送付先がこの表から決まる（案件の属性）。',
+    acts:r=>{
+      const a=[{l:'この形態の案件を探す', f:()=>{ state.searchQ=r.name.replace(/（.*）/,''); go('search'); return 'nav'; }}];
+      if(!r.disabled) a.push({l:'無効にする', f:()=>{ const reason=prompt('無効化の理由（必須）'); if(!reason) return; r.disabled=true; mlog(r,`無効化: ${reason}`); }});
+      else a.push({l:'有効に戻す', f:()=>{ r.disabled=false; mlog(r,'有効化'); }});
+      return a;
+    },
+    foot:()=>'案件を起票するとき取引形態を選ぶと、請求先・書類・手数料・保証送付先がこの表から決まる（案件の属性）。無効にした形態は新規案件から外す。',
   },
   energy:{
     title:'PPA・FIT・電力申請', asis:'FIT申請・名義変更、電力申請、PPA仮申込〜本申込〜完工報告（SE）', why:'制度手続きの期限と進捗を案件と並べて追う',
@@ -6196,7 +6392,27 @@ FORMS.porder={
     return {msg:'注文書を「作成中」で保存しました。', openLabel:'注文書一覧を開く', open:()=>go('mgmt',{mgmt:'porders'})}; },
 };
 MGMT.porders.tools=[{l:'＋ 注文書を作成', f:()=>openFormModal('porder',{},{from:'外注注文書・支払'})}];
-MGMT.porders.acts=(orig=>r=>{ const a=orig(r); if(r.status==='作成中') a.push({l:'取消', f:()=>{ PORDERS.splice(PORDERS.indexOf(r),1); }}); return a; })(MGMT.porders.acts);
+MGMT.porders.acts=(orig=>r=>{
+  const a=orig(r);
+  if(r.status==='作成中') a.push({l:'取消', f:()=>{ PORDERS.splice(PORDERS.indexOf(r),1); }});
+  if(['発行済','完了報告待ち'].includes(r.status)){
+    a.push({l:'版を重ねて再発行', f:()=>{
+      const reason=prompt('再発行の理由（必須）'); if(!reason) return;
+      const ver=(r.ver||1)+1;
+      SEQ.go=(SEQ.go||310)+1;
+      const neu={id:nextId(), no:`GO-2026-${String(SEQ.go).padStart(4,'0')}`, vendor:r.vendor, deal:r.deal, work:r.work, amount:r.amount, status:'発行済', ver, prev:r.no||r.id, by:state.role, log:[`${todayShort()} ${meShort()}: 版${ver} 再発行（元 ${r.no||'未採番'}）— ${reason}`]};
+      r.status='改訂済'; mlog(r,`版${ver}へ改訂（${neu.no}）`);
+      PORDERS.unshift(neu);
+      toast(`注文書を版${ver}で再発行: ${neu.no}`);
+    }});
+    a.push({l:'発行後取消', f:()=>{
+      const reason=prompt('取消理由（必須）'); if(!reason) return;
+      r.status='取消'; mlog(r,`発行後取消: ${reason}`);
+      toast('注文書を取消しました');
+    }});
+  }
+  return a;
+})(MGMT.porders.acts);
 
 /* 経費の確認（経理） */
 MGMT.expenses={
