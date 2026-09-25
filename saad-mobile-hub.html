@@ -266,6 +266,33 @@ textarea.fin{min-height:64px;resize:vertical}
   max-width:82%;text-align:center;pointer-events:none}
 .toast.show{opacity:1;transform:translate(-50%,0)}
 
+/* SAAD AI — 右から出るチャット画面 */
+.apphead button.ai-ah{background:linear-gradient(135deg,#1aa6ab,#0a6b8a);border-color:transparent;color:#fff}
+.apphead button.ai-ah svg{width:15px;height:15px;display:block}
+.apphead button.ai-ah[aria-expanded="true"]{box-shadow:0 0 0 2px #fff,0 0 0 3px #1aa6ab}
+.ai-ovl{position:absolute;inset:0;background:rgba(9,14,26,.45);z-index:42;opacity:0;pointer-events:none;transition:opacity .2s}
+.ai-ovl.show{opacity:1;pointer-events:auto}
+.ai-chat{position:absolute;top:0;right:0;bottom:0;width:min(340px,92%);background:#fff;z-index:43;
+  transform:translateX(105%);transition:transform .24s cubic-bezier(.3,.9,.4,1);display:flex;flex-direction:column;
+  border-radius:24px 0 0 24px;box-shadow:-18px 0 50px rgba(10,18,35,.28)}
+.ai-chat.show{transform:translateX(0)}
+.ai-chat .ai-h{flex:none;display:flex;align-items:center;gap:10px;padding:18px 14px 12px;border-bottom:1px solid var(--line);background:#f7fafb}
+.ai-chat .ai-h .mk{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#1aa6ab,#0a6b8a);color:#fff;display:grid;place-items:center;flex:none}
+.ai-chat .ai-h .mk svg{width:16px;height:16px}
+.ai-chat .ai-h b{font-size:14px;display:block}
+.ai-chat .ai-h small{font-size:11px;color:var(--muted)}
+.ai-chat .ai-h .x{margin-left:auto;border:0;background:#eef1f6;border-radius:50%;width:30px;height:30px;font-size:13px;cursor:pointer;color:var(--muted)}
+.ai-chat .ai-b{flex:1;min-height:0;overflow-y:auto;padding:12px 12px 8px;display:flex;flex-direction:column;gap:9px;background:#fbfcfe;-webkit-overflow-scrolling:touch}
+.ai-chat .bub{max-width:92%;padding:9px 11px;border-radius:12px;font-size:13px;line-height:1.55;white-space:pre-wrap}
+.ai-chat .bub.bot{align-self:flex-start;background:#fff;border:1px solid var(--line);border-radius:4px 12px 12px 12px}
+.ai-chat .bub.me{align-self:flex-end;background:#e6f6f6;border:1px solid #b7e0e0;border-radius:12px 4px 12px 12px}
+.ai-chat .bub .who{display:block;font-size:10px;font-weight:700;color:var(--muted);margin-bottom:3px}
+.ai-chat .ai-sg{flex:none;display:flex;flex-wrap:wrap;gap:6px;padding:8px 12px;border-top:1px solid #eef1f4}
+.ai-chat .ai-sg button{border:1px solid var(--line);background:#fff;border-radius:999px;padding:6px 10px;font-size:11.5px;font:inherit}
+.ai-chat .ai-f{flex:none;display:flex;gap:8px;padding:10px 12px 16px;border-top:1px solid var(--line);background:#fff}
+.ai-chat .ai-f input{flex:1;border:1px solid var(--line);border-radius:12px;padding:11px 12px;font-size:14px;font:inherit}
+.ai-chat .ai-f button{border:0;background:var(--accent);color:#fff;border-radius:12px;padding:11px 14px;font-size:13px;font-weight:700}
+
 .note{font-size:11px;color:var(--muted);line-height:1.7;margin-top:12px;padding:0 2px}
 .quiet{font-size:12.5px;color:var(--muted);padding:8px 2px}
 
@@ -309,6 +336,8 @@ if(new URLSearchParams(location.search).has('embed')){
     <div class="sheet" id="sheet"></div>
     <div class="d-ovl" id="dovl"></div>
     <div class="drawer" id="drawer"></div>
+    <div class="ai-ovl" id="aiOvl"></div>
+    <div class="ai-chat" id="aiChat" aria-hidden="true"></div>
     <div class="toast" id="toast"></div>
   </div></div>
 
@@ -429,7 +458,7 @@ const PROPS=[
 
 /* 稟議（連鎖の核）: r1=佐藤様値引き */
 const state={
-  role:'sales', tab:'home', deal:null, approving:null,
+  role:'sales', tab:'home', deal:null, approving:null, aiOpen:false, aiMsgs:[],
   sub:null, annOpen:-1, custQ:'', propQ:'', dealQ:'',
   custDom:'', custBr:'', custRegi:'', custFilt:false,
   propDom:'', propBr:'', propRegi:'', propFilt:false,
@@ -1270,6 +1299,75 @@ function wireSheet(){
   });
 }
 
+/* ================= SAAD AI（右からチャット） ================= */
+const AI_ICON_SVG=`<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3.5l1.2 3.6L17 8.3l-3.6 1.2L12 13l-1.2-3.5L7 8.3l3.8-1.2L12 3.5z" fill="currentColor"/><path d="M18.5 13.2l.7 2.1 2.1.7-2.1.7-.7 2.1-.7-2.1-2.1-.7 2.1-.7.7-2.1z" fill="currentColor" opacity=".9"/><path d="M6.2 14.5l.55 1.6 1.6.55-1.6.55-.55 1.6-.55-1.6-1.6-.55 1.6-.55.55-1.6z" fill="currentColor" opacity=".75"/></svg>`;
+function aiReplyM(q){
+  const t=(q||'').trim();
+  const r=ROLES[state.role];
+  const n=unread(state.role);
+  if(/承認|稟議|待ち/.test(t)){
+    if(state.role==='boss') return '承認待ちはホームのカードから開けます。値引き・着手など、いま手元の件を優先してください。';
+    return '稟議の進みは案件詳細のステッパーと通知で確認できます。差戻しがあればホームに戻ります。';
+  }
+  if(/宿題|今日|報告/.test(t)){
+    return `${r.name}さん（${r.label}）向け: ホームの「今日やること」から報告・入場・承認ができます。下部＋からも起票できます。`;
+  }
+  if(/使い方|ヘルプ|どうやって/.test(t)){
+    return 'メニュー→「このアプリの使い方」に手順があります。顧客さがしは右上🔍、通知は🔔です。';
+  }
+  if(/顧客|物件/.test(t)) return '右上の🔍、またはメニューの「顧客台帳／物件台帳」から開けます。';
+  if(!t) return `こんにちは。SAAD AI です（モック）。\n未読通知は ${n} 件。承認・今日の宿題・画面の使い方などを聞いてください。`;
+  return `「${t}」ですね。\nモックのため業務API未接続です。「承認待ち」「今日やること」「使い方」などで聞いてみてください。`;
+}
+function aiEnsureSeedM(){
+  if(state.aiMsgs.length) return;
+  state.aiMsgs=[{who:'bot', text:aiReplyM('')}];
+}
+function renderAiChatM(){
+  const root=$('aiChat'); if(!root || !root.classList.contains('show')) return;
+  const box=root.querySelector('.ai-b');
+  if(!box) return;
+  aiEnsureSeedM();
+  box.innerHTML=state.aiMsgs.map(m=>`<div class="bub ${m.who}"><span class="who">${m.who==='bot'?'SAAD AI':'あなた'}</span>${m.text.replace(/</g,'&lt;').replace(/\n/g,'<br>')}</div>`).join('');
+  box.scrollTop=box.scrollHeight;
+  root.querySelectorAll('[data-aiq]').forEach(b=>b.onclick=()=>aiSendM(b.dataset.aiq));
+  const form=root.querySelector('.ai-f');
+  if(form) form.onsubmit=e=>{ e.preventDefault(); aiSendM(form.querySelector('input').value); form.querySelector('input').value=''; };
+}
+function openAiChat(){
+  closeDrawer();
+  state.aiOpen=true;
+  aiEnsureSeedM();
+  const tips=['承認待ちは？','今日やること','このアプリの使い方','顧客をさがしたい'];
+  $('aiChat').innerHTML=`
+    <div class="ai-h"><span class="mk">${AI_ICON_SVG}</span><span><b>SAAD AI</b><small>業務の聞き役（モック）</small></span><button type="button" class="x" id="aiChatX">✕</button></div>
+    <div class="ai-b"></div>
+    <div class="ai-sg">${tips.map(t=>`<button type="button" data-aiq="${t}">${t}</button>`).join('')}</div>
+    <form class="ai-f"><input type="text" placeholder="メッセージを入力" autocomplete="off"><button type="submit">送信</button></form>`;
+  $('aiChatX').onclick=closeAiChat;
+  $('aiOvl').onclick=closeAiChat;
+  $('aiOvl').classList.add('show');
+  $('aiChat').classList.add('show');
+  $('aiChat').setAttribute('aria-hidden','false');
+  renderAiChatM();
+  const ah=$('apphead').querySelector('.ai-ah'); if(ah) ah.setAttribute('aria-expanded','true');
+  setTimeout(()=>{ const i=$('aiChat').querySelector('input'); if(i) i.focus(); }, 80);
+}
+function closeAiChat(){
+  state.aiOpen=false;
+  $('aiOvl').classList.remove('show');
+  $('aiChat').classList.remove('show');
+  $('aiChat').setAttribute('aria-hidden','true');
+  const ah=$('apphead')&&$('apphead').querySelector('.ai-ah'); if(ah) ah.setAttribute('aria-expanded','false');
+  setTimeout(()=>{ if(!state.aiOpen) $('aiChat').innerHTML=''; }, 260);
+}
+function aiSendM(text){
+  const t=(text||'').trim(); if(!t) return;
+  state.aiMsgs.push({who:'me', text:t});
+  renderAiChatM();
+  setTimeout(()=>{ state.aiMsgs.push({who:'bot', text:aiReplyM(t)}); renderAiChatM(); }, 350);
+}
+
 /* ================= ドロワー（ハンバーガー） ================= */
 function dItem(ic,tt,go,mini){
   return `<button class="d-item" data-dgo="${go}"><span class="ic">${ic}</span>${tt}${mini?`<span class="mini">${mini}</span>`:'<span class="arr">›</span>'}</button>`;
@@ -1374,9 +1472,11 @@ function render(){
   $('apphead').innerHTML=`<span class="ah-logo"><span class="sq">SA</span>SAAD</span>
     <button data-ah="cust" aria-label="顧客をさがす">🔍</button>
     <button data-ah="notif" aria-label="通知">🔔${n?`<span class="n">${n}</span>`:''}</button>
+    <button data-ah="ai" class="ai-ah" aria-label="SAAD AI" aria-expanded="${state.aiOpen?'true':'false'}">${AI_ICON_SVG}</button>
     <button data-ah="menu" aria-label="メニュー">☰</button>`;
   $('apphead').querySelectorAll('[data-ah]').forEach(b=>b.onclick=()=>{
     const a=b.dataset.ah;
+    if(a==='ai'){ openAiChat(); return; }
     if(a==='menu'){ openDrawer(); return; }
     state.deal=null; state.approving=null; state.annOpen=-1;
     if(a==='cust'){ state.sub='cust'; }

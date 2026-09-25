@@ -42,7 +42,37 @@ body.is-mobile .shell{height:auto;min-height:100%}
 .search{flex:1;min-width:72px;max-width:220px;margin-left:auto;background:#243049;border:1px solid #31405c;border-radius:8px;padding:6px 9px;color:#c5d0e0;font-size:11.5px}
 .iconbtn{border:0;background:#243049;color:#c5d0e0;border-radius:8px;padding:6px 10px;font-size:11.5px;position:relative;flex:none}
 .iconbtn .b{position:absolute;top:-4px;right:-4px;min-width:15px;border-radius:999px;background:#f04438;color:#fff;font-size:9px;padding:1px 4px;text-align:center}
-.avatar{width:26px;height:26px;border-radius:50%;background:#3a4d6d;display:grid;place-items:center;font-size:10px;font-weight:600;flex:none}
+.ai-btn{width:28px;height:28px;border-radius:50%;border:0;padding:0;flex:none;cursor:pointer;
+  background:linear-gradient(135deg,#1aa6ab,#0a6b8a);color:#fff;display:grid;place-items:center;
+  box-shadow:0 0 0 1px rgba(255,255,255,.12)}
+.ai-btn:hover{filter:brightness(1.08)}
+.ai-btn[aria-expanded="true"]{box-shadow:0 0 0 2px #fff,0 0 0 4px #1aa6ab}
+.ai-btn svg{width:15px;height:15px;display:block}
+.ai-scrim{position:absolute;inset:0;z-index:34;background:rgba(12,18,34,.28);border:0;padding:0;cursor:pointer;
+  opacity:0;pointer-events:none;transition:opacity .15s}
+.ai-scrim.open{opacity:1;pointer-events:auto}
+.ai-panel{position:absolute;top:0;right:0;bottom:0;width:min(360px,92%);z-index:35;background:#fff;
+  border-left:1px solid var(--line);display:flex;flex-direction:column;
+  transform:translateX(104%);transition:transform .2s ease;box-shadow:-10px 0 32px rgba(12,18,34,.14)}
+.ai-panel.open{transform:translateX(0)}
+.ai-head{flex:none;display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--line);background:#f7fafb}
+.ai-head .ai-mark{width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,#1aa6ab,#0a6b8a);color:#fff;display:grid;place-items:center;flex:none}
+.ai-head .ai-mark svg{width:15px;height:15px}
+.ai-head b{font-size:13.5px;display:block;line-height:1.2}
+.ai-head small{font-size:11px;color:var(--muted)}
+.ai-head .ai-x{margin-left:auto;border:0;background:#eff1f3;border-radius:8px;width:30px;height:30px;font-size:16px;color:var(--muted);line-height:1}
+.ai-msgs{flex:1;min-height:0;overflow:auto;padding:14px 14px 8px;display:flex;flex-direction:column;gap:10px;background:#fbfcfe}
+.ai-bubble{max-width:92%;padding:9px 12px;border-radius:12px;font-size:12.5px;line-height:1.55;white-space:pre-wrap}
+.ai-bubble.bot{align-self:flex-start;background:#fff;border:1px solid var(--line);border-radius:4px 12px 12px 12px}
+.ai-bubble.me{align-self:flex-end;background:#e6f6f6;border:1px solid #b7e0e0;color:var(--ink);border-radius:12px 4px 12px 12px}
+.ai-bubble .who{display:block;font-size:10px;font-weight:700;color:var(--muted);margin-bottom:3px}
+.ai-suggest{flex:none;display:flex;flex-wrap:wrap;gap:6px;padding:8px 14px;border-top:1px solid #eef1f4;background:#fff}
+.ai-suggest button{border:1px solid var(--line);background:#fff;border-radius:999px;padding:5px 10px;font-size:11.5px;color:var(--ink)}
+.ai-suggest button:hover{border-color:var(--teal);color:var(--teal-deep)}
+.ai-form{flex:none;display:flex;gap:8px;padding:10px 12px 12px;border-top:1px solid var(--line);background:#fff}
+.ai-form input{flex:1;border:1px solid var(--line);border-radius:10px;padding:9px 11px;font-size:13px}
+.ai-form button{border:0;background:var(--teal);color:#fff;border-radius:10px;padding:9px 14px;font-size:12.5px;font-weight:700}
+.app.mobile .ai-btn,.app.mobile .ai-panel,.app.mobile .ai-scrim{display:none!important}
 .subbar{flex:none;display:flex;gap:10px;align-items:center;flex-wrap:nowrap;padding:8px 14px;background:#fff;border-bottom:1px solid var(--line);min-width:0}
 .crumb{font-size:12px;color:var(--muted);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.crumb b{color:var(--ink)}
 .urlbox{margin-left:auto;font-family:ui-monospace,Menlo,monospace;font-size:10px;color:#8a97ab;background:#f4f7fb;border:1px solid var(--line);border-radius:6px;padding:3px 8px;max-width:min(340px,42%);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:none}
@@ -491,7 +521,7 @@ tr.is-picked{background:#f0faf9}
       <button type="button" class="iconbtn" id="newBtn">＋ 新規</button>
       <button type="button" class="iconbtn" id="myBtn">自分の申請<span class="b" id="myCount" style="display:none">0</span></button>
       <button type="button" class="iconbtn" id="bellBtn">Inbox<span class="b" id="bellCount" style="display:none">0</span></button>
-      <div class="avatar" id="avatar">—</div>
+      <button type="button" class="ai-btn" id="aiBtn" title="SAAD AI" aria-label="SAAD AIを開く" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3.5l1.2 3.6L17 8.3l-3.6 1.2L12 13l-1.2-3.5L7 8.3l3.8-1.2L12 3.5z" fill="currentColor"/><path d="M18.5 13.2l.7 2.1 2.1.7-2.1.7-.7 2.1-.7-2.1-2.1-.7 2.1-.7.7-2.1z" fill="currentColor" opacity=".9"/><path d="M6.2 14.5l.55 1.6 1.6.55-1.6.55-.55 1.6-.55-1.6-1.6-.55 1.6-.55.55-1.6z" fill="currentColor" opacity=".75"/></svg></button>
     </div>
     <div class="subbar">
       <span class="crumb" id="crumb"></span>
@@ -503,6 +533,20 @@ tr.is-picked{background:#f0faf9}
       <aside class="global-side" id="globalSide" aria-label="サイドバー"></aside>
       <div class="main" id="main"></div>
     </div>
+    <button type="button" class="ai-scrim" id="aiScrim" aria-label="閉じる" hidden></button>
+    <aside class="ai-panel" id="aiPanel" aria-label="SAAD AI" aria-hidden="true" hidden>
+      <div class="ai-head">
+        <span class="ai-mark"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3.5l1.2 3.6L17 8.3l-3.6 1.2L12 13l-1.2-3.5L7 8.3l3.8-1.2L12 3.5z" fill="currentColor"/><path d="M18.5 13.2l.7 2.1 2.1.7-2.1.7-.7 2.1-.7-2.1-2.1-.7 2.1-.7.7-2.1z" fill="currentColor" opacity=".9"/><path d="M6.2 14.5l.55 1.6 1.6.55-1.6.55-.55 1.6-.55-1.6-1.6-.55 1.6-.55.55-1.6z" fill="currentColor" opacity=".75"/></svg></span>
+        <div><b>SAAD AI</b><small>業務の聞き役・案内（モック）</small></div>
+        <button type="button" class="ai-x" id="aiClose" aria-label="閉じる">×</button>
+      </div>
+      <div class="ai-msgs" id="aiMsgs"></div>
+      <div class="ai-suggest" id="aiSuggest"></div>
+      <form class="ai-form" id="aiForm">
+        <input id="aiInput" type="text" placeholder="例: 承認待ちは何件？" autocomplete="off">
+        <button type="submit">送信</button>
+      </form>
+    </aside>
   </div>
 
   <div class="cov" id="cov"></div>
@@ -777,7 +821,7 @@ const BOARD_NEW={
 };
 
 let state = { role:'sales', screen:'portal', view:'all', sel:null, repo:null, wipKey:null, mScreen:'mhome', customer:null, property:null, crmAxis:'customer', crmQ:'', crmDomain:'', crmBranch:'', crmRegi:'', crmFilterOpen:false, crmPage:0,
-  sideOpen:true,
+  sideOpen:true, aiOpen:false, aiMsgs:[],
   picked:new Set(),
   sortKey:'upd', sortDir:'desc',
   scope:'role', /* role | self | branch | all */
@@ -1009,7 +1053,6 @@ function actionsFor(it){
 function setRole(id){
   state.role=id; state.view=ROLES[id].view; state.sel=null; state.mScreen='mhome';
   [...$('roles').children].forEach(el=>el.setAttribute('aria-pressed', el.dataset.role===id?'true':'false'));
-  $('avatar').textContent=ROLES[id].short;
   $('hint').innerHTML=ROLES[id].hint + ' いまの担当: <strong>' + PEOPLE[id] + '</strong>'
     + (ABSENCE[id]?` <span class="pend-badge">不在中 → 代理 ${PEOPLE[ABSENCE[id].proxy]}（〜${ABSENCE[id].until}）</span>`:'');
   render();
@@ -1314,6 +1357,87 @@ function syncGlobalSide(){
 }
 function setSideOpen(v){ state._sideTouched=true; state.sideOpen=!!v; syncGlobalSide(); }
 function toggleSide(){ setSideOpen(!state.sideOpen); }
+
+/* ---- SAAD AI（右サイドバーのチャットモック） ---- */
+const AI_SVG_MARK=`<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3.5l1.2 3.6L17 8.3l-3.6 1.2L12 13l-1.2-3.5L7 8.3l3.8-1.2L12 3.5z" fill="currentColor"/><path d="M18.5 13.2l.7 2.1 2.1.7-2.1.7-.7 2.1-.7-2.1-2.1-.7 2.1-.7.7-2.1z" fill="currentColor" opacity=".9"/><path d="M6.2 14.5l.55 1.6 1.6.55-1.6.55-.55 1.6-.55-1.6-1.6-.55 1.6-.55.55-1.6z" fill="currentColor" opacity=".75"/></svg>`;
+function aiScreenHint(){
+  const s=state.screen;
+  const map={portal:'ポータル',board:'案件台帳',crm:'顧客｜物件マスタ',mgmt:'管理',myreq:'自分の申請',search:'横断検索',spaces:'スペース',manual:'使い方',structure:'全体構成',knowledge:'ナレッジ'};
+  return map[s]||s;
+}
+function aiReply(q){
+  const t=(q||'').trim();
+  const role=ROLES[state.role];
+  const mine=issues.filter(i=>i.own===state.role && i.open && i.status!=='Done' && !['deal','phase'].includes(i.kind));
+  const wait=issues.filter(i=>i.status==='承認待ち' && i.open);
+  const low=t.toLowerCase();
+  if(/承認|稟議|待ち/.test(t)){
+    const lines=wait.slice(0,5).map(i=>`・${i.ref} ${i.title}（${i.status}）`);
+    return `いま開いている承認待ちは ${wait.length} 件です。\n`+(lines.join('\n')||'（該当なし）')+`\n\n詳細は案件台帳の「稟議」View、または Inbox から開けます。`;
+  }
+  if(/宿題|自分宛|todo|今日/.test(t)){
+    return `${role.label}（${PEOPLE[state.role]}）の未完了は ${mine.length} 件です。\n`+
+      mine.slice(0,5).map(i=>`・${i.title} — ${i.status}`).join('\n')+
+      (mine.length?`\n\nポータルの「自分宛」または案件台帳「自分の宿題」で一覧できます。`:'\n\n未完了はありません。');
+  }
+  if(/使い方|ヘルプ|どうやって|やり方/.test(t)){
+    return `いまの画面は「${aiScreenHint()}」です。\n・左サイドバー（«»）でアプリ・ショートカットへ\n・ヘッダ「＋新規」で起票\n・「使い方」ページに9ステップの手順があります\n聞きたい操作があれば具体的にどうぞ。`;
+  }
+  if(/顧客|物件|マスタ/.test(t)){
+    return `顧客｜物件はヘッダ「マスタ」、または左サイドバーの「顧客｜物件マスタ」から開けます。検索と「条件を選ぶ」（部門・拠点・登録）は分けてあります。`;
+  }
+  if(/経費|勤怠|カレンダー|ショートカット/.test(t)){
+    return `経費・勤怠・カレンダーなどは左サイドバーの「ショートカット」から入れます（SSO/外部はモック入口）。`;
+  }
+  if(!t){
+    return `こんにちは。SAAD AI です（モック）。\nいまは「${aiScreenHint()}」を見ています。承認待ちの件数、自分の宿題、画面の使い方などを聞いてください。`;
+  }
+  return `「${t}」ですね。\nこのモックではまだ業務APIには繋いでいませんが、例えば次のように聞けます。\n・承認待ちは何件？\n・自分の宿題を要約して\n・この画面の使い方\n\n（現在画面: ${aiScreenHint()} / 役割: ${role.label}）`;
+}
+function aiEnsureSeed(){
+  if(state.aiMsgs.length) return;
+  state.aiMsgs=[{who:'bot', text:aiReply('')}];
+}
+function renderAiChat(){
+  const box=$('aiMsgs'); if(!box) return;
+  aiEnsureSeed();
+  box.innerHTML=state.aiMsgs.map(m=>`<div class="ai-bubble ${m.who}"><span class="who">${m.who==='bot'?'SAAD AI':'あなた'}</span>${m.text.replace(/</g,'&lt;').replace(/\n/g,'<br>')}</div>`).join('');
+  box.scrollTop=box.scrollHeight;
+  const sg=$('aiSuggest');
+  if(sg){
+    const tips=['承認待ちは何件？','自分の宿題を要約して','この画面の使い方','顧客マスタを開きたい'];
+    sg.innerHTML=tips.map(t=>`<button type="button" data-aiq="${t.replace(/"/g,'&quot;')}">${t}</button>`).join('');
+    sg.querySelectorAll('[data-aiq]').forEach(b=>b.onclick=()=>aiSend(b.dataset.aiq));
+  }
+}
+function openAiPanel(){
+  if(isMobile()) return;
+  state.aiOpen=true;
+  const p=$('aiPanel'), s=$('aiScrim'), b=$('aiBtn');
+  if(p){ p.hidden=false; p.classList.add('open'); p.setAttribute('aria-hidden','false'); }
+  if(s){ s.hidden=false; s.classList.add('open'); }
+  if(b) b.setAttribute('aria-expanded','true');
+  renderAiChat();
+  setTimeout(()=>{ const i=$('aiInput'); if(i) i.focus(); }, 80);
+}
+function closeAiPanel(){
+  state.aiOpen=false;
+  const p=$('aiPanel'), s=$('aiScrim'), b=$('aiBtn');
+  if(p){ p.classList.remove('open'); p.setAttribute('aria-hidden','true'); setTimeout(()=>{ if(!state.aiOpen) p.hidden=true; }, 200); }
+  if(s){ s.classList.remove('open'); s.hidden=true; }
+  if(b) b.setAttribute('aria-expanded','false');
+}
+function toggleAiPanel(){ state.aiOpen?closeAiPanel():openAiPanel(); }
+function aiSend(text){
+  const t=(text||'').trim(); if(!t) return;
+  state.aiMsgs.push({who:'me', text:t});
+  renderAiChat();
+  const inp=$('aiInput'); if(inp) inp.value='';
+  setTimeout(()=>{
+    state.aiMsgs.push({who:'bot', text:aiReply(t)});
+    renderAiChat();
+  }, 380);
+}
 
 function renderWip(){
   const w=WIP[state.wipKey]||{
@@ -4741,7 +4865,15 @@ Object.entries(ROLES).forEach(([id,r])=>{
 $('bellBtn').onclick=()=>{ $('newMenu').classList.remove('open'); $('notif').classList.toggle('open'); };
 $('newBtn').onclick=()=>{ $('notif').classList.remove('open'); renderNewMenu(); $('newMenu').classList.toggle('open'); };
 $('myBtn').onclick=()=>{ $('newMenu').classList.remove('open'); go('myreq'); };
-document.addEventListener('keydown',e=>{ if(e.key==='Escape' && state.sideOpen) setSideOpen(false); });
+$('aiBtn').onclick=()=>{ $('notif').classList.remove('open'); $('newMenu').classList.remove('open'); toggleAiPanel(); };
+$('aiClose').onclick=closeAiPanel;
+$('aiScrim').onclick=closeAiPanel;
+$('aiForm').onsubmit=e=>{ e.preventDefault(); aiSend($('aiInput').value); };
+document.addEventListener('keydown',e=>{
+  if(e.key!=='Escape') return;
+  if(state.aiOpen){ closeAiPanel(); return; }
+  if(state.sideOpen) setSideOpen(false);
+});
 $('search').addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); state.searchQ=e.target.value; go('search'); }});
 $('app').addEventListener('wheel', e=>{
   const main=$('main'); if(!main) return;
