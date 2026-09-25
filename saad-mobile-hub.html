@@ -855,6 +855,7 @@ function homeSales(){
   <div class="note" style="margin-top:4px">顧客・物件の活動は <b>現場到着 → 活動報告</b> の順。タップすると次の一手が出ます。</div>
 
   <div class="sec">申請の進み <button data-sub="myreq" style="margin-left:auto;border:0;background:none;color:var(--accent);font-size:13.8px;font-weight:700;cursor:pointer">自分の申請 ›</button></div>
+  <div class="sec">下書き <button data-sub="mydraft" style="margin-left:auto;border:0;background:none;color:var(--accent);font-size:13.8px;font-weight:700;cursor:pointer">途中の入力 ›</button></div>
   ${state.ringi==='pending'?`<div class="card"><div class="k">値引起案（サンプル社 12% · ringi#12）</div><div class="wait" style="margin-top:8px">⏳ 田中拠点長の承認待ち — 結果は通知に届きます</div></div>`:''}
   ${state.ringi==='ok'?`<div class="card"><div class="k">値引起案（サンプル社）</div><div class="wait ok" style="margin-top:8px">✓ 承認されました — ゲート開通・施工へ</div></div>`:''}
   ${state.ringi==='back'?`<div class="card"><div class="k">値引起案（サンプル社）</div><div class="wait" style="margin-top:8px;color:var(--danger);background:var(--danger-bg)">↩ 差戻し — ホーム上部から再申請</div></div>`:''}
@@ -1062,7 +1063,8 @@ function menuView(){
   ${mItem('🏘','物件台帳','data-sub="prop"','検索＋部門・拠点で絞り込み')}
   ${mItem('🗂','過去の案件をさがす','data-sub="past"','完了・Close済みも')}
   <div class="sec">申請する</div>
-  ${mItem('📋','自分の申請・登録（下書き・結果）','data-sub="myreq"','どこから出した申請もここに')}
+  ${mItem('💾','下書き（途中の入力）','data-sub="mydraft"','顧客・物件・活動予定などの未送信')}
+  ${mItem('📋','自分の申請（誰待ちか）','data-sub="myreq"','稟議・仮登録など提出後の進み')}
   ${mItem('📅','活動予定を立てる','data-sheet="actplan"','顧客／物件に対する予定')}
   ${mItem('📞','問い合わせを登録','data-sub="leadForm"')}
   ${mItem('🧾','稟議（値引き・特価・着手）','data-sub="ringiForm"')}
@@ -1459,25 +1461,32 @@ function saveMDraft(kind){
   if(ex){ ex.mf=mf; ex.title=title; ex.saved='たった今'; }
   else M_DRAFTS.unshift({id:'md'+Date.now(), kind, mf, title, saved:'たった今', role:state.role});
   state.mf={}; state.mDraftId=null; state.sub=null;
-  toast('💾 下書きに保存しました — メニュー「自分の申請」から再開'); render();
+  toast('💾 下書きに保存しました — メニュー「下書き」から再開'); render();
 }
 function addReq(kind, title, extra){ M_REQS.unshift(Object.assign({id:'mr'+Date.now(), kind, title, st:'申請中', when:'たった今', role:state.role}, extra||{})); if(state.mDraftId){ const i=M_DRAFTS.findIndex(x=>x.id===state.mDraftId); if(i>=0) M_DRAFTS.splice(i,1); state.mDraftId=null; } }
+function myDraftView(){
+  const drafts=M_DRAFTS.filter(d=>d.role===state.role);
+  return `<div class="dethead"><button class="backbtn" data-back="1">‹ 戻る</button><h2>下書き</h2>
+  <div class="sub">まだ送っていない途中入力。提出後の進みは「自分の申請」で見ます</div></div>
+  <div class="sec">途中の入力 <span class="cnt">${drafts.length}</span></div>
+  ${drafts.length?drafts.map(d=>`<div class="card"><div class="k">💾 ${d.saved||''}</div><div class="t">${d.title}</div>
+    <div class="btnrow"><button class="abtn p" data-mresume="${d.id}">再開する</button><button class="abtn g" data-mdel="${d.id}">削除</button></div></div>`).join(''):'<p class="quiet">下書きはありません。「下書きに保存」するとここに残ります。</p>'}
+  <button class="abtn w" style="margin-top:12px" data-sub="myreq">自分の申請を見る →</button>
+  <div class="note">顧客・物件・活動予定の下書きもここ。稟議の未送信もここ。</div>`;
+}
 function myReqView(){
   const me=state.role;
   const r1=me==='sales'?[{id:'r1', title:'値引起案（サンプル社 12% · ringi#12）', st:state.ringi==='ok'?'承認済':state.ringi==='back'?'差戻し':'申請中', when:'9/23', r1:true}]:[];
   const rows=r1.concat(M_REQS.filter(r=>r.role===me));
-  const drafts=M_DRAFTS.filter(d=>d.role===me);
   const tag=s=>s==='取り下げ'?'<span class="tagDom">取り下げ</span>':s==='差戻し'?'<span class="tagNG">差戻し</span>':s==='承認済'||s==='受理'?'<span class="tagOK">'+s+'</span>':'<span class="tagP">'+s+'</span>';
-  return `<div class="dethead"><button class="backbtn" data-back="1">‹ 戻る</button><h2>自分の申請・登録</h2>
-  <div class="sub">どこから出した申請・登録も、ここで「いまどこか」が分かります</div></div>
-  <div class="sec">下書き <span class="cnt">${drafts.length}</span></div>
-  ${drafts.length?drafts.map(d=>`<div class="card"><div class="k">💾 下書き · ${d.saved}</div><div class="t">${d.title}</div>
-    <div class="btnrow"><button class="abtn p" data-mresume="${d.id}">再開する</button><button class="abtn g" data-mdel="${d.id}">削除</button></div></div>`).join(''):'<p class="quiet">下書きはありません。申請の途中で「下書きに保存」すると、ここに残ります。</p>'}
+  return `<div class="dethead"><button class="backbtn" data-back="1">‹ 戻る</button><h2>自分の申請</h2>
+  <div class="sub">提出した申請が今どこか（誰待ちか）。下書きは別画面です</div></div>
   <div class="sec">出した申請 <span class="cnt">${rows.length}</span></div>
   ${rows.length?rows.map(r=>`<div class="card"><div class="k">${tag(r.st)} · ${r.when}</div><div class="t">${r.title}</div>
     ${r.st==='差戻し'&&r.r1?`<div class="s">田中拠点長: −5%なら即決します</div><div class="btnrow"><button class="abtn p" data-mfix="r1">修正して再申請</button></div>`:''}
     ${['申請中','確認待ち'].includes(r.st)&&!r.r1?`<div class="btnrow"><button class="abtn g" data-mwd="${r.id}">取り下げ</button></div>`:''}${r.st==='進行中'?`<div class="btnrow"><button class="abtn g" data-mwd="${r.id}">見送り</button></div>`:''}</div>`).join(''):'<p class="quiet">まだ申請はありません。</p>'}
-  <div class="note">PC版の「自分の申請」と同じ内容です。</div>`;
+  <button class="abtn w" style="margin-top:12px" data-sub="mydraft">下書きを見る →</button>
+  <div class="note">PC版の「自分の申請」と同じく、提出済みのみです。</div>`;
 }
 const Q_LINES=[['調査・点検',30000],['防除作業（1階）',180000],['床下換気扇 設置',72000],['高圧洗浄',120000]];
 function quoteView(){
@@ -1935,7 +1944,8 @@ function openDrawer(){
       ${dItem('🏘','物件台帳','sub:prop')}
       ${dItem('🗂','過去の案件をさがす','sub:past')}
       <div class="d-sec">申請する</div>
-      ${dItem('📋','自分の申請・登録','sub:myreq')}
+      ${dItem('💾','下書き','sub:mydraft')}
+      ${dItem('📋','自分の申請','sub:myreq')}
       ${dItem('📞','問い合わせを登録','sub:leadForm')}
       ${dItem('🧾','稟議（値引き・特価・着手）','sub:ringiForm')}
       ${dItem('📦','資材・購買','sub:buyForm')}
@@ -2027,7 +2037,7 @@ function render(){
   let html='';
   if(state.sub){
     const s=state.sub;
-    html = s.wip?(IMPL_WIPS[s.wip]?IMPL_WIPS[s.wip]():wipView(s.wip)) : s==='myreq'?myReqView() : s==='help'?helpView() : s==='ann'?annView() : s==='cust'?custView() : s==='pcinfo'?pcInfoView()
+    html = s.wip?(IMPL_WIPS[s.wip]?IMPL_WIPS[s.wip]():wipView(s.wip)) : s==='mydraft'?myDraftView() : s==='myreq'?myReqView() : s==='help'?helpView() : s==='ann'?annView() : s==='cust'?custView() : s==='pcinfo'?pcInfoView()
       : s==='custreg'?custRegView() : s==='leadForm'?leadFormView() : s==='ringiForm'?ringiFormView() : s==='buyForm'?buyFormView() : s==='past'?pastView() : s==='prop'?propView() : s==='ai'?aiView() : '';
   }
   else if(state.approving) html=approveView(state.approving);

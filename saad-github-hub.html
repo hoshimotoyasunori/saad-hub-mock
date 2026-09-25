@@ -538,6 +538,7 @@ tr.is-picked{background:#f0faf9}
       <div class="roles" id="roles"></div>
       <input class="search" id="search" title="顧客・物件・案件番号をまとめて探す（Enterで横断検索）" aria-label="横断検索：顧客名・物件名・案件番号" placeholder="顧客・物件・案件番号を探す">
       <button type="button" class="iconbtn" id="newBtn">＋ 新規</button>
+      <button type="button" class="iconbtn" id="draftBtn">下書き<span class="b" id="draftCount" style="display:none">0</span></button>
       <button type="button" class="iconbtn" id="myBtn">自分の申請<span class="b" id="myCount" style="display:none">0</span></button>
       <button type="button" class="iconbtn" id="bellBtn">Inbox<span class="b" id="bellCount" style="display:none">0</span></button>
       <button type="button" class="ai-btn" id="aiBtn" title="SAAD AI" aria-label="SAAD AIを開く" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3.5l1.2 3.6L17 8.3l-3.6 1.2L12 13l-1.2-3.5L7 8.3l3.8-1.2L12 3.5z" fill="currentColor"/><path d="M18.5 13.2l.7 2.1 2.1.7-2.1.7-.7 2.1-.7-2.1-2.1-.7 2.1-.7.7-2.1z" fill="currentColor" opacity=".9"/><path d="M6.2 14.5l.55 1.6 1.6.55-1.6.55-.55 1.6-.55-1.6-1.6-.55 1.6-.55.55-1.6z" fill="currentColor" opacity=".75"/></svg></button>
@@ -1391,8 +1392,10 @@ function render(){
   else if(s==='form') renderForm();
   else if(s==='search') renderSearch();
   else if(s==='myreq') renderMyReq();
+  else if(s==='mydraft') renderMyDrafts();
   else if(s==='bi') renderBI();
   const mc=myPendingCount(); $('myCount').style.display=mc?'':'none'; $('myCount').textContent=mc;
+  const dc=myDraftCount(); const dcel=$('draftCount'); if(dcel){ dcel.style.display=dc?'':'none'; dcel.textContent=dc; }
   const sh=$('search'); if(sh && document.activeElement!==sh) sh.value=state.searchQ||'';
   syncGlobalSide();
   renderCov();
@@ -1425,7 +1428,8 @@ function renderGnav(){
     mgmt:state.mgmtKey?`sanix / 管理 / <b>${state.mgmtKey==='schedule'?'施工予定・人員アサイン':(MGMT[state.mgmtKey]||{}).title}</b>`:'sanix / <b>管理（一覧・台帳・登録）</b>',
     form:`sanix / 管理 / <b>${state.formKey&&FORMS[state.formKey]?FORMS[state.formKey].title:'新しく登録する'}</b>`,
     search:'sanix / <b>横断検索</b>',
-    myreq:'sanix / <b>自分の申請（下書き・申請中・差戻し）</b>',
+    myreq:'sanix / <b>自分の申請（申請中・差戻し・結果）</b>',
+    mydraft:'sanix / <b>下書き（途中の入力）</b>',
     bi:'sanix / アプリ / <b>経営・BI</b>',
   };
   $('crumb').innerHTML=crumbs[state.screen]||'';
@@ -1444,6 +1448,7 @@ function renderGnav(){
     form:`saad.sanix/new${state.formKey?'/'+state.formKey:''}`,
     search:`saad.sanix/search?q=${encodeURIComponent(state.searchQ||'')}`,
     myreq:'saad.sanix/me/requests',
+    mydraft:'saad.sanix/me/drafts',
   };
   $('urlbox').textContent=urls[state.screen]||'';
 }
@@ -1587,6 +1592,7 @@ function navSideBodyHtml(){
     <button type="button" class="sc-row" data-screen="portal"><span class="ic"></span>ポータル</button>
     <button type="button" class="sc-row" data-screen="board"><span class="ic"></span>案件台帳</button>
     <button type="button" class="sc-row" data-screen="mgmt"><span class="ic"></span>管理（一覧・台帳・登録）</button>
+    <button type="button" class="sc-row" data-screen="mydraft"><span class="ic"></span>下書き</button>
     <button type="button" class="sc-row" data-screen="myreq"><span class="ic"></span>自分の申請</button>
     <button type="button" class="sc-row" data-screen="search"><span class="ic"></span>横断検索</button>
     <button type="button" class="sc-row" data-screen="spaces"><span class="ic"></span>スペース（すべて）</button>`;
@@ -1635,7 +1641,7 @@ function toggleSide(){ setSideOpen(!state.sideOpen); }
 const AI_SVG_MARK=`<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3.5l1.2 3.6L17 8.3l-3.6 1.2L12 13l-1.2-3.5L7 8.3l3.8-1.2L12 3.5z" fill="currentColor"/><path d="M18.5 13.2l.7 2.1 2.1.7-2.1.7-.7 2.1-.7-2.1-2.1-.7 2.1-.7.7-2.1z" fill="currentColor" opacity=".9"/><path d="M6.2 14.5l.55 1.6 1.6.55-1.6.55-.55 1.6-.55-1.6-1.6-.55 1.6-.55.55-1.6z" fill="currentColor" opacity=".75"/></svg>`;
 function aiScreenHint(){
   const s=state.screen;
-  const map={portal:'ポータル',board:'案件台帳',crm:'顧客｜物件マスタ',mgmt:'管理',myreq:'自分の申請',search:'横断検索',spaces:'スペース',manual:'使い方',structure:'全体構成',knowledge:'ナレッジ'};
+  const map={portal:'ポータル',board:'案件台帳',crm:'顧客｜物件マスタ',mgmt:'管理',myreq:'自分の申請',mydraft:'下書き',search:'横断検索',spaces:'スペース',manual:'使い方',structure:'全体構成',knowledge:'ナレッジ'};
   return map[s]||s;
 }
 function aiReply(q){
@@ -1847,11 +1853,14 @@ function renderPortal(){
   /* 左サイドバーは #globalSide（«»で開閉）。ポータル本体には重ねない */
   $('main').innerHTML=`<div class="portal">
     <div class="db-main">
-      <div class="sec-h"><h3>自分の申請・登録</h3><button type="button" class="more" id="goMy">すべて →</button></div>
+      <div class="sec-h"><h3>自分の申請</h3><button type="button" class="more" id="goMy">すべて →</button></div>
       <div class="my-sum">${(()=>{ const rs=myReqRows(); const n=s=>rs.filter(r=>r.st===s).length;
-        return [['draft','下書き',n('下書き')],['wait','申請中・確認待ち',n('申請中')+n('確認待ち')+n('進行中')],['back','差戻し',n('差戻し')],['done','承認済・完了',n('承認済・完了')]]
+        return [['wait','申請中・確認待ち',n('申請中')+n('確認待ち')+n('進行中')],['back','差戻し',n('差戻し')],['done','承認済・完了',n('承認済・完了')]]
           .map(([k,l,c])=>`<button type="button" data-myg="${k}" class="${k==='back'&&c?'hot':''}">${l} <b>${c}</b></button>`).join('')
-          +'<button type="button" id="portalNew">＋ 新規（稟議・購買・見積…）</button>'; })()}</div>
+          +'<button type="button" id="portalNew">＋ 新規（稟議・購買…）</button>'; })()}</div>
+      <div class="sec-h" style="margin-top:14px"><h3>下書き</h3><button type="button" class="more" id="goDraft">すべて →</button></div>
+      <div class="my-sum"><button type="button" id="portalDrafts">途中の入力 <b>${myDraftRows().length}</b></button>
+        <span class="quiet" style="font-size:11px;align-self:center">顧客・物件・活動予定などの未送信はここ（申請とは別）</span></div>
       <div class="db-sec">
         <div class="sec-h"><h3>自分宛</h3><span class="cnt">${mine.length}</span><button type="button" class="more" id="goMine">宿題View →</button></div>
         <div class="wk-list">${wkRows}</div>
@@ -1887,6 +1896,8 @@ function renderPortal(){
 
   $('goBoard').onclick=()=>go('board');
   $('goMy').onclick=()=>go('myreq');
+  const gd=$('goDraft'); if(gd) gd.onclick=()=>go('mydraft');
+  const pd=$('portalDrafts'); if(pd) pd.onclick=()=>go('mydraft');
   $('portalNew').onclick=()=>{ renderNewMenu(); $('newMenu').classList.add('open'); };
   $('main').querySelectorAll('[data-myg]').forEach(b=>b.onclick=()=>{ state.myTab=b.dataset.myg; go('myreq'); });
   $('goMine').onclick=()=>{ state.view='mine'; go('board'); };
@@ -4619,7 +4630,7 @@ function bindForm(root, key, ctx, hooks){
   };
   root.querySelector('[data-fdraft]').onclick=()=>{
     const v=vals(); saveDraft(key, v, ctx);
-    hooks.drafted(`下書きに保存しました（${nowHM()}）。ヘッダ「自分の申請」→ 下書き から再開できます。`);
+    hooks.drafted(`下書きに保存しました（${nowHM()}）。ヘッダ「下書き」から再開できます。`);
   };
   root.querySelector('[data-fcancel]').onclick=()=>hooks.cancel(JSON.stringify(vals())!==initial, vals());
 }
@@ -4654,9 +4665,10 @@ function openFormModal(key, pre, ctx){
   const doneView=(msg, openLabel, open)=>{
     box.innerHTML=`<div class="modal-h"><h3>${f.title}</h3><button class="x" type="button" data-mclose>×</button></div>
       <div class="note">✓ ${msg}</div>
-      <div class="actions">${open?`<button class="bp" type="button" data-mopen>${openLabel}</button>`:''}<button class="bg" type="button" data-mmy>自分の申請を見る</button><button class="bg" type="button" data-mclose2>閉じる</button></div>`;
+      <div class="actions">${open?`<button class="bp" type="button" data-mopen>${openLabel}</button>`:''}<button class="bg" type="button" data-mmy>自分の申請を見る</button><button class="bg" type="button" data-mdrafts>下書きを見る</button><button class="bg" type="button" data-mclose2>閉じる</button></div>`;
     box.querySelector('[data-mclose]').onclick=close; box.querySelector('[data-mclose2]').onclick=close;
     box.querySelector('[data-mmy]').onclick=()=>{ $('modal').classList.remove('open'); box.innerHTML=''; go('myreq'); };
+    const md=box.querySelector('[data-mdrafts]'); if(md) md.onclick=()=>{ $('modal').classList.remove('open'); box.innerHTML=''; go('mydraft'); };
     const o=box.querySelector('[data-mopen]'); if(o) o.onclick=()=>{ $('modal').classList.remove('open'); box.innerHTML=''; open(); };
   };
   const askClose=(dirty, vals)=>{
@@ -4720,13 +4732,14 @@ function renderForm(){
 const NEW_MENU=[['deal','活動予定を立てる'],['ringi','稟議を起票'],['buy','購買申請（資材）'],['quote','見積を作成'],['cust','顧客を登録（仮）'],['prop','物件を登録'],['expense','経費を申請'],['safety','ヒヤリハット・事故を報告'],['vendor','外注・仕入先の登録申請']];
 function renderNewMenu(){
   $('newMenu').innerHTML='<h4>新しく始める（ポップアップ）</h4>'+NEW_MENU.filter(([k])=>FORMS[k]).map(([k,l])=>`<button type="button" class="n" data-nf="${k}">${l}<small>${FORMS[k].why?FORMS[k].why.slice(0,36):FORMS[k].asis.slice(0,34)}…</small></button>`).join('')
-    +`<button type="button" class="n" data-nmy="1"><b>自分の申請・下書きを見る</b></button>`;
+    +`<button type="button" class="n" data-nmy="1"><b>自分の申請を見る</b></button><button type="button" class="n" data-ndraft="1"><b>下書きを見る</b></button>`;
   $('newMenu').querySelectorAll('[data-nf]').forEach(b=>b.onclick=()=>{
     $('newMenu').classList.remove('open');
     if(b.dataset.nf==='deal'){ openNewActivity({from:'ヘッダ「＋ 新規」'}); return; }
     openFormModal(b.dataset.nf, {}, {from:'ヘッダ「＋ 新規」'});
   });
   $('newMenu').querySelector('[data-nmy]').onclick=()=>{ $('newMenu').classList.remove('open'); go('myreq'); };
+  const nd=$('newMenu').querySelector('[data-ndraft]'); if(nd) nd.onclick=()=>{ $('newMenu').classList.remove('open'); go('mydraft'); };
 }
 
 /* ---- 詳細パネル: 文脈から起票・承認ルート・書類 ---- */
@@ -4823,15 +4836,32 @@ function myReqRowsLegacy(){
   SAFETY_REPORTS.filter(e=>e.by===me).forEach(e=>rows.push({id:e.id, type:'安全報告', title:e.title, st:e.status, who:'安全衛生課', upd:e.date, rec:e}));
   return rows;
 }
+function renderMyDrafts(){
+  const all=myDraftRows();
+  const q=(state.draftQ||'').trim();
+  const rows=all.filter(r=>!q||(r.type+r.title).includes(q));
+  $('main').innerHTML=`<div class="mg-page">
+    <div class="mg-top"><h2>下書き — ${PEOPLE[state.role]}</h2>
+      <button type="button" class="bg" id="draftToReq">自分の申請を見る →</button></div>
+    <div class="mg-why"><div><b>ここにあるもの</b>まだ送っていない途中入力（顧客・物件・活動予定・稟議の下書きなど）</div><div><b>ここに無いもの</b>提出済みの稟議・確認待ち — それは「自分の申請」</div><div><b>再開</b>続きからフォームを開く／不要なら削除</div></div>
+    <div class="filterbar"><input class="mg-q" id="draftQ" value="${state.draftQ||''}" placeholder="件名・種類で検索"><span class="count">${rows.length} 件</span></div>
+    <div class="table-wrap"><table class="ledger"><thead><tr><th>種類</th><th style="width:44%">件名</th><th>保存</th><th>操作</th></tr></thead>
+    <tbody>${rows.map(r=>`<tr><td>${r.type}</td><td><b>${r.title}</b></td><td>${r.upd||'—'}</td><td><button class="sp-act pri" data-dr="${r.id}">再開</button> <button class="sp-act" data-dd="${r.id}">削除</button></td></tr>`).join('')||'<tr><td colspan="4" class="quiet">下書きはありません。フォームの「下書き保存」でここに残ります。</td></tr>'}</tbody></table></div>
+    <div class="add-row">活動予定の進行中は案件台帳で見ます。提出後の稟議・仮登録の進みは「自分の申請」へ。</div></div>`;
+  $('draftToReq').onclick=()=>go('myreq');
+  $('main').querySelectorAll('[data-dr]').forEach(b=>b.onclick=()=>{ const d=DRAFTS.find(x=>x.id===b.dataset.dr); openFormModal(d.form, d.vals, {draftId:d.id, from:'下書き'}); });
+  $('main').querySelectorAll('[data-dd]').forEach(b=>b.onclick=()=>{ const i=DRAFTS.findIndex(x=>x.id===b.dataset.dd); if(i>=0) DRAFTS.splice(i,1); render(); });
+  $('draftQ').addEventListener('input',e=>{ state.draftQ=e.target.value; render(); const el=$('draftQ'); el.focus(); el.setSelectionRange(el.value.length,el.value.length); });
+}
 function renderMyReq(){
   const all=myReqRows();
-  const tabs=[['all','すべて',r=>true],['draft','下書き',r=>r.st==='下書き'],['wait','申請中・確認待ち・進行中',r=>['申請中','確認待ち','進行中'].includes(r.st)],['back','差戻し',r=>r.st==='差戻し'],['done','承認済・完了',r=>r.st==='承認済・完了'],['wd','取り下げ・取消',r=>r.st==='取り下げ']];
+  if(state.myTab==='draft') state.myTab='all';
+  const tabs=[['all','すべて',r=>true],['wait','申請中・確認待ち・進行中',r=>['申請中','確認待ち','進行中'].includes(r.st)],['back','差戻し',r=>r.st==='差戻し'],['done','承認済・完了',r=>r.st==='承認済・完了'],['wd','取り下げ・取消',r=>r.st==='取り下げ']];
   const cur=tabs.find(t=>t[0]===state.myTab)||tabs[0];
   const q=(state.myQ||'').trim();
   const rows=all.filter(cur[2]).filter(r=>!q||(r.type+r.title).includes(q));
-  const stp=s=>`<span class="pill ${s==='下書き'?'block':s==='差戻し'?'back':['申請中','確認待ち','進行中'].includes(s)?'wait':s==='取り下げ'?'block':'done'}">${s}</span>`;
+  const stp=s=>`<span class="pill ${s==='差戻し'?'back':['申請中','確認待ち','進行中'].includes(s)?'wait':s==='取り下げ'?'block':'done'}">${s}</span>`;
   const act=r=>{
-    if(r.draft) return `<button class="sp-act pri" data-dr="${r.id}">再開</button><button class="sp-act" data-dd="${r.id}">削除</button>`;
     if(r.issue){
       const i=r.issue, b=[`<button class="sp-act" data-oi="${i.id}">開く</button>`];
       if(r.st==='差戻し') b.unshift(`<button class="sp-act pri" data-rs="${i.id}">修正して再申請</button>`);
@@ -4848,24 +4878,24 @@ function renderMyReq(){
     return '—';
   };
   $('main').innerHTML=`<div class="mg-page">
-    <div class="mg-top"><h2>自分の申請・登録 — ${PEOPLE[state.role]}</h2>
+    <div class="mg-top"><h2>自分の申請 — ${PEOPLE[state.role]}</h2>
       <button type="button" class="bp" id="myNewRingi">＋ 稟議</button>
       <button type="button" class="bp" id="myNewBuy">＋ 購買</button>
       <button type="button" class="bp" id="myNewExp">＋ 経費</button>
+      <button type="button" class="bg" id="myToDraft">下書き →</button>
       <button type="button" class="bg" id="myNew">その他の新規…</button></div>
-    <div class="mg-why"><div><b>ここで分かること</b>出した申請が今どこにあるか（誰待ちか）</div><div><b>下書き</b>途中で保存したもの。再開・削除できる</div><div><b>差戻し</b>「修正して再申請」で前回の内容から直す（同じ行を更新）</div><div><b>取り下げ</b>承認前なら取り下げ可。行は履歴に残る</div></div>
+    <div class="mg-why"><div><b>ここで分かること</b>提出した申請・仮登録が今どこか（誰待ちか）</div><div><b>下書きは別</b>ヘッダ「下書き」または左のリンク。顧客・物件・活動の途中入力は混ぜない</div><div><b>差戻し</b>「修正して再申請」で同じ行を更新</div><div><b>取り下げ</b>承認前なら可。履歴は残る</div></div>
     <div class="filterbar"><div class="seg" role="tablist">${tabs.map(t=>`<button type="button" role="tab" data-myt="${t[0]}" aria-selected="${t[0]===cur[0]}">${t[1]} <span class="ref">${all.filter(t[2]).length}</span></button>`).join('')}</div>
       <input class="mg-q" id="myQ" value="${state.myQ||''}" placeholder="件名・種類で検索"><span class="count">${rows.length} 件</span></div>
     <div class="table-wrap"><table class="ledger"><thead><tr><th>種類</th><th style="width:34%">件名</th><th>状態</th><th>いま誰の手元／差戻し理由</th><th>金額</th><th>更新</th><th>操作</th></tr></thead>
     <tbody>${rows.map(r=>`<tr><td>${r.type}</td><td><b>${r.title}</b></td><td>${stp(r.st)}</td><td>${r.st==='差戻し'&&r.note?`<span class="warn-badge">${r.note}</span>`:['申請中','確認待ち','進行中'].includes(r.st)?r.who:'—'}</td><td class="num-r">${state.role==='koji'&&r.amount?'（非表示）':(r.amount||'—')}</td><td>${r.upd}</td><td><div style="display:flex;gap:4px;flex-wrap:wrap">${act(r)}</div></td></tr>`).join('')||'<tr><td colspan="7" class="quiet">該当なし</td></tr>'}</tbody></table></div>
-    <div class="add-row">入口: ヘッダ「＋ 新規」／案件の詳細パネル「この案件で: ＋稟議を起票」／管理 → 登録。どこから出しても、ここに集まる。</div></div>`;
+    <div class="add-row">稟議・購買・経費・顧客仮登録（提出後）・外注登録などがここに集まる。活動予定の進行中は案件台帳。</div></div>`;
   $('myNew').onclick=()=>{ renderNewMenu(); $('newMenu').classList.add('open'); };
+  const mtd=$('myToDraft'); if(mtd) mtd.onclick=()=>go('mydraft');
   const mr=$('myNewRingi'); if(mr) mr.onclick=()=>openFormModal('ringi',{},{from:'自分の申請'});
   const mb=$('myNewBuy'); if(mb) mb.onclick=()=>openFormModal('buy',{},{from:'自分の申請'});
   const me=$('myNewExp'); if(me) me.onclick=()=>openFormModal('expense',{},{from:'自分の申請'});
   $('main').querySelectorAll('[data-myt]').forEach(b=>b.onclick=()=>{ state.myTab=b.dataset.myt; render(); });
-  $('main').querySelectorAll('[data-dr]').forEach(b=>b.onclick=()=>{ const d=DRAFTS.find(x=>x.id===b.dataset.dr); openFormModal(d.form, d.vals, {draftId:d.id, from:'自分の申請（下書き）'}); });
-  $('main').querySelectorAll('[data-dd]').forEach(b=>b.onclick=()=>{ const i=DRAFTS.findIndex(x=>x.id===b.dataset.dd); if(i>=0) DRAFTS.splice(i,1); render(); });
   $('main').querySelectorAll('[data-oi]').forEach(b=>b.onclick=()=>openIssue(b.dataset.oi));
   $('main').querySelectorAll('[data-rs]').forEach(b=>b.onclick=()=>openResubmit(byId(b.dataset.rs)));
   $('main').querySelectorAll('[data-nu]').forEach(b=>b.onclick=()=>act('nudge', b.dataset.nu));
@@ -4876,7 +4906,8 @@ function renderMyReq(){
   $('main').querySelectorAll('[data-rwd]').forEach(b=>b.onclick=()=>{ const [K,r]=recOf(b.dataset.rwd); K.wd(r); render(); });
   $('myQ').addEventListener('input',e=>{ state.myQ=e.target.value; render(); const el=$('myQ'); el.focus(); el.setSelectionRange(el.value.length,el.value.length); });
 }
-function myPendingCount(){ return myReqRows().filter(r=>['下書き','差戻し'].includes(r.st)).length; }
+function myPendingCount(){ return myReqRows().filter(r=>r.st==='差戻し').length; }
+function myDraftCount(){ return myDraftRows().length; }
 
 /* ================= 追加の台帳（入出荷・外注注文書・売上計上・修理・紹介手数料・取引形態・PPA/FIT・契約書類） ================= */
 const MOVES=[
@@ -5070,7 +5101,8 @@ CAPS.splice(CAPS.findIndex(c=>c.l.startsWith('経営BI')), 0,
   {l:'取引形態（JA・レオパレス等の違い）', t:'マスタ', asis:'取引先ごとの専用フロー・専用Excel', plan:'別システムにせず属性で持つ', st:'ok', go:()=>go('mgmt',{mgmt:'dealtypes'})},
   {l:'PPA・FIT・電力申請', t:'管理', asis:'FIT申請・名義変更・電力申請・PPA', plan:'残す', st:'ok', go:()=>go('mgmt',{mgmt:'energy'})},
   {l:'契約書類・受注登録', t:'管理', asis:'契約書作成・締結・契約入力', plan:'残す（30万円で書式を自動判定）', st:'ok', go:()=>go('mgmt',{mgmt:'contracts'})},
-  {l:'自分の申請（下書き・申請中・差戻し）', t:'一覧', asis:'NEXTの申請一覧・紙の控え', plan:'残す（どこから出してもここに集まる）', st:'ok', go:()=>go('myreq')},
+  {l:'自分の申請（申請中・差戻し・結果）', t:'一覧', asis:'NEXTの申請一覧・紙の控え', plan:'提出済みのみ。下書きは別画面', st:'ok', go:()=>go('myreq')},
+  {l:'下書き（途中の入力）', t:'一覧', asis:'PCのローカル控え・未送信メモ', plan:'申請と分離。顧客・物件・活動予定の途中もここ', st:'ok', go:()=>go('mydraft')},
 );
 
 /* ================= 周辺: 経費・安全衛生・車両・カレンダー・修理受付・BI ================= */
@@ -5250,17 +5282,25 @@ const REQ_KINDS={
     open:r=>openIssue(r.id),
     canWd:r=>r.kind==='lead' && r.open, wdLabel:'見送り', wd:r=>{ r.status='見送り'; r.open=false; addEvent(r, ev('sys', meShort(), '問い合わせを見送り（履歴は残る）')); }},
 };
+function myDraftRows(){
+  const me=state.role;
+  return DRAFTS.filter(d=>d.by===me).map(d=>({id:d.id, type:(FORMS[d.form]||{}).title?FORMS[d.form].title.replace(/（.*）/,''):d.form, title:d.title||'（無題）', st:'下書き', who:'—', upd:d.saved, draft:d}));
+}
+/** 自分の申請: 提出済みのみ（下書き・活動予定の進行中は載せない） */
 function myReqRows(){
   const me=state.role, rows=[];
-  DRAFTS.filter(d=>d.by===me).forEach(d=>rows.push({id:d.id, type:FORMS[d.form].title.replace(/（.*）/,''), title:d.title, st:'下書き', who:'—', upd:d.saved, draft:d}));
   issues.filter(i=>i.by===me && ['ringi','buy','task'].includes(i.kind) && (i.kind!=='task'||i.title.startsWith('見積 '))).forEach(i=>{
     const st=i.status==='取り下げ'?'取り下げ':i.status==='差戻し'?'差戻し':i.status==='Done'?'承認済・完了':'申請中';
     rows.push({id:i.id, type:i.kind==='ringi'?'稟議':i.kind==='buy'?'購買申請':'見積', title:`${i.title} ${i.ref}`, st, who:PEOPLE[i.own], upd:'9/25', amount:i.amount, issue:i,
       note:i.status==='差戻し'?((i.tl.filter(e=>e.t==='cm'&&e.head.includes('差戻')).pop()||{}).body||''):''});
   });
-  Object.entries(REQ_KINDS).forEach(([k,K])=>K.list().filter(r=>r.by===me).forEach(r=>{
-    rows.push({id:r.id, rk:k, rec:r, type:K.type, title:K.title(r), st:K.st(r), who:typeof K.who==='function'?K.who(r):K.who, upd:r.date||'9/25', amount:r.amount?yen(r.amount):'', note:K.note?K.note(r):''});
-  }));
+  /* lead（活動予定）は案件台帳で追う。下書きは myDraftRows。申請・確認・報告のみ */
+  Object.entries(REQ_KINDS).forEach(([k,K])=>{
+    if(k==='lead') return;
+    K.list().filter(r=>r.by===me).forEach(r=>{
+      rows.push({id:r.id, rk:k, rec:r, type:K.type, title:K.title(r), st:K.st(r), who:typeof K.who==='function'?K.who(r):K.who, upd:r.date||'9/25', amount:r.amount?yen(r.amount):'', note:K.note?K.note(r):''});
+    });
+  });
   return rows;
 }
 
@@ -5494,6 +5534,7 @@ const myCap=CAPS.find(c=>c.l.startsWith('自分の申請')); if(myCap) myCap.l='
 $('bellBtn').onclick=()=>{ $('newMenu').classList.remove('open'); $('notif').classList.toggle('open'); };
 $('newBtn').onclick=()=>{ $('notif').classList.remove('open'); renderNewMenu(); $('newMenu').classList.toggle('open'); };
 $('myBtn').onclick=()=>{ $('newMenu').classList.remove('open'); go('myreq'); };
+$('draftBtn').onclick=()=>{ $('newMenu').classList.remove('open'); go('mydraft'); };
 $('aiBtn').onclick=()=>{ $('notif').classList.remove('open'); $('newMenu').classList.remove('open'); toggleAiPanel(); };
 $('aiClose').onclick=closeAiPanel;
 $('aiScrim').onclick=closeAiPanel;
