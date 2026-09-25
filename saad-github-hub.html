@@ -2314,8 +2314,10 @@ function renderPanel(root){
   const actHtml = acts.length
     ? `<div class="actions">${acts.map(([a,l,c])=>`<button class="${c}" type="button" data-act="${a}">${l}</button>`).join('')}<button class="bg" type="button" id="closeHint">Close issue（作業では使わない）</button></div>`
     : (it.blocked ? `<div class="note warn">ゲート未完了のため着手できません。条件の稟議・購買が完了になると解除されます。</div>` : '');
+  const {custBtn, propBtn}=crmLinkButtons(it);
   const bodyRows=Object.entries(it.body||{}).map(([k,v])=>{
     if(hideCost && k.includes('金額')) v='（この役割では非表示）';
+    if(k==='顧客 / 物件') return `<dt>${k}</dt><dd>${custBtn} / ${propBtn}</dd>`;
     return `<dt>${k}</dt><dd>${v}</dd>`;
   }).join('');
   const tl=(it.tl||[]).map(e=> e.t==='sys'
@@ -2323,6 +2325,7 @@ function renderPanel(root){
     : `<li class="cm"><span class="who">${e.who}</span><small>comment</small><div class="cmbox"><h5>${e.head}</h5>${e.body}</div></li>`).join('');
   const pr=progressOf(it);
   const parent=it.parent?byId(it.parent):null;
+  const hasCrmBody=(it.body||{})['顧客 / 物件'];
   root.innerHTML=`
     <div class="dmain">
       <div style="display:flex;justify-content:space-between;align-items:center">
@@ -2331,7 +2334,7 @@ function renderPanel(root){
       </div>
       <h3><span class="kind ${KC[it.kind]}">${KIND[it.kind]}</span> ${it.title} <span class="ref">${it.ref}</span></h3>
       <div class="plink">${parent?`Parent: <button type="button" data-open="${parent.id}">${KIND[parent.kind]} ${parent.title} ${parent.ref}</button>`:'Parent: —'}</div>
-      <dl class="idb">${bodyRows||'<dt>用途</dt><dd>識別のみ。判断はタイムラインへ。</dd>'}</dl>
+      <dl class="idb">${bodyRows||'<dt>用途</dt><dd>識別のみ。判断はタイムラインへ。</dd>'}${!hasCrmBody?`<dt>顧客 / 物件</dt><dd>${custBtn} / ${propBtn}</dd>`:''}</dl>
       ${actHtml}
       ${chgBarForIssue(it)}
       ${panelExtras(it)}
@@ -2342,6 +2345,8 @@ function renderPanel(root){
       </div>
     </div>
     <div class="dside">
+      <div class="field"><label>顧客</label>${custBtn}</div>
+      <div class="field"><label>物件</label>${propBtn}</div>
       <div class="field"><label>Assignees</label><input value="${PEOPLE[it.own]||'—'}" readonly></div>
       <div class="field"><label>進み</label>${pill(it.status)}</div>
       <div class="field"><label>いま誰待ちか</label><span class="waitline ${waitingOf(it).cls}">⏳ ${waitingOf(it).t}</span></div>
@@ -2349,10 +2354,12 @@ function renderPanel(root){
       <div class="field"><label>Repository（実体）</label><button type="button" class="linkbtn" data-repo="${it.repo}">${it.repo} — ${REPOS[it.repo].label}</button></div>
       ${pr?`<div class="field"><label>Sub-issues</label><div>${pr[0]} / ${pr[1]}</div></div>`:''}
       ${kids(it.id).length?`<div class="field"><label>子Issue</label>${kids(it.id).map(k=>`<div><button type="button" class="linkbtn" data-open="${k.id}">${k.ref} ${k.title}</button> ${pill(k.status)}</div>`).join('')}</div>`:''}
-      <div class="note">緑の Open は「まだ生きている」だけ。作業の区切りは進みの「完了」。Close は案件の最後だけ。</div>
+      <div class="note">顧客・物件名はマスタ詳細へ。緑の Open は「まだ生きている」だけ。Close は案件の最後だけ。</div>
     </div>`;
   root.querySelector('#xp').onclick=()=>{ state.sel=null; render(); };
   root.querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>openIssue(b.dataset.open));
+  root.querySelectorAll('[data-gocust]').forEach(b=>b.onclick=()=>renderCustomer(b.dataset.gocust));
+  root.querySelectorAll('[data-goprop]').forEach(b=>b.onclick=()=>renderProperty(b.dataset.goprop));
   root.querySelectorAll('[data-repo]').forEach(b=>b.onclick=()=>go('repo',{repo:b.dataset.repo}));
   root.querySelectorAll('[data-act]').forEach(b=>b.onclick=()=>act(b.dataset.act, it.id));
   const ch=root.querySelector('#closeHint'); if(ch) ch.onclick=()=>goWip('closeissue');
@@ -3030,8 +3037,10 @@ function mIssueHtml(it){
   const actHtml = acts.length
     ? `<div class="actions">${acts.map(([a,l,c])=>`<button class="${c}" type="button" data-act="${a}">${l}</button>`).join('')}</div>`
     : (it.blocked ? `<div class="note warn">ゲート未完了のため着手できません。開通すると Inbox に通知が来ます。</div>` : '');
+  const {custBtn, propBtn}=crmLinkButtons(it);
   const bodyRows=Object.entries(it.body||{}).map(([k,v])=>{
     if(hideCost && k.includes('金額')) v='（この役割では非表示）';
+    if(k==='顧客 / 物件') return `<dt>${k}</dt><dd>${custBtn} / ${propBtn}</dd>`;
     return `<dt>${k}</dt><dd>${v}</dd>`;
   }).join('');
   const tl=(it.tl||[]).map(e=> e.t==='sys'
@@ -3039,13 +3048,14 @@ function mIssueHtml(it){
     : `<li class="cm"><span class="who">${e.who}</span><small>comment</small><div class="cmbox"><h5>${e.head}</h5>${e.body}</div></li>`).join('');
   const parent=it.parent?byId(it.parent):null;
   const pr=progressOf(it);
+  const hasCrmBody=(it.body||{})['顧客 / 物件'];
   return `<button type="button" class="m-back" data-back="1">← 戻る</button>
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
       <span class="badge${it.open?'':' closed'}">${it.open?'● Open':'✓ Closed'}</span><span class="ref">${it.ref}</span>
     </div>
     <h3 style="margin:0 0 6px;font-size:16px;line-height:1.4"><span class="kind ${KC[it.kind]}">${KIND[it.kind]}</span> ${it.title}</h3>
     ${parent?`<div class="plink">Parent: <button type="button" data-open="${parent.id}">${KIND[parent.kind]} ${parent.title}</button></div>`:''}
-    <dl class="idb">${bodyRows||'<dt>用途</dt><dd>識別のみ。判断はタイムラインへ。</dd>'}</dl>
+    <dl class="idb">${bodyRows||'<dt>用途</dt><dd>識別のみ。判断はタイムラインへ。</dd>'}${!hasCrmBody?`<dt>顧客 / 物件</dt><dd>${custBtn} / ${propBtn}</dd>`:''}</dl>
     ${actHtml}
     <ul class="tl">${tl||'<li class="sys"><span class="who">system</span><div>まだ履歴はありません</div></li>'}</ul>
     <div class="composer">
@@ -3053,6 +3063,8 @@ function mIssueHtml(it){
       <div class="actions" style="justify-content:flex-end"><button class="bp" id="mAddCm" type="button">Comment</button></div>
     </div>
     <div class="m-meta">
+      <div class="row"><span>顧客</span><b>${custBtn}</b></div>
+      <div class="row"><span>物件</span><b>${propBtn}</b></div>
       <div class="row"><span>Assignees</span><b>${PEOPLE[it.own]||'—'}</b></div>
       <div class="row"><span>進み</span>${pill(it.status)}</div>
       <div class="row"><span>いま誰待ち</span><span class="waitline ${waitingOf(it).cls}">⏳ ${waitingOf(it).t}</span></div>
@@ -3086,6 +3098,8 @@ function renderMobile(){
   <p class="phone-note">営業・施工はスマホ完結 — 同じIssue・同じタイムライン・同じ連携。他役割（PC台帳）での承認がこの画面の Inbox とロック解除に反映される。</p></div>`;
   $('main').querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>{ state.mScreen=b.dataset.m; state.sel=null; state.customer=null; render(); });
   $('main').querySelectorAll('[data-cust]').forEach(b=>b.onclick=()=>{ state.customer=b.dataset.cust; render(); });
+  $('main').querySelectorAll('[data-gocust]').forEach(b=>b.onclick=()=>renderCustomer(b.dataset.gocust));
+  $('main').querySelectorAll('[data-goprop]').forEach(b=>b.onclick=()=>renderProperty(b.dataset.goprop));
   $('main').querySelectorAll('[data-backcust]').forEach(b=>b.onclick=()=>{ state.customer=null; render(); });
   const mq=$('mCrmQ'); if(mq) mq.addEventListener('input', e=>{
     state.crmQ=e.target.value;
@@ -4278,6 +4292,18 @@ const DRAFTS=[];
 const REQ_FORMS=['ringi','buy','quote','expense','safety'];
 issues.forEach(i=>{ if(['ringi','buy'].includes(i.kind) && !i.by){ i.by='sales'; i.approver=i.own; } });
 function rootOf(it){ let x=it; while(x&&x.parent) x=byId(x.parent); return x; }
+function crmOfIssue(it){
+  const r=rootOf(it)||it;
+  const c=r&&r.customer&&CUSTOMERS[r.customer]?CUSTOMERS[r.customer]:null;
+  const p=r&&r.property&&PROPERTIES[r.property]?PROPERTIES[r.property]:null;
+  return {root:r, cust:c, prop:p};
+}
+function crmLinkButtons(it){
+  const {cust:c, prop:p}=crmOfIssue(it);
+  const custBtn=c?`<button type="button" class="linkbtn" data-gocust="${c.id}">${c.name}</button>`:'<span class="quiet">（未紐づけ）</span>';
+  const propBtn=p?`<button type="button" class="linkbtn" data-goprop="${p.id}">${p.name}</button>`:'<span class="quiet">（未紐づけ）</span>';
+  return {c,p,custBtn,propBtn};
+}
 function nowHM(){ const d=new Date(); return `9/25 ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`; }
 function formTitleOf(key, v){
   const f=FORMS[key]; const d=v&&v.deal&&byId(v.deal);
