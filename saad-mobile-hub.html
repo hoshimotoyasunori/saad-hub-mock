@@ -482,9 +482,9 @@ const ANNS=[
 ];
 /* PC CUSTOMERS / PROPERTIES と同じ3+4件＋生成マスタ（閲覧デモ用） */
 const CUSTS=[
-  {name:'株式会社サンプル',kind:'法人', domain:'ES', branch:'横浜営業所', regi:'本', deal:'d1',info:'物件2 · 横浜市西区 · 2019年〜',warn:false},
-  {name:'佐藤 一郎',kind:'個人', domain:'HSE', branch:'藤沢営業所', regi:'本', deal:'d2',info:'保証 2026-10 期限間近 · 藤沢市',warn:true},
-  {name:'グリーンハイツ管理組合',kind:'法人', domain:'PCS', branch:'相模原営業所', regi:'本', deal:'d3',info:'10年保証 · 相模原市 · 物件1',warn:false},
+  {id:'c1',name:'株式会社サンプル',kind:'法人', domain:'ES', branch:'横浜営業所', regi:'本', deal:'d1',info:'物件2 · 横浜市西区 · 2019年〜',warn:false, contact:'総務部 大山様 / 045-xxx-xxxx', addr:'横浜市西区'},
+  {id:'c2',name:'佐藤 一郎',kind:'個人', domain:'HSE', branch:'藤沢営業所', regi:'本', deal:'d2',info:'保証 2026-10 期限間近 · 藤沢市',warn:true, contact:'090-xxxx-xxxx', addr:'藤沢市'},
+  {id:'c3',name:'グリーンハイツ管理組合',kind:'法人', domain:'PCS', branch:'相模原営業所', regi:'本', deal:'d3',info:'10年保証 · 相模原市 · 物件1',warn:false, contact:'理事長 川口様', addr:'相模原市'},
 ].concat((()=>{
   const sei=['田中','鈴木','高橋','伊藤','渡辺','山田','中村','小林','加藤','吉田','山口','松本','井上','木村','林','斎藤','清水','山崎','森','池田'];
   const mei=['一郎','花子','健','美咲','誠'];
@@ -493,17 +493,17 @@ const CUSTS=[
   const list=[];
   for(let i=0;i<100;i++){
     const isCorp=i%3===0; const [dv,br]=org[i%org.length];
-    list.push({name:isCorp?`株式会社${sei[i%20]}${corp[i%6]}`:`${sei[i%20]} ${mei[i%5]}`,
+    list.push({id:'g'+i, name:isCorp?`株式会社${sei[i%20]}${corp[i%6]}`:`${sei[i%20]} ${mei[i%5]}`,
       kind:isCorp?'法人':'個人', domain:dv, branch:br, regi:i%5===0?'仮':'本', deal:null,
-      info:`物件${1+(i%3)} · 最終 9/${1+(i%21)}`, warn:i%17===0});
+      info:`物件${1+(i%3)} · 最終 9/${1+(i%21)}`, warn:i%17===0, contact:'—', addr:'—'});
   }
   return list;
 })());
 const PROPS=[
-  {name:'横浜支店ビル', structure:'S造5F', domain:'ES', branch:'横浜営業所', regi:'本', deal:'d1', info:'株式会社サンプル · みなとみらい'},
-  {name:'川崎倉庫', structure:'平屋・鉄骨', domain:'ES', branch:'横浜営業所', regi:'仮', deal:'dL1', info:'株式会社サンプル · 外壁調査リード'},
-  {name:'戸建（藤沢・木造2F）', structure:'木造2F', domain:'HSE', branch:'藤沢営業所', regi:'本', deal:'d2', info:'佐藤 一郎 · 保証あり'},
-  {name:'グリーンハイツ', structure:'RC造8F', domain:'PCS', branch:'相模原営業所', regi:'本', deal:'d3', info:'管理組合 · 48戸'},
+  {id:'p1',name:'横浜支店ビル', structure:'S造5F', domain:'ES', branch:'横浜営業所', regi:'本', deal:'d1', info:'株式会社サンプル · みなとみらい', addr:'横浜市西区みなとみらい1-1', cust:'株式会社サンプル'},
+  {id:'p2',name:'川崎倉庫', structure:'平屋・鉄骨', domain:'ES', branch:'横浜営業所', regi:'仮', deal:'dL1', info:'株式会社サンプル · 外壁調査リード', addr:'川崎市川崎区 ind-2', cust:'株式会社サンプル'},
+  {id:'p3',name:'戸建（藤沢・木造2F）', structure:'木造2F', domain:'HSE', branch:'藤沢営業所', regi:'本', deal:'d2', info:'佐藤 一郎 · 保証あり', addr:'藤沢市鵠沼3-2', cust:'佐藤 一郎'},
+  {id:'p4',name:'グリーンハイツ', structure:'RC造8F', domain:'PCS', branch:'相模原営業所', regi:'本', deal:'d3', info:'管理組合 · 48戸', addr:'相模原市中央区緑が丘', cust:'グリーンハイツ管理組合'},
 ].concat((()=>{
   const names=['コーポ','ハイツ','ビル','マンション','倉庫','工場','店舗','戸建'];
   const stru=['木造2F','S造3F','RC造5F','RC造8F','平屋','SRC造12F'];
@@ -512,16 +512,56 @@ const PROPS=[
   const list=[];
   for(let i=0;i<100;i++){
     const [dv,br]=org[i%org.length];
-    list.push({name:`${names[i%8]}${sei[i%8]}${100+i}`, structure:stru[i%6], domain:dv, branch:br,
-      regi:i%6===0?'仮':'本', deal:null, info:`顧客${1+(i%2)} · 最終 9/${1+(i%21)}`});
+    list.push({id:'gp'+i, name:`${names[i%8]}${sei[i%8]}${100+i}`, structure:stru[i%6], domain:dv, branch:br,
+      regi:i%6===0?'仮':'本', deal:null, info:`顧客${1+(i%2)} · 最終 9/${1+(i%21)}`, addr:'—', cust:''});
   }
   return list;
 })());
+function custById(id){ return CUSTS.find(c=>c.id===id); }
+function propById(id){ return PROPS.find(p=>p.id===id); }
+function actsForCust(c){
+  if(!c) return [];
+  const nm=c.name.replace(/さま$/,'');
+  const ids=new Set();
+  if(c.deal && DEALS[c.deal]) ids.add(c.deal);
+  Object.entries(DEALS).forEach(([id,d])=>{
+    const cn=(d.cust||'').replace(/さま$/,'');
+    if(cn && (cn.includes(nm) || nm.includes(cn))) ids.add(id);
+  });
+  return [...ids].map(id=>({id,...DEALS[id]}));
+}
+function actsForProp(p){
+  if(!p) return [];
+  const ids=new Set();
+  if(p.deal && DEALS[p.deal]) ids.add(p.deal);
+  Object.entries(DEALS).forEach(([id,d])=>{
+    if(p.name && ((d.title||'').includes(p.name) || (d.addr||'').includes((p.addr||'').slice(0,8)))) ids.add(id);
+    if(p.cust && (d.cust||'').replace(/さま$/,'').includes(p.cust.replace(/さま$/,''))) ids.add(id);
+  });
+  return [...ids].filter(id=>DEALS[id]).map(id=>({id,...DEALS[id]}));
+}
+function openActPlanSheet(ctx){
+  state.actPlanCtx=ctx||{};
+  openSheet('actplan');
+}
+function createMobileActivity(vals){
+  const id='dn'+Date.now().toString(36);
+  DEALS[id]={
+    ref:'mobile·new', cust:vals.cust, title:vals.title, dom:vals.dom||'ES',
+    addr:vals.addr||'', tel:vals.tel||'', stage:0, amount:'—', lead:true,
+    hist:[{d:nowD(),who:ROLES[state.role].name.slice(0,1),t:`<b>活動予定を登録</b><div class="m">${vals.memo||vals.via||''}</div>`}]
+  };
+  const c=CUSTS.find(x=>x.name===vals.cust);
+  if(c && !c.deal) c.deal=id;
+  const p=PROPS.find(x=>x.name===vals.prop);
+  if(p && !p.deal) p.deal=id;
+  return id;
+}
 
 /* 稟議（連鎖の核）: r1=#841 サンプル社値引12%（PC ringi#12） */
 const state={
   role:'sales', tab:'home', deal:null, approving:null, aiMsgs:[],
-  sub:null, annOpen:-1, custQ:'', propQ:'', dealQ:'',
+  sub:null, annOpen:-1, custSel:null, propSel:null, custQ:'', propQ:'', dealQ:'',
   custDom:'', custBr:'', custRegi:'', custFilt:false,
   propDom:'', propBr:'', propRegi:'', propFilt:false,
   ringi:'pending',            // pending → ok / back
@@ -535,7 +575,7 @@ const state={
     koji:[{ic:'🗓',tt:'今日の現場: グリーンハイツ 9:00開始',ss:'貯水槽清掃 — 断水案内は掲示済み',when:'8:30',go:{deal:'d3'},unread:true}],
     boss:[{ic:'🔔',tt:'承認待ちが2件あります',ss:'値引起案12%（サンプル社）／施工着手承認',when:'9:00',go:{tab:'home'},unread:true}],
   },
-  sheet:null, pick:{},
+  sheet:null, pick:{}, actPlanCtx:{}, actPlanStep:'choose',
   offline:false,
   pending:[], /* オフライン送信待ち */
 };
@@ -845,6 +885,7 @@ function menuView(){
   ${mItem('🗂','過去の案件をさがす','data-sub="past"','完了・Close済みも')}
   <div class="sec">申請する</div>
   ${mItem('📋','自分の申請・登録（下書き・結果）','data-sub="myreq"','どこから出した申請もここに')}
+  ${mItem('📅','活動予定を立てる','data-sheet="actplan"','顧客／物件に対する予定')}
   ${mItem('📞','問い合わせを登録','data-sub="leadForm"')}
   ${mItem('🧾','稟議（値引き・特価・着手）','data-sub="ringiForm"')}
   ${mItem('📦','資材・購買','data-sub="buyForm"')}
@@ -950,39 +991,88 @@ function mFiltSheet(kind){
   </div>`;
 }
 function custView(){
+  if(state.custSel) return custDetailView(state.custSel);
   if(state.custFilt) return `<div class="dethead"><button class="backbtn" data-back="1">‹ 戻る</button><h2>絞り込み（顧客）</h2>
     <div class="sub">検索箱とは別。部門・拠点・登録で一覧の範囲を狭めます</div></div>${mFiltSheet('cust')}`;
   const hit=ledgerHitCust();
   return `<div class="dethead"><button class="backbtn" data-back="1">‹ 戻る</button><h2>顧客台帳</h2>
-  <div class="sub">検索＝名前で1件を当てる ／ 絞り込み＝部門・拠点・登録で範囲を狭める</div></div>
+  <div class="sub">タップで顧客詳細。そこから活動予定を立てられます</div></div>
   <input class="searchbox" id="custQ" value="${state.custQ||''}" placeholder="🔍 名前・種別でさがす" inputmode="search">
   ${mFiltChips('cust')}
   <div class="s" style="margin:4px 0 8px">${hit.length} 件</div>
   <div id="custList">${
-    hit.length?hit.map(c=>`<button class="card" ${c.deal?`data-deal="${c.deal}"`:''} style="width:100%;text-align:left">
+    hit.length?hit.map(c=>`<button class="card" data-opencust="${c.id}" style="width:100%;text-align:left">
       <div class="k">${c.kind} · ${c.domain}・${c.branch.replace('営業所','')}${c.regi==='仮'?' <span class="tagP">仮</span>':''}${c.warn?' <span class="tagP">保証期限間近</span>':''}</div>
-      <div class="t">${c.name}</div><div class="s">${c.info}${c.deal?' — タップで案件へ':''}</div>
+      <div class="t">${c.name}</div><div class="s">${c.info} — タップで詳細</div>
     </button>`).join('')
     :`<p class="quiet">該当なし。条件を緩めるか、「＋ → 顧客を登録」から仮登録できます。</p>`
   }</div>
-  <button class="abtn p" data-sub="custreg" style="margin-top:8px">＋ 顧客を登録（仮）</button>`;
+  <button class="abtn p" data-sub="custreg" style="margin-top:8px">＋ 顧客を登録（仮）</button>
+  <button class="abtn w" data-sheet="actplan" style="margin-top:8px">📅 活動予定を立てる</button>`;
 }
 function propView(){
+  if(state.propSel) return propDetailView(state.propSel);
   if(state.propFilt) return `<div class="dethead"><button class="backbtn" data-back="1">‹ 戻る</button><h2>絞り込み（物件）</h2>
     <div class="sub">検索箱とは別。部門・拠点・登録で一覧の範囲を狭めます</div></div>${mFiltSheet('prop')}`;
   const hit=ledgerHitProp();
   return `<div class="dethead"><button class="backbtn" data-back="1">‹ 戻る</button><h2>物件台帳</h2>
-  <div class="sub">検索＝物件名で1件を当てる ／ 絞り込み＝部門・拠点・登録で範囲を狭める</div></div>
+  <div class="sub">タップで物件詳細。そこから活動予定を立てられます</div></div>
   <input class="searchbox" id="propQ" value="${state.propQ||''}" placeholder="🔍 物件名・構造でさがす" inputmode="search">
   ${mFiltChips('prop')}
   <div class="s" style="margin:4px 0 8px">${hit.length} 件</div>
   <div id="propList">${
-    hit.length?hit.map(p=>`<button class="card" ${p.deal?`data-deal="${p.deal}"`:''} style="width:100%;text-align:left">
+    hit.length?hit.map(p=>`<button class="card" data-openprop="${p.id}" style="width:100%;text-align:left">
       <div class="k">${p.structure} · ${p.domain}・${p.branch.replace('営業所','')}${p.regi==='仮'?' <span class="tagP">仮</span>':''}</div>
-      <div class="t">${p.name}</div><div class="s">${p.info}${p.deal?' — タップで案件へ':''}</div>
+      <div class="t">${p.name}</div><div class="s">${p.info} — タップで詳細</div>
     </button>`).join('')
     :`<p class="quiet">該当なし。条件を緩めてください。</p>`
-  }</div>`;
+  }</div>
+  <button class="abtn w" data-sheet="actplan" style="margin-top:8px">📅 活動予定を立てる</button>`;
+}
+function custDetailView(cid){
+  const c=custById(cid); if(!c){ state.custSel=null; return custView(); }
+  const acts=actsForCust(c);
+  const props=PROPS.filter(p=>(p.cust&&p.cust===c.name)||(p.info||'').includes(c.name));
+  return `<div class="dethead"><button class="backbtn" data-backcust="1">‹ 顧客台帳へ</button>
+    <div class="k"><span class="tagDom">${c.domain}</span> ${c.kind} · ${c.branch.replace('営業所','')}</div>
+    <h2>${c.name}</h2>
+    <div class="sub">${c.info}</div></div>
+  <div class="card">
+    <div class="k">連絡先</div><div class="s">${c.contact||'—'}</div>
+    <div class="k" style="margin-top:8px">所在地</div><div class="s">${c.addr||'—'}</div>
+    <div class="k" style="margin-top:8px">登録</div><div class="s">${c.regi==='仮'?'仮登録':'本登録'}${c.warn?' · 保証期限間近':''}</div>
+  </div>
+  <button class="abtn p" data-actplan-cust="${c.id}">📅 この顧客への活動予定を立てる</button>
+  <div class="sec">進行中の活動 <span class="cnt">${acts.length}</span></div>
+  ${acts.length?acts.map(a=>`<button class="card" data-deal="${a.id}" style="width:100%;text-align:left">
+    <div class="k"><span class="tagDom">${a.dom}</span>${a.ref?` ${a.ref}`:''}${a.lead?' <span class="tagP">活動</span>':a.closed?' <span class="tagOK">Close</span>':''}</div>
+    <div class="t">${a.title}</div><div class="s">${a.addr||''}</div>
+  </button>`).join(''):'<p class="quiet">まだありません。上のボタンから活動予定を立てられます。</p>'}
+  <div class="sec">紐づく物件</div>
+  ${props.length?props.map(p=>`<button class="card" data-openprop="${p.id}" style="width:100%;text-align:left">
+    <div class="k">${p.structure}</div><div class="t">${p.name}</div><div class="s">${p.addr||p.info}</div>
+  </button>`).join(''):'<p class="quiet">物件未紐づけでも活動予定は立てられます。</p>'}
+  <div class="note">営業の操作は「この顧客に何の活動をするか」です。管理・PC台帳では同じ行が案件として見えます。</div>`;
+}
+function propDetailView(pid){
+  const p=propById(pid); if(!p){ state.propSel=null; return propView(); }
+  const acts=actsForProp(p);
+  return `<div class="dethead"><button class="backbtn" data-backprop="1">‹ 物件台帳へ</button>
+    <div class="k"><span class="tagDom">${p.domain}</span> ${p.structure} · ${p.branch.replace('営業所','')}</div>
+    <h2>${p.name}</h2>
+    <div class="sub">${p.info}</div></div>
+  <div class="card">
+    <div class="k">住所</div><div class="s">${p.addr||'—'}</div>
+    <div class="k" style="margin-top:8px">契約顧客</div><div class="s">${p.cust||'（未紐づけ）'}</div>
+    <div class="k" style="margin-top:8px">登録</div><div class="s">${p.regi==='仮'?'仮登録':'本登録'}</div>
+  </div>
+  <button class="abtn p" data-actplan-prop="${p.id}">📅 この物件での活動予定を立てる</button>
+  <div class="sec">進行中の活動 <span class="cnt">${acts.length}</span></div>
+  ${acts.length?acts.map(a=>`<button class="card" data-deal="${a.id}" style="width:100%;text-align:left">
+    <div class="k"><span class="tagDom">${a.dom}</span>${a.ref?` ${a.ref}`:''}${a.lead?' <span class="tagP">活動</span>':a.closed?' <span class="tagOK">Close</span>':''}</div>
+    <div class="t">${a.title}</div><div class="s">${a.cust||''}</div>
+  </button>`).join(''):'<p class="quiet">まだありません。上のボタンから活動予定を立てられます。</p>'}
+  <div class="note">営業の操作は「この物件で何の活動をするか」です。管理・PC台帳では同じ行が案件として見えます。</div>`;
 }
 /* ---- PC版でできること ---- */
 function pcInfoView(){
@@ -1227,6 +1317,7 @@ function calView(){
   <div class="sec">今日 9/25(木) — タップで到着・報告</div>
   ${schedRows(TODAY_EV)}
   ${later.map(([d,es])=>`<div class="sec">${d}</div>${es.map(e=>`<div class="tl-row"><time>${e.tm}</time><div class="body"><div class="tt">${e.t}</div><div class="ts">${e.note}</div></div></div>`).join('')}`).join('')}
+  <button class="abtn p" data-sheet="actplan" style="margin-top:10px">📅 活動予定を立てる</button>
   <div class="note">顧客・物件に紐づく予定は現場到着から始まり、活動後に報告します。</div>`;
 }
 function biView(){
@@ -1287,6 +1378,13 @@ function openSheet(kind, opts){
   opts=opts||{};
   state.sheet=kind; state.pick={};
   if(opts.ev){ state.sheetEv=opts.ev; const e=evById(opts.ev); if(e){ state.pick.deal=e.deal; state.sheetDeal=e.deal; } }
+  if(kind==='actplan'){
+    if(opts.custId||opts.propId) state.actPlanCtx={custId:opts.custId||null, propId:opts.propId||null};
+    else if(!opts.keepCtx) state.actPlanCtx={};
+    state.actPlanStep=opts.step||'choose';
+    if(opts.custId){ const c=custById(opts.custId); if(c) state.pick.cust=c.name; }
+    if(opts.propId){ const p=propById(opts.propId); if(p){ state.pick.prop=p.name; if(p.cust) state.pick.cust=p.cust; } }
+  }
   if(kind==='done') state.sheetDeal=state.deal||state.sheetDeal||'d3';
   if(kind==='report' && state.sheetEv){ const e=evById(state.sheetEv); if(e) state.pick.deal=e.deal; }
   renderSheet();
@@ -1311,9 +1409,39 @@ function renderSheet(){
       ? [['📍','現場到着（入場）を報告','現場に着いたらワンタップ','enter'],['📷','写真・完了を報告','作業前後の写真とチェック','done'],['📦','資材を注文','現場からワンタップ発注','sub:buyForm'],['⚠️','ヒヤリハット報告','安全衛生へ共有','wip:anzen'],['🧑‍💼','休暇・勤怠','打刻・休暇申請','wip:jinji']]
       : state.role==='boss'
       ? [['✅','承認する','待ちキューを開く','goboss'],['📊','拠点の数字を見る','売上・成約・訪問','wip:bi'],['📍','現場到着を報告','同行訪問の開始','arrive-pick'],['✏️','活動を報告','到着後に結果を残す','report'],['🚗','経費を申請','出張・車両','wip:keihi']]
-      : [['📍','現場到着を報告','顧客・物件活動の開始','arrive-pick'],['✏️','活動を報告','到着後に結果を残す','report'],['📞','問い合わせを登録','受けたその場で1件','sub:leadForm'],['📷','写真を報告','調査・現場の写真','wip:photo'],['🧾','稟議を申請','値引き・特価・着手','sub:ringiForm'],['🧮','見積を作る','標準単価から自動計算','wip:quote'],['📦','資材を注文','施工前の手配','sub:buyForm'],['👤','顧客を登録','その場で仮登録（30秒）','sub:custreg'],['🚗','経費を申請','出張・立替','wip:keihi']];
+      : [['📅','活動予定を立てる','顧客／物件に何をするか','actplan'],['📍','現場到着を報告','顧客・物件活動の開始','arrive-pick'],['✏️','活動を報告','到着後に結果を残す','report'],['📞','問い合わせを登録','受けたその場で1件','sub:leadForm'],['📷','写真を報告','調査・現場の写真','wip:photo'],['🧾','稟議を申請','値引き・特価・着手','sub:ringiForm'],['🧮','見積を作る','標準単価から自動計算','wip:quote'],['📦','資材を注文','施工前の手配','sub:buyForm'],['👤','顧客を登録','その場で仮登録（30秒）','sub:custreg'],['🚗','経費を申請','出張・立替','wip:keihi']];
     body=items.map(([ic,tt,ss,act])=>`<button class="launch" data-launch="${act}"><span class="ic">${ic}</span><span><div class="tt">${tt}</div><div class="ss">${ss}</div></span></button>`).join('')
       +`<p class="note" style="margin-top:4px">🚧 マークのない項目は今すぐ使えます。準備中の項目は「今後実装予定」の画面が開きます。</p>`;
+  }
+  if(state.sheet==='actplan'){
+    const ctx=state.actPlanCtx||{};
+    const c=ctx.custId&&custById(ctx.custId);
+    const p=ctx.propId&&propById(ctx.propId);
+    const axis=p?'物件':(c?'顧客':'');
+    const name=p?p.name:(c?c.name:'');
+    const open=p?actsForProp(p):(c?actsForCust(c):[]);
+    title='活動予定を立てる';
+    if(state.actPlanStep==='new'){
+      const pick=state.pick;
+      title='新規の活動';
+      body=`<p class="quiet" style="margin:0 0 8px">${name?`<b>${name}</b> への活動予定`:'顧客または物件を選んで活動内容を入れます'}。管理台帳では同じ行が案件として見えます。</p>
+        ${!c&&!p?`<div class="slabel">① 対象</div>
+        <div class="chips">${CUSTS.slice(0,3).map(x=>`<button class="chip" data-pk="cust:${x.name}" aria-pressed="${pick.cust===x.name}">${x.name}</button>`).join('')}
+        ${PROPS.slice(0,4).map(x=>`<button class="chip" data-pk="prop:${x.name}" aria-pressed="${pick.prop===x.name}">${x.name}</button>`).join('')}</div>`:''}
+        <div class="slabel">${c||p?'①':'②'} 何の活動？</div>
+        <div class="chips">${['初回訪問','現地調査','見積提示','契約説明','再アプローチ','その他'].map(x=>`<button class="chip" data-pk="title:${x}" aria-pressed="${pick.title===x}">${x}</button>`).join('')}</div>
+        <div class="slabel">きっかけ</div>
+        <div class="chips">${['電話','Webフォーム','紹介','飛込み','予定どおり'].map(x=>`<button class="chip" data-pk="via:${x}" aria-pressed="${pick.via===x}">${x}</button>`).join('')}</div>
+        <textarea placeholder="メモ（任意）" id="actMemo"></textarea>
+        <button class="abtn p" style="margin-top:12px${!pick.title?';opacity:.4':''}" data-send="actnew" ${pick.title?'':'disabled'}>予定を登録する</button>
+        <button class="abtn w" style="margin-top:8px" data-actstep="choose">‹ 戻る</button>`;
+    } else {
+      body=`<p class="quiet" style="margin:0 0 10px">${name?`対象: <b>${name}</b>（${axis}）`:'顧客・物件の詳細、またはここで対象を選びます'}。<span class="ref">営業は「活動予定」、管理では案件。</span></p>
+        <button class="launch" data-actstep="new"><span class="ic">🆕</span><span><div class="tt">新規の活動を始める</div><div class="ss">初回訪問・調査・見積など</div></span></button>
+        ${open.length?`<div class="slabel" style="margin-top:12px">続きから始める</div>
+          ${open.map(a=>`<button class="pick" data-dealgo="${a.id}"><span>📁</span><span><div class="tt">${a.title}</div><div class="ss">${a.cust||''} · ${a.dom}</div></span></button>`).join('')}`
+          :`<p class="quiet">進行中の活動はまだありません。</p>`}`;
+    }
   }
   if(state.sheet==='actmenu'){
     const e=evById(state.sheetEv)||TODAY_EV[0];
@@ -1411,6 +1539,7 @@ function wireSheet(){
       if(!next){ toast('到着できる予定がありません'); return; }
       openSheet('arrive',{ev:next.id}); return;
     }
+    if(a==='actplan'){ state.actPlanStep='choose'; openSheet('actplan'); return; }
     if(a==='arrive'){ openSheet('arrive',{ev:state.sheetEv}); return; }
     if(a==='report'){ openSheet('report',{ev:state.sheetEv}); return; }
     openSheet(a);
@@ -1478,6 +1607,28 @@ function wireSheet(){
       toast('✓ 完了を報告しました — 管理部へ通知');
       render();
     }
+    if(b.dataset.send==='actnew'){
+      const p=state.pick; const ctx=state.actPlanCtx||{};
+      const c=ctx.custId&&custById(ctx.custId);
+      const pr=ctx.propId&&propById(ctx.propId);
+      if(!p.title){ toast('活動の種類を選んでください'); return; }
+      const cust=c?c.name:(p.cust||(pr&&pr.cust)||'（未設定）');
+      const prop=pr?pr.name:(p.prop||'');
+      const addr=pr?pr.addr:(c?((c.info||'').split('·').pop()||'').trim():'');
+      const tel=c?(c.info.match(/0\d[\d-]+/)||[])[0]:'';
+      const id=createMobileActivity({cust, prop, title:p.title, via:p.via||'', memo:($('actMemo')||{}).value||'', addr, tel, dom:(c&&c.domain)||(pr&&pr.domain)||'ES'});
+      closeSheet(); state.actPlanStep='choose'; state.deal=id; state.tab='deals'; state.sub=null;
+      toast('✓ 活動予定を登録しました');
+      render(); return;
+    }
+  });
+  sh.querySelectorAll('[data-actstep]').forEach(b=>b.onclick=()=>{
+    state.actPlanStep=b.dataset.actstep;
+    if(b.dataset.actstep==='new') state.pick={...state.pick};
+    renderSheet();
+  });
+  sh.querySelectorAll('[data-dealgo]').forEach(b=>b.onclick=()=>{
+    closeSheet(); state.deal=b.dataset.dealgo; state.tab='deals'; state.sub=null; render();
   });
 }
 
@@ -1648,7 +1799,7 @@ function render(){
     <button data-ah="ai" class="ai-ah" aria-label="SAAD AI">${AI_ICON_SVG}</button>`;
   $('apphead').querySelectorAll('[data-ah]').forEach(b=>b.onclick=()=>{
     const a=b.dataset.ah;
-    state.deal=null; state.approving=null; state.annOpen=-1;
+    state.deal=null; state.approving=null; state.annOpen=-1; state.custSel=null; state.propSel=null;
     if(a==='ai'){ state.sub='ai'; render(); return; }
     if(a==='cust'){ state.sub='cust'; }
     else { state.sub=null; state.tab=a; if(a==='notif') state.notifs[state.role].forEach(x=>x.unread=false); }
@@ -1662,7 +1813,7 @@ function render(){
     <button data-tab="notif" ${state.tab==='notif'&&!state.sub?'aria-current="true"':''}><span class="ic badge-dot">🔔${n?`<span class="n">${n}</span>`:''}</span>通知</button>
     <button data-tab="menu" ${state.tab==='menu'&&!state.sub?'aria-current="true"':''}><span class="ic">☰</span>メニュー</button>`;
   $('tabbar').querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{
-    state.tab=b.dataset.tab; state.deal=null; state.approving=null; state.sub=null; state.annOpen=-1;
+    state.tab=b.dataset.tab; state.deal=null; state.approving=null; state.sub=null; state.annOpen=-1; state.custSel=null; state.propSel=null;
     if(b.dataset.tab==='notif') state.notifs[state.role].forEach(x=>x.unread=false);
     render();
   });
@@ -1673,11 +1824,19 @@ function render(){
 }
 function wireView(){
   const v=$('view');
-  v.querySelectorAll('[data-deal]').forEach(b=>b.onclick=()=>{state.deal=b.dataset.deal;state.sub=null;render();});
+  v.querySelectorAll('[data-deal]').forEach(b=>b.onclick=()=>{state.deal=b.dataset.deal;state.sub=null;state.custSel=null;state.propSel=null;render();});
+  v.querySelectorAll('[data-opencust]').forEach(b=>b.onclick=()=>{state.custSel=b.dataset.opencust;state.propSel=null;state.sub='cust';render();});
+  v.querySelectorAll('[data-openprop]').forEach(b=>b.onclick=()=>{state.propSel=b.dataset.openprop;state.custSel=null;state.sub='prop';render();});
+  v.querySelectorAll('[data-backcust]').forEach(b=>b.onclick=()=>{state.custSel=null;state.sub='cust';render();});
+  v.querySelectorAll('[data-backprop]').forEach(b=>b.onclick=()=>{state.propSel=null;state.sub='prop';render();});
+  v.querySelectorAll('[data-actplan-cust]').forEach(b=>b.onclick=e=>{e.stopPropagation();openSheet('actplan',{custId:b.dataset.actplanCust,step:'choose'});});
+  v.querySelectorAll('[data-actplan-prop]').forEach(b=>b.onclick=e=>{e.stopPropagation();openSheet('actplan',{propId:b.dataset.actplanProp,step:'choose'});});
   v.querySelectorAll('[data-back]').forEach(b=>b.onclick=()=>{
     if(state.custFilt){ state.custFilt=false; render(); return; }
     if(state.propFilt){ state.propFilt=false; render(); return; }
-    state.deal=null;state.approving=null;state.sub=null;state.annOpen=-1;render();
+    if(state.custSel){ state.custSel=null; render(); return; }
+    if(state.propSel){ state.propSel=null; render(); return; }
+    state.deal=null;state.approving=null;state.sub=null;state.annOpen=-1;state.custSel=null;state.propSel=null;render();
   });
   v.querySelectorAll('[data-aiq]').forEach(b=>b.onclick=()=>aiSendM(b.dataset.aiq));
   const aif=$('aiPageForm');
