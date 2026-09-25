@@ -830,6 +830,28 @@ function ensurePropMaster(id){
   PROPERTIES[id]={id, name:r.name, structure:r.structure||'—', addr:r.addr||'—', domain:r.domain, branch:r.branch, use:'—', built:'—', units:'—', water:'—', customers:[], last:r.last||'—', regi:r.regi||'本', contracts:[], gen:true};
   return PROPERTIES[id];
 }
+
+const ACT_KINDS=['初回訪問','現地調査','見積提示','契約説明','定期点検','再アプローチ','問い合わせ対応','施工前打合せ','その他'];
+function activityTargetLabel(v){
+  const c=v.cust?ensureCustMaster(v.cust):null;
+  const p=v.prop?ensurePropMaster(v.prop):null;
+  if(p) return p.name;
+  if(c) return c.name;
+  const a=(v.alias||'').trim();
+  return a||'対象未定';
+}
+function composeActivityTitle(v, seqNum){
+  const c=v.cust?ensureCustMaster(v.cust):null;
+  const p=v.prop?ensurePropMaster(v.prop):null;
+  const dom=c?c.domain:(p?p.domain:(v.domHint||'ES'));
+  const year='2026';
+  const num=seqNum!=null?String(seqNum).padStart(4,'0'):'□□□□';
+  const kind=(v.actKind||'').trim()||'活動';
+  const detail=(v.actDetail||'').trim();
+  const who=activityTargetLabel(v);
+  const mid=detail?`${kind}・${detail}`:kind;
+  return `${dom}-${year}-${num} ${mid}（${who}）`;
+}
 function lookupSearch(kind, q){
   const s=(q||'').trim().toLowerCase();
   if(kind==='customer'){
@@ -2802,27 +2824,27 @@ function crmOpenActs(ctx){
 }
 function buildActivityPre(ctx){
   ctx=ctx||{};
-  const pre={ dtype:'dt1', via:'', title:'', memo:'', cust:'', prop:'' };
+  const pre={ dtype:'dt1', via:'', actKind:'現地調査', actDetail:'', alias:'', memo:'', cust:'', prop:'' };
   if(ctx.cust && CUSTOMERS[ctx.cust]){
     const c=CUSTOMERS[ctx.cust];
     pre.cust=c.id;
-    pre.title=`${c.name} への訪問・提案`;
+    pre.actKind='初回訪問'; pre.actDetail='';
     if((c.propertyIds||[]).length===1) pre.prop=c.propertyIds[0];
   } else if(ctx.custName){
-    pre.title=`${ctx.custName} への訪問・提案`;
+    pre.actKind='初回訪問'; pre.alias=ctx.custName;
     pre.memo=`顧客（一覧）: ${ctx.custName}${ctx.meta?` · ${ctx.meta}`:''}`;
   }
   if(ctx.prop && PROPERTIES[ctx.prop]){
     const p=PROPERTIES[ctx.prop];
     pre.prop=p.id;
-    if(!pre.title) pre.title=`${p.name} での調査・作業`;
+    if(!pre.actKind) pre.actKind='現地調査';
     const linked=(p.customers||[]).map(x=>x.id||x).filter(id=>CUSTOMERS[id]);
     if(linked.length===1) pre.cust=linked[0];
     if(!pre.cust && linked.length===0){
       pre.memo=(pre.memo?pre.memo+'\n':'')+`物件起点（契約顧客未紐づけ）: ${p.name} · ${p.addr||''}`;
     }
   } else if(ctx.propName){
-    if(!pre.title) pre.title=`${ctx.propName} での調査・作業`;
+    pre.actKind=pre.actKind||'現地調査'; pre.alias=ctx.propName;
     pre.memo=(pre.memo?pre.memo+'\n':'')+`物件（一覧）: ${ctx.propName}${ctx.meta?` · ${ctx.meta}`:''}`;
   }
   return pre;
@@ -5261,36 +5283,52 @@ FORMS.deal={
   stop:'メールでの報告とExcel3種への転記', who:'営業・受付・事務',
   fields:[
     {k:'dtype', l:'取引形態', t:'select', opts:()=>DEALTYPES.map(d=>[d.id,d.name])},
-    {k:'cust', l:'どの顧客に？（検索して選択・未定可）', t:'lookup', lookup:'customer', full:true, ph:'顧客名で検索（例: サンプル / 佐藤）', unset:'（顧客未定のまま進める）'},
-    {k:'prop', l:'どの物件で？（検索して選択・未定可）', t:'lookup', lookup:'property', full:true, ph:'物件名・住所で検索（例: 青葉ビル / みなとみらい）', unset:'（物件未定のまま進める）'},
+    {k:'cust', l:'どの顧客に？（検索・未登録なら空のまま可）', t:'lookup', lookup:'customer', full:true, ph:'顧客名で検索（例: サンプル / 佐藤）', unset:'（マスタ未選択＝あとから紐づけ可）'},
+    {k:'prop', l:'どの物件で？（検索・未登録なら空のまま可）', t:'lookup', lookup:'property', full:true, ph:'物件名・住所で検索（例: 青葉ビル / みなとみらい）', unset:'（マスタ未選択＝あとから紐づけ可）'},
+    {k:'alias', l:'仮の相手名（顧客・物件とも未選択のとき必須）', full:true, ph:'例: 山田様（電話のみ） / 関内の空きテナント'},
     {k:'via', l:'きっかけ', t:'via', full:true, def:''},
-    {k:'title', l:'何の活動？（例: 初回訪問・調査・見積提示）', req:true, full:true, def:'（例）外壁の現地調査'},
-    {k:'memo', l:'メモ・申し送り', t:'textarea', full:true},
+    {k:'actKind', l:'活動の種類（案件名の核）', t:'select', req:true, opts:()=>ACT_KINDS.map(x=>[x,x]), def:'現地調査'},
+    {k:'actDetail', l:'補足（任意・案件名に入ります）', full:true, ph:'例: 外壁 / シロアリ / 給排水'},
+    {k:'memo', l:'メモ・申し送り（案件名には出さない）', t:'textarea', full:true},
   ],
   preview:v=>{
     const dt=DEALTYPES.find(d=>d.id===v.dtype)||{}, c=v.cust?ensureCustMaster(v.cust):null, p=v.prop?ensurePropMaster(v.prop):null;
-    const org=c?`${c.domain}・${c.branch}`:(p?`${p.domain}・${p.branch}`:'（起票後に部門・拠点を確定）');
-    const link=[c?`顧客: <b>${c.name}</b>`:null, p?`物件: <b>${p.name}</b>`:null].filter(Boolean).join(' ／ ')||'<span class="warn-badge">顧客・物件とも未定</span>（活動内容だけで登録可）';
+    const org=c?`${c.domain}・${c.branch}`:(p?`${p.domain}・${p.branch}`:'（マスタ紐づけ後に部門・拠点を確定）');
+    const bothEmpty=!c&&!p;
+    const link=[c?`顧客: <b>${c.name}</b>`:null, p?`物件: <b>${p.name}</b>`:null].filter(Boolean).join(' ／ ')
+      ||(bothEmpty?`<span class="warn-badge">マスタ未紐づけ</span> 仮呼称: <b>${(v.alias||'').trim()||'（未入力）'}</b>`:'');
     const dup=v.prop?issues.filter(i=>i.depth===0 && i.open && ['lead','deal'].includes(i.kind) && i.property===v.prop):[];
-    const hint=!c&&p?'この物件での活動。契約顧客はあとから紐づけできます。':c&&!p?'この顧客への活動。物件はあとから紐づけできます。':'';
-    return `<dl class="idb"><dt>紐づけ</dt><dd>${link}</dd><dt>部門・拠点</dt><dd>${org}</dd><dt>請求先・書類（取引形態から）</dt><dd>${dt.billTo||'—'} ／ ${dt.docs||'—'}</dd><dt>手数料</dt><dd>${dt.fee||'—'}</dd></dl>`
+    const hint=!c&&p?'物件のみ。契約顧客はあとから紐づけできます。':c&&!p?'顧客のみ。物件はあとから紐づけできます。':bothEmpty?'顧客・物件がマスタに無い／まだ分からないときも登録可。仮の相手名を入れておけば全社の台帳で探せます。あとからマスタへ紐づけます。':'';
+    const titlePrev=composeActivityTitle(v, (SEQ.sfa||0)+1);
+    return `<dl class="idb">
+      <dt>案件名（自動・全社で見える）</dt><dd><b>${titlePrev}</b></dd>
+      <dt>命名規則</dt><dd><span class="ref">{部門}-{年}-{連番} {活動種類}・{補足}（{顧客|物件|仮の相手名}）</span></dd>
+      <dt>紐づけ</dt><dd>${link}</dd>
+      <dt>部門・拠点</dt><dd>${org}</dd>
+      <dt>請求先・書類（取引形態から）</dt><dd>${dt.billTo||'—'} ／ ${dt.docs||'—'}</dd>
+    </dl>`
       +(hint?`<div class="note">${hint}</div>`:'')
       +(dup.length?`<div class="note warn">この物件に進行中の活動があります（続きからでも可）: ${dup.map(d=>`${d.ref} ${d.title}`).join('、')}</div>`:'')
-      +'<div class="note">登録すると「活動」として担当の案件に入ります。<span class="ref">管理・案件台帳では同じ行が案件として見えます。</span></div>';
+      +'<div class="note">「活動の種類」＋補足が台帳の案件名になります。メモは履歴用で案件名には出ません。</div>';
   },
   submit:v=>{
-    if(!(v.title||'').trim()||v.title.startsWith('（例）')) return {err:'何の活動かを入れてください'};
+    if(!(v.actKind||'').trim()) return {err:'活動の種類を選んでください'};
     if(!(v.via||'').trim()) return {err:'きっかけを選ぶか、入力してください'};
-    const c=v.cust?ensureCustMaster(v.cust):null, p=v.prop?ensurePropMaster(v.prop):null, dt=DEALTYPES.find(d=>d.id===v.dtype)||{}, id=nextId();
+    const c=v.cust?ensureCustMaster(v.cust):null, p=v.prop?ensurePropMaster(v.prop):null;
+    if(!c&&!p&&!(v.alias||'').trim()) return {err:'顧客・物件とも未選択のときは「仮の相手名」を入れてください（あとからマスタ紐づけ可）'};
+    const dt=DEALTYPES.find(d=>d.id===v.dtype)||{}, id=nextId();
+    const ref=nextRef('sfa');
+    const seqNum=Number(String(ref).split('#')[1])||SEQ.sfa;
     const division=c?c.domain:(p?p.domain:'ES');
     const branch=c?c.branch:(p?p.branch:'横浜営業所');
-    const custLabel=c?c.name:(v.memo&&/顧客/.test(v.memo)?'（メモ参照・未紐づけ）':'（未定）');
-    const propLabel=p?p.name:(v.prop?'':'（未定）');
-    insertIssue({id, ref:nextRef('sfa'), repo:'sfa', kind:'lead', depth:0, parent:null, customer:v.cust||null, property:v.prop||null,
-      division, branch, title:v.title.trim(), status:'Todo', open:true, own:'sales', by:state.role, dealType:dt.name, formKey:'deal', formVals:v,
-      body:{'顧客':custLabel,'物件':propLabel,'きっかけ':`${v.via} 9/25`,'取引形態':dt.name||'—','内容':v.memo||'—','用途':'活動予定（営業）。管理台帳では案件行として扱う。顧客・物件は後から紐づけ可。'},
-      tl:[ev('sys','system',`活動予定を登録（${v.via}${c?' · 顧客あり':''}${p?' · 物件あり':''}${!c&&!p?' · マスタ未定':''}）— 担当: 星本`)]});
-    return {msg:`「${v.title.trim()}」の活動予定を登録しました。`, openLabel:'活動を開く', open:()=>openIssue(id)};
+    const title=composeActivityTitle(Object.assign({},v,{domHint:division}), seqNum);
+    const custLabel=c?c.name:(v.alias||'（未定）');
+    const propLabel=p?p.name:(v.alias&&!c?v.alias:'（未定）');
+    insertIssue({id, ref, repo:'sfa', kind:'lead', depth:0, parent:null, customer:v.cust||null, property:v.prop||null,
+      division, branch, title, status:'Todo', open:true, own:'sales', by:state.role, dealType:dt.name, formKey:'deal', formVals:v,
+      body:{'顧客':custLabel,'物件':propLabel,'仮の相手名':(!c&&!p?(v.alias||'—'):'—'),'きっかけ':`${v.via} 9/25`,'取引形態':dt.name||'—','活動種類':v.actKind,'補足':v.actDetail||'—','内容':v.memo||'—','用途':'活動予定（営業）。案件名は命名規則で自動生成。顧客・物件は後から紐づけ可。'},
+      tl:[ev('sys','system',`活動予定を登録（${v.via}${c?' · 顧客あり':''}${p?' · 物件あり':''}${!c&&!p?' · マスタ未定・仮呼称あり':''}）— 担当: 星本`)]});
+    return {msg:`「${title}」を登録しました。`, openLabel:'活動を開く', open:()=>openIssue(id)};
   },
 };
 /* その他出荷（案件以外） */

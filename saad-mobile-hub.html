@@ -697,19 +697,37 @@ function wireActPlanPickers(){
   const vf=$('actViaFree');
   if(vf){
     vf.addEventListener('input',()=>{ state.pick.via=vf.value; });
-    /* when chip sets via, clear free if chip match - handled by data-pk */
   }
+
+  const al=$('actAlias');
+  if(al) al.addEventListener('input',()=>{ state.pick.alias=al.value; });
+  const ad=$('actDetail');
+  if(ad) ad.addEventListener('input',()=>{ state.pick.actDetail=ad.value; });
 }
 function openActPlanSheet(ctx){
   state.actPlanCtx=ctx||{};
   openSheet('actplan');
 }
+
+const ACT_KINDS_M=['初回訪問','現地調査','見積提示','契約説明','定期点検','再アプローチ','問い合わせ対応','施工前打合せ','その他'];
+let MOBILE_ACT_SEQ=240;
+function composeMobileTitle(vals){
+  const dom=vals.dom||'ES';
+  MOBILE_ACT_SEQ+=1;
+  const num=String(MOBILE_ACT_SEQ).padStart(4,'0');
+  const kind=(vals.actKind||'').trim()||'活動';
+  const detail=(vals.actDetail||'').trim();
+  const who=(vals.prop||vals.cust||vals.alias||'対象未定').trim()||'対象未定';
+  const mid=detail?`${kind}・${detail}`:kind;
+  return `${dom}-2026-${num} ${mid}（${who}）`;
+}
 function createMobileActivity(vals){
   const id='dn'+Date.now().toString(36);
+  const title=vals.title||composeMobileTitle(vals);
   DEALS[id]={
-    ref:'mobile·new', cust:vals.cust, title:vals.title, dom:vals.dom||'ES',
+    ref:'mobile·new', cust:vals.cust, title, dom:vals.dom||'ES',
     addr:vals.addr||'', tel:vals.tel||'', stage:0, amount:'—', lead:true,
-    hist:[{d:nowD(),who:ROLES[state.role].name.slice(0,1),t:`<b>活動予定を登録</b><div class="m">${vals.memo||vals.via||''}</div>`}]
+    hist:[{d:nowD(),who:ROLES[state.role].name.slice(0,1),t:`<b>活動予定を登録</b><div class="m">${vals.memo||vals.via||''}${vals.alias?' · 仮:'+vals.alias:''}</div>`}]
   };
   const c=CUSTS.find(x=>x.name===vals.cust);
   if(c && !c.deal) c.deal=id;
@@ -1625,23 +1643,37 @@ function renderSheet(){
       const custLbl=c?c.name:(pick.custId?(custById(pick.custId)||{}).name:pick.cust)||'';
       const propLbl=p?p.name:(pick.propId?(propById(pick.propId)||{}).name:pick.prop)||'';
       const needPick=!c&&!p;
-      body=`<p class="quiet" style="margin:0 0 8px">${name?`<b>${name}</b> への活動予定`:'顧客・物件は検索して選びます（未定可）'}。管理台帳では同じ行が案件として見えます。</p>
+      const bothEmpty=needPick && !custLbl && !propLbl;
+      const titlePrev=(()=>{
+        const who=propLbl||custLbl||(pick.alias||'').trim()||'対象未定';
+        const kind=pick.actKind||'活動';
+        const det=(pick.actDetail||'').trim();
+        const mid=det?`${kind}・${det}`:kind;
+        const dom=(c&&c.domain)||(p&&p.domain)||'ES';
+        return `${dom}-2026-□□□□ ${mid}（${who}）`;
+      })();
+      body=`<p class="quiet" style="margin:0 0 8px">${name?`<b>${name}</b> への活動予定`:'顧客・物件は検索して選びます（マスタに無いときは空のまま可）'}。案件名は命名規則で自動生成されます。</p>
         ${needPick?`<div class="slabel">① 顧客（検索）</div>
         <input class="searchbox" id="actCustQ" placeholder="顧客名でさがす" value="" inputmode="search">
         <div id="actCustHits" style="margin:6px 0 8px"></div>
-        <div class="s" id="actCustSel">${custLbl?`選択中: <b>${custLbl}</b> <button type="button" class="linkish" data-actclr="cust">クリア</button>`:'未選択（未定可）'}</div>
+        <div class="s" id="actCustSel">${custLbl?`選択中: <b>${custLbl}</b> <button type="button" class="linkish" data-actclr="cust">クリア</button>`:'未選択（空のまま可）'}</div>
         <div class="slabel">物件（検索）</div>
         <input class="searchbox" id="actPropQ" placeholder="物件名・住所でさがす" value="" inputmode="search">
         <div id="actPropHits" style="margin:6px 0 8px"></div>
-        <div class="s" id="actPropSel">${propLbl?`選択中: <b>${propLbl}</b> <button type="button" class="linkish" data-actclr="prop">クリア</button>`:'未選択（未定可）'}</div>`
+        <div class="s" id="actPropSel">${propLbl?`選択中: <b>${propLbl}</b> <button type="button" class="linkish" data-actclr="prop">クリア</button>`:'未選択（空のまま可）'}</div>
+        ${bothEmpty?`<div class="slabel">仮の相手名（マスタ未選択時は必須）</div>
+        <input class="searchbox" id="actAlias" placeholder="例: 山田様（電話のみ） / 関内の空きテナント" value="${pick.alias||''}">`:''}`
         :`<div class="card" style="margin:0 0 10px"><div class="k">対象</div><div class="t">${name}</div><div class="s">${axis}</div></div>`}
-        <div class="slabel">${needPick?'②':'①'} 何の活動？</div>
-        <div class="chips">${['初回訪問','現地調査','見積提示','契約説明','再アプローチ','その他'].map(x=>`<button class="chip" data-pk="title:${x}" aria-pressed="${pick.title===x}">${x}</button>`).join('')}</div>
+        <div class="slabel">${needPick?'②':'①'} 活動の種類（案件名の核）</div>
+        <div class="chips">${ACT_KINDS_M.map(x=>`<button class="chip" data-pk="actKind:${x}" aria-pressed="${pick.actKind===x}">${x}</button>`).join('')}</div>
+        <div class="slabel">補足（任意・案件名に入る）</div>
+        <input class="searchbox" id="actDetail" placeholder="例: 外壁 / シロアリ" value="${pick.actDetail||''}">
         <div class="slabel">きっかけ（チップ or 自由入力）</div>
         <div class="chips">${VIA_CHIPS.map(x=>`<button class="chip" data-pk="via:${x}" aria-pressed="${pick.via===x}">${x}</button>`).join('')}</div>
         <input class="searchbox" id="actViaFree" placeholder="上記以外はここに入力" value="${(pick.via && !VIA_CHIPS.includes(pick.via))?pick.via:''}">
-        <textarea placeholder="メモ（任意）" id="actMemo"></textarea>
-        <button class="abtn p" style="margin-top:12px${!pick.title?';opacity:.4':''}" data-send="actnew" ${pick.title?'':'disabled'}>予定を登録する</button>
+        <textarea placeholder="メモ（任意・案件名には出さない）" id="actMemo"></textarea>
+        <div class="card" style="margin:10px 0 0"><div class="k">案件名プレビュー</div><div class="t" style="font-size:13px">${titlePrev}</div><div class="s">{部門}-{年}-{連番} {種類}・{補足}（{対象}）</div></div>
+        <button class="abtn p" style="margin-top:12px${!pick.actKind?';opacity:.4':''}" data-send="actnew" ${pick.actKind?'':'disabled'}>予定を登録する</button>
         <button class="abtn w" style="margin-top:8px" data-actstep="choose">‹ 戻る</button>`;
     } else {
       body=`<p class="quiet" style="margin:0 0 10px">${name?`対象: <b>${name}</b>（${axis}）`:'顧客・物件の詳細、またはここで対象を選びます'}。<span class="ref">営業は「活動予定」、管理では案件。</span></p>
@@ -1819,15 +1851,18 @@ function wireSheet(){
       const p=state.pick; const ctx=state.actPlanCtx||{};
       const c=(ctx.custId&&custById(ctx.custId))||(p.custId&&custById(p.custId))||CUSTS.find(x=>x.name===p.cust);
       const pr=(ctx.propId&&propById(ctx.propId))||(p.propId&&propById(p.propId))||PROPS.find(x=>x.name===p.prop);
-      if(!p.title){ toast('活動の種類を選んでください'); return; }
+      if(!p.actKind){ toast('活動の種類を選んでください'); return; }
       const viaFree=(($('actViaFree')||{}).value||'').trim();
       const via=(viaFree||p.via||'').trim();
       if(!via){ toast('きっかけを選ぶか入力してください'); return; }
-      const cust=c?c.name:(p.cust||(pr&&pr.cust)||'（未設定）');
-      const prop=pr?pr.name:(p.prop||'');
+      const alias=(($('actAlias')||{}).value||p.alias||'').trim();
+      const actDetail=(($('actDetail')||{}).value||p.actDetail||'').trim();
+      if(!c&&!pr&&!alias){ toast('顧客・物件とも未選択のときは仮の相手名を入れてください'); return; }
+      const cust=c?c.name:(alias||(pr&&pr.cust)||'（未設定）');
+      const prop=pr?pr.name:'';
       const addr=pr?(pr.addr||''):(c?(c.addr||''):'');
       const tel=c?((c.contact||'').match(/0\d[\d-]+/)||[])[0]:'';
-      const id=createMobileActivity({cust, prop, title:p.title, via, memo:($('actMemo')||{}).value||'', addr, tel, dom:(c&&c.domain)||(pr&&pr.domain)||'ES'});
+      const id=createMobileActivity({cust, prop, alias, actKind:p.actKind, actDetail, via, memo:($('actMemo')||{}).value||'', addr, tel, dom:(c&&c.domain)||(pr&&pr.domain)||'ES'});
       closeSheet(); state.actPlanStep='choose'; state.deal=id; state.tab='deals'; state.sub=null;
       toast('✓ 活動予定を登録しました');
       render(); return;
