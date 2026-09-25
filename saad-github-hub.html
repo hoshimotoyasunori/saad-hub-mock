@@ -276,6 +276,7 @@ h2.page{margin:0 0 6px;font-size:17px}
 .split > .table-wrap{flex:1 1 auto}
 .main > .table-wrap{flex:1 1 auto}
 table.ledger{width:100%;border-collapse:collapse;font-size:12px;min-width:720px}
+table.ledger th.pickcell,table.ledger td.pickcell{width:28px;padding-left:8px;padding-right:4px;text-align:center;vertical-align:middle}
 table.ledger th{text-align:left;font-weight:600;color:var(--muted);padding:8px 10px;border-bottom:1px solid var(--line);background:#fbfcfe;position:sticky;top:0;z-index:1}
 table.ledger td{padding:7px 10px;border-bottom:1px solid #e8edf5;vertical-align:middle}
 table.ledger tr:hover td{background:#f3f8f8}
@@ -336,25 +337,32 @@ table.man .who{white-space:nowrap;font-weight:600}
 .add-row-btn{display:block;width:100%;border:0;background:transparent;padding:10px 12px;text-align:left;font-size:12.5px;color:var(--muted);cursor:pointer;flex:none;border-top:1px solid var(--line)}
 .add-row-btn:hover{color:#0969da;background:#f6f8fa}
 
-/* panel — 右から被せるオーバーレイ（リスト幅は維持） */
+/* panel — AI同様の右スライド・オーバーレイ（テーブル幅は一切変えない） */
+.det-scrim{position:absolute;inset:0;z-index:32;background:rgba(12,18,34,.22);border:0;padding:0;cursor:pointer;
+  opacity:0;pointer-events:none;transition:opacity .15s}
+.det-scrim.open{opacity:1;pointer-events:auto}
 .detail{
-  display:none;position:absolute;top:0;right:0;bottom:0;
-  width:min(560px,92vw);max-width:100%;
-  z-index:30;background:#fff;overflow:hidden;
+  position:absolute;top:0;right:0;bottom:0;width:min(420px,94%);
+  z-index:33;background:#fff;overflow:hidden;
   border-left:1px solid var(--line);
-  box-shadow:-12px 0 28px rgba(15,23,42,.14);
+  display:flex;flex-direction:column;
+  transform:translateX(104%);transition:transform .2s ease;
+  box-shadow:-12px 0 32px rgba(12,18,34,.16);
 }
-.has-panel .detail{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(180px,.78fr)}
-@media(max-width:720px){
-  .has-panel .detail{width:100%;grid-template-columns:1fr;display:flex;flex-direction:column;overflow:auto}
-}
-.dmain{padding:14px 16px 20px;border-right:1px solid var(--line);overflow:auto;overscroll-behavior:contain;min-height:0}
-.dside{padding:14px 12px;background:#f8fafc;overflow:auto;overscroll-behavior:contain;min-height:0}
-@media(max-width:720px){.dmain{border-right:0;border-bottom:1px solid var(--line)}}
+.detail.open{transform:translateX(0)}
+.detail[hidden]{display:none!important}
+.det-head{flex:none;display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--line);background:#f7fafb}
+.det-head .x{margin-left:auto;border:0;background:#eff1f3;border-radius:8px;width:30px;height:30px;font-size:16px;color:var(--muted);line-height:1;cursor:pointer}
+.det-scroll{flex:1;min-height:0;overflow:auto;overscroll-behavior:contain;padding:14px 16px 20px}
+.det-scroll h3{margin:0 0 6px;font-size:15px;line-height:1.4}
+.det-meta{display:grid;grid-template-columns:1fr 1fr;gap:8px 12px;margin:10px 0 12px;padding:10px 12px;background:#f8fafc;border:1px solid var(--line);border-radius:10px}
+.det-meta .field{margin:0}
+.det-meta .field.full{grid-column:1/-1}
+.dmain{padding:0;border:0;overflow:visible;min-height:0}
+.dside{display:contents}
 .badge{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;border-radius:999px;padding:2px 9px;background:#e8f6ee;color:var(--open)}
 .badge.closed{background:#ece8f6;color:var(--done)}
 .x{border:0;background:transparent;font-size:18px;color:var(--muted);line-height:1}
-.dmain h3{margin:8px 0 4px;font-size:15px;line-height:1.4}
 .plink{font-size:11.5px;color:var(--muted);margin-bottom:10px}
 .plink button{border:0;background:transparent;padding:0;color:var(--teal-deep);font-size:11.5px;text-decoration:underline;cursor:pointer}
 .idb{background:#f4f7fb;border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:12px;line-height:1.5;margin:10px 0}
@@ -533,6 +541,8 @@ tr.is-picked{background:#f0faf9}
         <button type="submit">送信</button>
       </form>
     </aside>
+    <button type="button" class="det-scrim" id="detScrim" aria-label="詳細を閉じる" hidden></button>
+    <aside class="detail" id="detail" aria-label="案件詳細" aria-hidden="true" hidden></aside>
   </div>
 
 </div>
@@ -1087,7 +1097,6 @@ function render(){
   renderGnav();
   renderInbox();
   const s=state.screen;
-  $('app').classList.toggle('has-panel', (s==='board'||s==='repo') && !!state.sel);
   if(s==='portal') renderPortal();
   else if(s==='spaces') renderSpaces();
   else if(s==='board') renderBoard();
@@ -1102,6 +1111,7 @@ function render(){
   else if(s==='search') renderSearch();
   else if(s==='myreq') renderMyReq();
   else if(s==='bi') renderBI();
+  syncDetailDrawer();
   const mc=myPendingCount(); $('myCount').style.display=mc?'':'none'; $('myCount').textContent=mc;
   const sh=$('search'); if(sh && document.activeElement!==sh) sh.value=state.searchQ||'';
   syncGlobalSide();
@@ -1982,7 +1992,6 @@ function renderBoard(){
           <button type="button" class="bg" id="pgNext" ${state.boardPage>=pages-1?'disabled':''}>もっと見る ▶</button>
         </div>
       </div>
-      <aside class="detail" id="detail"></aside>
     </div>`;
   $('main').querySelectorAll('[data-v]').forEach(b=>b.onclick=()=>{ state.view=b.dataset.v; state.sel=null; state.picked.clear(); state.boardPage=0; render(); });
   $('main').querySelectorAll('[data-sv]').forEach(b=>b.onclick=()=>{
@@ -2012,7 +2021,6 @@ function renderBoard(){
   const pp=$('pgPrev'); if(pp) pp.onclick=()=>{ state.boardPage--; render(); };
   const pn=$('pgNext'); if(pn) pn.onclick=()=>{ state.boardPage++; render(); };
   bindLedger($('main'), render);
-  if(state.sel) renderPanel($('detail'));
 }
 function bulkApprove(){
   const list=[...state.picked].map(id=>byId(id)).filter(canBulkApprove);
@@ -2130,17 +2138,40 @@ function renderRepo(){
         </div>
         ${nAll?ledgerTable(rowObjs,true,{kidsOf:kidsInRepo}):'<div class="pad" style="flex:1"><p class="quiet">このアプリのデモIssueはまだありません。案件台帳の他リポ行を参照。</p></div>'}
       </div>
-      <aside class="detail" id="detail"></aside>
     </div>`;
   if(nAll){
     const ea=$('repoExpAll'); if(ea) ea.onclick=()=>{ allInRepo.forEach(i=>{ if(kidsInRepo(i.id).length) state.expanded.add(i.id); }); render(); };
     const ca=$('repoColAll'); if(ca) ca.onclick=()=>{ allInRepo.forEach(i=>state.expanded.delete(i.id)); render(); };
-    bindLedger($('main'), render); if(state.sel) renderPanel($('detail'));
+    bindLedger($('main'), render);
   }
-  else if(state.sel){ /* 空リストでもパネルを出す */ renderPanel($('detail')); }
 }
 
-/* ================= panel ================= */
+/* ================= panel（右スライド・オーバーレイ） ================= */
+function closeDetailDrawer(){
+  if(!state.sel){
+    const p=$('detail'), s=$('detScrim');
+    if(p){ p.classList.remove('open'); p.hidden=true; p.innerHTML=''; p.setAttribute('aria-hidden','true'); }
+    if(s){ s.classList.remove('open'); s.hidden=true; }
+    return;
+  }
+  state.sel=null;
+  render();
+}
+function syncDetailDrawer(){
+  const show=(state.screen==='board'||state.screen==='repo') && !!state.sel && !!byId(state.sel);
+  const p=$('detail'), s=$('detScrim');
+  if(!p||!s) return;
+  if(show){
+    renderPanel(p);
+    p.hidden=false; s.hidden=false;
+    p.setAttribute('aria-hidden','false');
+    requestAnimationFrame(()=>{ p.classList.add('open'); s.classList.add('open'); });
+  } else if(p.classList.contains('open') || !p.hidden){
+    p.classList.remove('open'); s.classList.remove('open');
+    p.setAttribute('aria-hidden','true');
+    setTimeout(()=>{ if(state.sel) return; p.hidden=true; s.hidden=true; p.innerHTML=''; }, 200);
+  }
+}
 function renderPanel(root){
   const it=byId(state.sel); if(!it||!root) return;
   const hideCost = state.role==='koji';
@@ -2158,34 +2189,34 @@ function renderPanel(root){
   const pr=progressOf(it);
   const parent=it.parent?byId(it.parent):null;
   root.innerHTML=`
-    <div class="dmain">
-      <div style="display:flex;justify-content:space-between;align-items:center">
-        <span class="badge${it.open?'':' closed'}">${it.open?'● Open（生きている）':'✓ Closed（完了）'}</span>
-        <button class="x" id="xp" aria-label="閉じる">×</button>
-      </div>
+    <div class="det-head">
+      <span class="badge${it.open?'':' closed'}">${it.open?'● Open（生きている）':'✓ Closed（完了）'}</span>
+      <button type="button" class="x" id="xp" aria-label="閉じる">×</button>
+    </div>
+    <div class="det-scroll">
       <h3><span class="kind ${KC[it.kind]}">${KIND[it.kind]}</span> ${it.title} <span class="ref">${it.ref}</span></h3>
       <div class="plink">${parent?`Parent: <button type="button" data-open="${parent.id}">${KIND[parent.kind]} ${parent.title} ${parent.ref}</button>`:'Parent: —'}</div>
+      <div class="det-meta">
+        <div class="field"><label>Assignees</label><input value="${PEOPLE[it.own]||'—'}" readonly></div>
+        <div class="field"><label>Status（進み）</label><div>${pill(it.status)}</div></div>
+        <div class="field full"><label>いま誰待ちか</label><span class="waitline ${waitingOf(it).cls}">⏳ ${waitingOf(it).t}</span></div>
+        <div class="field full"><label>部門 / 拠点</label><input value="${orgLabel(it)}" readonly></div>
+        <div class="field full"><label>Repository（実体）</label><button type="button" class="linkbtn" data-repo="${it.repo}">${it.repo} — ${REPOS[it.repo].label}</button></div>
+        ${pr?`<div class="field"><label>Sub-issues</label><div>${pr[0]} / ${pr[1]}</div></div>`:''}
+      </div>
       <dl class="idb">${bodyRows||'<dt>用途</dt><dd>識別のみ。判断はタイムラインへ。</dd>'}</dl>
       ${actHtml}
       ${chgBarForIssue(it)}
       ${panelExtras(it)}
+      ${kids(it.id).length?`<div class="field" style="margin:10px 0"><label>子Issue</label>${kids(it.id).map(k=>`<div><button type="button" class="linkbtn" data-open="${k.id}">${k.ref} ${k.title}</button> ${pill(k.status)}</div>`).join('')}</div>`:''}
       <ul class="tl">${tl||'<li class="sys"><span class="who">system</span><div>まだ履歴はありません</div></li>'}</ul>
       <div class="composer">
         <textarea id="cmt" placeholder="# 見出し&#10;メモ・判断理由を追記（Markdown想定）"></textarea>
         <div class="actions" style="justify-content:flex-end"><button class="bp" id="addCm" type="button">Comment</button></div>
       </div>
-    </div>
-    <div class="dside">
-      <div class="field"><label>Assignees</label><input value="${PEOPLE[it.own]||'—'}" readonly></div>
-      <div class="field"><label>Status（進み）</label>${pill(it.status)}</div>
-      <div class="field"><label>いま誰待ちか</label><span class="waitline ${waitingOf(it).cls}">⏳ ${waitingOf(it).t}</span></div>
-      <div class="field"><label>部門 / 拠点</label><input value="${orgLabel(it)}" readonly></div>
-      <div class="field"><label>Repository（実体）</label><button type="button" class="linkbtn" data-repo="${it.repo}">${it.repo} — ${REPOS[it.repo].label}</button></div>
-      ${pr?`<div class="field"><label>Sub-issues</label><div>${pr[0]} / ${pr[1]}</div></div>`:''}
-      ${kids(it.id).length?`<div class="field"><label>子Issue</label>${kids(it.id).map(k=>`<div><button type="button" class="linkbtn" data-open="${k.id}">${k.ref} ${k.title}</button> ${pill(k.status)}</div>`).join('')}</div>`:''}
       <div class="note">Open≠Status。承認・処理の完了は <b>Status=Done</b>。Close は案件完了のときだけ。</div>
     </div>`;
-  root.querySelector('#xp').onclick=()=>{ state.sel=null; render(); };
+  root.querySelector('#xp').onclick=()=>closeDetailDrawer();
   root.querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>openIssue(b.dataset.open));
   root.querySelectorAll('[data-repo]').forEach(b=>b.onclick=()=>go('repo',{repo:b.dataset.repo}));
   root.querySelectorAll('[data-act]').forEach(b=>b.onclick=()=>act(b.dataset.act, it.id));
@@ -4873,10 +4904,12 @@ $('myBtn').onclick=()=>{ $('newMenu').classList.remove('open'); go('myreq'); };
 $('aiBtn').onclick=()=>{ $('notif').classList.remove('open'); $('newMenu').classList.remove('open'); toggleAiPanel(); };
 $('aiClose').onclick=closeAiPanel;
 $('aiScrim').onclick=closeAiPanel;
+$('detScrim').onclick=closeDetailDrawer;
 $('aiForm').onsubmit=e=>{ e.preventDefault(); aiSend($('aiInput').value); };
 document.addEventListener('keydown',e=>{
   if(e.key!=='Escape') return;
   if(state.aiOpen){ closeAiPanel(); return; }
+  if(state.sel && (state.screen==='board'||state.screen==='repo')){ closeDetailDrawer(); return; }
   if(state.sideOpen) setSideOpen(false);
 });
 $('search').addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); state.searchQ=e.target.value; go('search'); }});
