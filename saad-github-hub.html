@@ -342,7 +342,7 @@ table.man .who{white-space:nowrap;font-weight:600}
   opacity:0;pointer-events:none;transition:opacity .15s}
 .det-scrim.open{opacity:1;pointer-events:auto}
 .detail{
-  position:absolute;top:0;right:0;bottom:0;width:min(420px,94%);
+  position:absolute;top:0;right:0;bottom:0;width:420px;max-width:50vw;min-width:min(420px,50vw);
   z-index:33;background:#fff;overflow:hidden;
   border-left:1px solid var(--line);
   display:flex;flex-direction:column;
@@ -350,7 +350,17 @@ table.man .who{white-space:nowrap;font-weight:600}
   box-shadow:-12px 0 32px rgba(12,18,34,.16);
 }
 .detail.open{transform:translateX(0)}
+.detail.resizing{transition:none;user-select:none}
 .detail[hidden]{display:none!important}
+.det-resize{
+  position:absolute;left:0;top:0;bottom:0;width:8px;z-index:4;
+  cursor:ew-resize;touch-action:none;border:0;padding:0;background:transparent;
+}
+.det-resize::after{
+  content:"";position:absolute;left:2px;top:50%;transform:translateY(-50%);
+  width:3px;height:40px;border-radius:2px;background:#c9d2e0;transition:background .12s;
+}
+.det-resize:hover::after,.detail.resizing .det-resize::after{background:var(--teal)}
 .det-head{flex:none;display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--line);background:#f7fafb}
 .det-head .x{margin-left:auto;border:0;background:#eff1f3;border-radius:8px;width:30px;height:30px;font-size:16px;color:var(--muted);line-height:1;cursor:pointer}
 .det-scroll{flex:1;min-height:0;overflow:auto;overscroll-behavior:contain;padding:14px 16px 20px}
@@ -823,7 +833,8 @@ let state = { role:'sales', screen:'portal', view:'all', sel:null, repo:null, wi
   period:'all', /* all | month | last | custom */
   savedViews:[],
   colHide:{},
-  expanded:new Set(['841','841-gate','841-p1']) };
+  expanded:new Set(['841','841-gate','841-p1']),
+  detailW:null };
 function isMobile(){
   /* スマホUIは saad-mobile-hub.html（ジョブ型）に分離。
      このファイルはPC版専用。営業・施工でもフォン枠に落とさない。 */
@@ -2147,6 +2158,56 @@ function renderRepo(){
 }
 
 /* ================= panel（右スライド・オーバーレイ） ================= */
+const DET_W_MIN=420;
+function detWBounds(){
+  const half=Math.floor(window.innerWidth/2);
+  const min=Math.min(DET_W_MIN, half);
+  const max=Math.max(min, half);
+  return {min, max};
+}
+function clampDetW(w){
+  const {min,max}=detWBounds();
+  const n=Number(w);
+  return Math.max(min, Math.min(max, Number.isFinite(n)?n:DET_W_MIN));
+}
+function loadDetW(){
+  if(state.detailW!=null) return clampDetW(state.detailW);
+  try{ const s=sessionStorage.getItem('saad-det-w'); if(s) return clampDetW(s); }catch(_){}
+  return clampDetW(DET_W_MIN);
+}
+function applyDetWidth(p){
+  if(!p) return;
+  const w=loadDetW();
+  state.detailW=w;
+  p.style.width=w+'px';
+}
+function bindDetResize(root){
+  const h=root.querySelector('.det-resize'); if(!h||h.dataset.bound) return;
+  h.dataset.bound='1';
+  h.addEventListener('pointerdown', e=>{
+    e.preventDefault(); e.stopPropagation();
+    root.classList.add('resizing');
+    try{ h.setPointerCapture(e.pointerId); }catch(_){}
+    const move=ev=>{
+      const app=$('app'); if(!app) return;
+      const right=app.getBoundingClientRect().right;
+      const w=clampDetW(right-ev.clientX);
+      state.detailW=w;
+      root.style.width=w+'px';
+    };
+    const up=ev=>{
+      root.classList.remove('resizing');
+      try{ h.releasePointerCapture(ev.pointerId); }catch(_){}
+      h.removeEventListener('pointermove', move);
+      h.removeEventListener('pointerup', up);
+      h.removeEventListener('pointercancel', up);
+      try{ sessionStorage.setItem('saad-det-w', String(state.detailW)); }catch(_){}
+    };
+    h.addEventListener('pointermove', move);
+    h.addEventListener('pointerup', up);
+    h.addEventListener('pointercancel', up);
+  });
+}
 function closeDetailDrawer(){
   if(!state.sel){
     const p=$('detail'), s=$('detScrim');
@@ -2163,6 +2224,7 @@ function syncDetailDrawer(){
   if(!p||!s) return;
   if(show){
     renderPanel(p);
+    applyDetWidth(p);
     p.hidden=false; s.hidden=false;
     p.setAttribute('aria-hidden','false');
     requestAnimationFrame(()=>{ p.classList.add('open'); s.classList.add('open'); });
@@ -2189,6 +2251,7 @@ function renderPanel(root){
   const pr=progressOf(it);
   const parent=it.parent?byId(it.parent):null;
   root.innerHTML=`
+    <button type="button" class="det-resize" aria-label="幅を変更" title="ドラッグで幅を変更（最小 ${DET_W_MIN}px 〜 画面の半分）"></button>
     <div class="det-head">
       <span class="badge${it.open?'':' closed'}">${it.open?'● Open（生きている）':'✓ Closed（完了）'}</span>
       <button type="button" class="x" id="xp" aria-label="閉じる">×</button>
@@ -2216,6 +2279,7 @@ function renderPanel(root){
       </div>
       <div class="note">Open≠Status。承認・処理の完了は <b>Status=Done</b>。Close は案件完了のときだけ。</div>
     </div>`;
+  bindDetResize(root);
   root.querySelector('#xp').onclick=()=>closeDetailDrawer();
   root.querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>openIssue(b.dataset.open));
   root.querySelectorAll('[data-repo]').forEach(b=>b.onclick=()=>go('repo',{repo:b.dataset.repo}));
@@ -4906,6 +4970,10 @@ $('aiClose').onclick=closeAiPanel;
 $('aiScrim').onclick=closeAiPanel;
 $('detScrim').onclick=closeDetailDrawer;
 $('aiForm').onsubmit=e=>{ e.preventDefault(); aiSend($('aiInput').value); };
+window.addEventListener('resize',()=>{
+  const p=$('detail'); if(!p||p.hidden||!state.sel) return;
+  applyDetWidth(p);
+});
 document.addEventListener('keydown',e=>{
   if(e.key!=='Escape') return;
   if(state.aiOpen){ closeAiPanel(); return; }
