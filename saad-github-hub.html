@@ -5328,7 +5328,7 @@ FORMS.deal={
     {k:'alias', l:'仮の相手名（顧客・物件とも未選択のとき必須）', full:true, ph:'例: 山田様（電話のみ） / 関内の空きテナント'},
     {k:'via', l:'きっかけ', t:'via', full:true, def:''},
     {k:'actKind', l:'活動の種類（案件名の核）', t:'select', req:true, opts:()=>ACT_KINDS.map(x=>[x,x]), def:'現地調査'},
-    {k:'actDetail', l:'補足（任意・案件名に入ります）', full:true, ph:'例: 外壁 / シロアリ / 給排水'},
+    {k:'actDetail', l:'作業内容（任意・案件名に入ります）', full:true, ph:'例: 外壁 / シロアリ / 給排水'},
     {k:'memo', l:'メモ・申し送り（案件名には出さない）', t:'textarea', full:true},
   ],
   preview:v=>{
@@ -5342,14 +5342,14 @@ FORMS.deal={
     const titlePrev=composeActivityTitle(v, (SEQ.sfa||0)+1);
     return `<dl class="idb">
       <dt>案件名（自動・全社で見える）</dt><dd><b>${titlePrev}</b></dd>
-      <dt>命名規則</dt><dd><span class="ref">{部門}-{年}-{連番} {活動種類}・{補足}（{顧客|物件|仮の相手名}）</span></dd>
+      <dt>命名規則</dt><dd><span class="ref">{部門}-{年}-{連番} {活動種類}・{作業内容}（{顧客|物件|仮の相手名}）</span></dd>
       <dt>紐づけ</dt><dd>${link}</dd>
       <dt>部門・拠点</dt><dd>${org}</dd>
       <dt>請求先・書類（取引形態から）</dt><dd>${dt.billTo||'—'} ／ ${dt.docs||'—'}</dd>
     </dl>`
       +(hint?`<div class="note">${hint}</div>`:'')
       +(dup.length?`<div class="note warn">この物件に進行中の活動があります（続きからでも可）: ${dup.map(d=>`${d.ref} ${d.title}`).join('、')}</div>`:'')
-      +'<div class="note">「活動の種類」＋補足が台帳の案件名になります。メモは履歴用で案件名には出ません。</div>';
+      +'<div class="note">「活動の種類」＋「作業内容」が台帳の案件名になります。メモは申し送り用で案件名には出ません。</div>';
   },
   submit:v=>{
     if(!(v.actKind||'').trim()) return {err:'活動の種類を選んでください'};
@@ -5366,7 +5366,7 @@ FORMS.deal={
     const propLabel=p?p.name:(v.alias&&!c?v.alias:'（未定）');
     insertIssue({id, ref, repo:'sfa', kind:'lead', depth:0, parent:null, customer:v.cust||null, property:v.prop||null,
       division, branch, title, status:'Todo', open:true, own:'sales', by:state.role, dealType:dt.name, formKey:'deal', formVals:v,
-      body:{'顧客':custLabel,'物件':propLabel,'仮の相手名':(!c&&!p?(v.alias||'—'):'—'),'きっかけ':`${v.via} 9/25`,'取引形態':dt.name||'—','活動種類':v.actKind,'補足':v.actDetail||'—','内容':v.memo||'—','用途':'活動予定（営業）。案件名は命名規則で自動生成。顧客・物件は後から紐づけ可。'},
+      body:{'顧客':custLabel,'物件':propLabel,'仮の相手名':(!c&&!p?(v.alias||'—'):'—'),'きっかけ':`${v.via} 9/25`,'取引形態':dt.name||'—','活動種類':v.actKind,'作業内容':v.actDetail||'—','メモ':v.memo||'—','用途':'活動予定（営業）。案件名は命名規則で自動生成。顧客・物件は後から紐づけ可。'},
       tl:[ev('sys','system',`活動予定を登録（${v.via}${c?' · 顧客あり':''}${p?' · 物件あり':''}${!c&&!p?' · マスタ未定・仮呼称あり':''}）— 担当: 星本`)]});
     return {msg:`「${title}」を登録しました。`, openLabel:'活動を開く', open:()=>openIssue(id)};
   },

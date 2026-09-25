@@ -1675,13 +1675,13 @@ function renderSheet(){
         :`<div class="card" style="margin:0 0 10px"><div class="k">対象</div><div class="t">${name}</div><div class="s">${axis}</div></div>`}
         <div class="slabel">${needPick?'②':'①'} 活動の種類（案件名の核）</div>
         <div class="chips">${ACT_KINDS_M.map(x=>`<button class="chip" data-pk="actKind:${x}" aria-pressed="${pick.actKind===x}">${x}</button>`).join('')}</div>
-        <div class="slabel">補足（任意・案件名に入る）</div>
+        <div class="slabel">作業内容（任意・案件名に入る）</div>
         <input class="searchbox" id="actDetail" placeholder="例: 外壁 / シロアリ" value="${pick.actDetail||''}">
         <div class="slabel">きっかけ（チップ or 自由入力）</div>
         <div class="chips">${VIA_CHIPS.map(x=>`<button class="chip" data-pk="via:${x}" aria-pressed="${pick.via===x}">${x}</button>`).join('')}</div>
         <input class="searchbox" id="actViaFree" placeholder="上記以外はここに入力" value="${(pick.via && !VIA_CHIPS.includes(pick.via))?pick.via:''}">
         <textarea placeholder="メモ（任意・案件名には出さない）" id="actMemo"></textarea>
-        <div class="card" style="margin:10px 0 0"><div class="k">案件名プレビュー</div><div class="t" style="font-size:13px">${titlePrev}</div><div class="s">{部門}-{年}-{連番} {種類}・{補足}（{対象}）</div></div>
+        <div class="card" style="margin:10px 0 0"><div class="k">案件名プレビュー</div><div class="t" style="font-size:13px">${titlePrev}</div><div class="s">{部門}-{年}-{連番} {種類}・{作業内容}（{対象}）</div></div>
         <button class="abtn p" style="margin-top:12px${!pick.actKind?';opacity:.4':''}" data-send="actnew" ${pick.actKind?'':'disabled'}>予定を登録する</button>
         <button class="abtn w" style="margin-top:8px" data-actstep="choose">‹ 戻る</button>`;
     } else {
