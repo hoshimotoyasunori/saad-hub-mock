@@ -818,8 +818,8 @@ const VIEWS = [
 ];
 /* 台帳Viewごとの新規（ヘッダ「＋ 新規」とは別に、その画面の主役だけ） */
 const BOARD_NEW={
-  all:{l:'＋ 案件・問い合わせを起票', form:'deal'},
-  mine:{l:'＋ 案件・問い合わせを起票', form:'deal'},
+  all:{l:'📅 活動予定を立てる', form:'deal'},
+  mine:{l:'📅 活動予定を立てる', form:'deal'},
   approvals:{l:'＋ 稟議を起票', form:'ringi'},
   procurement:{l:'＋ 購買申請', form:'buy'},
   kojiv:{l:'＋ 施工予定を開く', go:()=>go('mgmt',{mgmt:'schedule'})},
@@ -2109,6 +2109,7 @@ function renderBoard(){
   const bn=$('boardNew'); if(bn) bn.onclick=()=>{
     const n=BOARD_NEW[state.view]; if(!n) return;
     if(n.go){ n.go(); return; }
+    if(n.form==='deal'){ openNewActivity({from:`台帳「${v.label}」`}); return; }
     openFormModal(n.form, {}, {from:`台帳「${v.label}」の新規`});
   };
   const pp=$('pgPrev'); if(pp) pp.onclick=()=>{ state.boardPage--; render(); };
@@ -2581,34 +2582,85 @@ function renderCrm(){
   else if(state.property){ fillPropertyDetail($('detail'), state.property); bindSplitResize(); }
 }
 
-function openDealFromCrm(ctx){
+/* 営業語彙: 活動予定を立てる（管理側の「案件・問い合わせ」と同じレコード） */
+function actKindLabel(i){
+  if(i.kind==='lead') return '[活動]';
+  if(i.kind==='deal') return '[活動・進行]';
+  if(i.kind==='support') return '[対応]';
+  return KIND[i.kind]||'';
+}
+function crmOpenActs(ctx){
+  ctx=ctx||{};
+  let list=[];
+  if(ctx.cust && CUSTOMERS[ctx.cust]) list=custIssues(ctx.cust).filter(i=>i.open && ['lead','deal','support'].includes(i.kind) && !i.parent);
+  else if(ctx.prop && PROPERTIES[ctx.prop]) list=propIssues(ctx.prop).filter(i=>i.open && ['lead','deal','support'].includes(i.kind) && !i.parent);
+  return list;
+}
+function buildActivityPre(ctx){
   ctx=ctx||{};
   const pre={ dtype:'dt1', via:'電話', title:'', memo:'', cust:'', prop:'' };
   if(ctx.cust && CUSTOMERS[ctx.cust]){
     const c=CUSTOMERS[ctx.cust];
     pre.cust=c.id;
-    pre.title=`${c.name} の問い合わせ`;
+    pre.title=`${c.name} への訪問・提案`;
     if((c.propertyIds||[]).length===1) pre.prop=c.propertyIds[0];
   } else if(ctx.custName){
-    pre.title=`${ctx.custName} の問い合わせ`;
+    pre.title=`${ctx.custName} への訪問・提案`;
     pre.memo=`顧客（一覧）: ${ctx.custName}${ctx.meta?` · ${ctx.meta}`:''}`;
   }
   if(ctx.prop && PROPERTIES[ctx.prop]){
     const p=PROPERTIES[ctx.prop];
     pre.prop=p.id;
-    if(!pre.title) pre.title=`${p.name} の問い合わせ`;
+    if(!pre.title) pre.title=`${p.name} での調査・作業`;
     const linked=(p.customers||[]).map(x=>x.id||x).filter(id=>CUSTOMERS[id]);
     if(linked.length===1) pre.cust=linked[0];
-    else if(linked.length>1 && !pre.cust){ /* 複数顧客はフォームで選ばせる */ }
     if(!pre.cust && linked.length===0){
-      pre.memo=(pre.memo?pre.memo+'\\n':'')+`物件起点（契約顧客未紐づけ）: ${p.name} · ${p.addr||''}`;
+      pre.memo=(pre.memo?pre.memo+'\n':'')+`物件起点（契約顧客未紐づけ）: ${p.name} · ${p.addr||''}`;
     }
   } else if(ctx.propName){
-    if(!pre.title) pre.title=`${ctx.propName} の問い合わせ`;
-    pre.memo=(pre.memo?pre.memo+'\\n':'')+`物件（一覧）: ${ctx.propName}${ctx.meta?` · ${ctx.meta}`:''}`;
+    if(!pre.title) pre.title=`${ctx.propName} での調査・作業`;
+    pre.memo=(pre.memo?pre.memo+'\n':'')+`物件（一覧）: ${ctx.propName}${ctx.meta?` · ${ctx.meta}`:''}`;
   }
-  openFormModal('deal', pre, {from: ctx.from||'マスタ詳細'});
+  return pre;
 }
+function openNewActivity(ctx){
+  const axis=ctx.prop||ctx.propName?'物件':(ctx.cust||ctx.custName?'顧客':'');
+  openFormModal('deal', buildActivityPre(ctx), {from: ctx.from||(axis?`${axis}詳細`:'活動予定'), activity:true});
+}
+function openActivityPlanFromCrm(ctx){
+  ctx=ctx||{};
+  const axis=ctx.prop||ctx.propName?'物件':'顧客';
+  const name=ctx.prop&&PROPERTIES[ctx.prop]?PROPERTIES[ctx.prop].name
+    :ctx.cust&&CUSTOMERS[ctx.cust]?CUSTOMERS[ctx.cust].name
+    :ctx.propName||ctx.custName||'';
+  const open=crmOpenActs(ctx);
+  const contHtml=open.length
+    ? `<p class="quiet" style="margin:12px 0 6px"><b>続きから始める</b> — すでに動いている活動を選ぶ</p>
+      <div style="display:flex;flex-direction:column;gap:6px;max-height:220px;overflow:auto">${open.map(i=>`
+        <button type="button" class="sp-act" data-cont="${i.id}" style="text-align:left;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:#fff;cursor:pointer">
+          <span class="kind ${KC[i.kind]}">${actKindLabel(i)}</span> <b>${i.title}</b>
+          <div class="quiet" style="margin:4px 0 0">${i.ref} · ${pill(i.status)} · ⏳ ${waitingOf(i).t}</div>
+        </button>`).join('')}</div>`
+    : `<p class="quiet" style="margin:12px 0 0">この${axis}に進行中の活動はまだありません。新規から始められます。</p>`;
+  openSimpleModal(`活動予定を立てる — ${name}`, `
+    <p class="quiet" style="margin:0 0 10px">営業の操作は「どの${axis}に、何の活動をするか」です。<span class="ref">管理・台帳では同じ行が「案件」として見えます。</span></p>
+    <button type="button" class="bp" data-new="1" style="width:100%;padding:14px;font-size:14px;margin-bottom:4px">🆕 新規の活動を始める</button>
+    <p class="quiet" style="margin:0 0 0;font-size:11.5px">例: 初回訪問、調査、見積提示、再アプローチ</p>
+    ${contHtml}
+    <div class="actions" style="margin-top:14px"><button class="bg" type="button" data-cx>閉じる</button></div>`,
+  (box, close)=>{
+    box.querySelector('[data-cx]').onclick=close;
+    const n=box.querySelector('[data-new]'); if(n) n.onclick=()=>{ close(); openNewActivity(ctx); };
+    box.querySelectorAll('[data-cont]').forEach(b=>b.onclick=()=>{
+      close();
+      if(ctx.cust) state.customer=null;
+      if(ctx.prop) state.property=null;
+      openIssue(b.dataset.cont);
+    });
+  });
+}
+/* 互換エイリアス */
+function openDealFromCrm(ctx){ openActivityPlanFromCrm(ctx); }
 
 function fillCustomerDetail(root, cid){
   if(!root) return;
@@ -2627,14 +2679,14 @@ function fillCustomerDetail(root, cid){
         <dt>最終接点</dt><dd>${r.last}</dd>
       </dl>
       <div class="chg-bar"><span>この顧客で:</span>
-        <button type="button" class="bp" id="custNewDeal">＋ 案件・問い合わせを起票</button>
+        <button type="button" class="bp" id="custNewDeal">📅 活動予定を立てる</button>
       </div>
-      <div class="note">モックの詳細データ（案件・活動履歴つき）は先頭3件。この顧客は一覧規模を示す生成データ。物件未紐づけでも起票できます。</div>
+      <div class="note">モックの詳細データ（案件・活動履歴つき）は先頭3件。この顧客は一覧規模を示す生成データ。物件未紐づけでも活動予定を立てられます。</div>
     </div>
     <div class="dside">
       <div class="field"><label>部門 / 拠点</label><input value="${r.domain} / ${r.branch}" readonly></div>
       <div class="field"><label>登録</label><div>${r.regi==='仮'?'仮登録':'本登録'}</div></div>
-      <div class="note">生成データのため案件紐づけは先頭顧客のみ。起票時は件名に顧客名を入れます。</div>
+      <div class="note">生成データのため活動の紐づけ詳細は先頭顧客のみ。新規は顧客名入りで登録します。</div>
     </div>`;
     root.querySelector('#xp').onclick=()=>{ state.customer=null; render(); };
     const cnd0=$('custNewDeal'); if(cnd0) cnd0.onclick=()=>openDealFromCrm({custName:r.name, meta:`${r.domain}・${r.branch}`, from:`顧客 ${r.name}`});
@@ -2648,7 +2700,7 @@ function fillCustomerDetail(root, cid){
   }).join('');
   const rel=st.all.filter(i=>['deal','lead','support'].includes(i.kind)).map(i=>`
     <tr data-openb="${i.id}" style="cursor:pointer">
-      <td><span class="kind ${KC[i.kind]}">${KIND[i.kind]}</span> ${i.title} <span class="ref">${i.ref}</span></td>
+      <td><span class="kind ${KC[i.kind]}">${actKindLabel(i)}</span> ${i.title} <span class="ref">${i.ref}</span></td>
       <td>${pill(i.status)}</td>
       <td style="font-size:11px;color:var(--muted)">⏳ ${waitingOf(i).t}</td>
     </tr>`).join('');
@@ -2670,7 +2722,7 @@ function fillCustomerDetail(root, cid){
       ${c.disabled?`<span class="warn-badge">無効</span>`:''}
     </div>
     <div class="chg-bar"><span>この顧客で:</span>
-      <button type="button" class="bp" id="custNewDeal">＋ 案件・問い合わせを起票</button>
+      <button type="button" class="bp" id="custNewDeal">📅 活動予定を立てる</button>
       <span style="margin-left:8px">変更・訂正:</span>
       <button type="button" class="sp-act" id="custEdit">編集</button>
       <button type="button" class="sp-act" id="custChg">変更を申請</button>
@@ -2686,12 +2738,12 @@ function fillCustomerDetail(root, cid){
           <dt>紐づく物件</dt>${props}
           <dt>契約・保証</dt>${contracts}
     </dl>
-        <h4 class="m-h">この顧客のIssue <span class="ftoken">customer:${cid}</span></h4>
-        <div class="note" style="margin:0 0 8px">物件が未紐づけでも案件・問い合わせを起票できます。起票後に物件を足せます。</div>
+        <h4 class="m-h">この顧客の活動 <span class="ftoken">customer:${cid}</span></h4>
+        <div class="note" style="margin:0 0 8px">物件が未紐づけでも、この顧客への活動予定を立てられます。物件はあとから足せます。</div>
         <div class="table-wrap" style="border:1px solid var(--line);border-radius:10px">
-          <table class="ledger"><thead><tr><th>Title</th><th>進み</th><th>いま誰待ち</th></tr></thead><tbody>${rel||'<tr><td colspan="3" class="quiet">まだありません — 上の「＋ 案件・問い合わせを起票」から作成</td></tr>'}</tbody></table>
+          <table class="ledger"><thead><tr><th>Title</th><th>進み</th><th>いま誰待ち</th></tr></thead><tbody>${rel||'<tr><td colspan="3" class="quiet">まだありません — 上の「活動予定を立てる」から始められます</td></tr>'}</tbody></table>
         </div>
-        <h4 class="m-h">活動タイムライン（全Issue横断の集約）</h4>
+        <h4 class="m-h">これまでの動き（活動の履歴）</h4>
         <ul class="tl">${tl||'<li class="sys"><div>履歴なし</div></li>'}</ul>
     </div>
     <div class="dside">
@@ -2779,14 +2831,14 @@ function fillPropertyDetail(root, pid){
         <dt>最終接点</dt><dd>${r.last}</dd>
       </dl>
       <div class="chg-bar"><span>この物件で:</span>
-        <button type="button" class="bp" id="propNewDeal">＋ 案件・問い合わせを起票</button>
+        <button type="button" class="bp" id="propNewDeal">📅 活動予定を立てる</button>
       </div>
-      <div class="note">詳細データ付きは先頭4物件。この行は一覧規模を示す生成データ。契約顧客未紐づけでも起票できます。</div>
+      <div class="note">詳細データ付きは先頭4物件。この行は一覧規模を示す生成データ。契約顧客未紐づけでも活動予定を立てられます。</div>
     </div>
     <div class="dside">
       <div class="field"><label>部門 / 拠点</label><input value="${r.domain} / ${r.branch}" readonly></div>
       <div class="field"><label>登録</label><div>${r.regi==='仮'?'仮登録':'本登録'}</div></div>
-      <div class="note">生成データのため案件紐づけは先頭物件のみ。起票時は件名に物件名を入れます。</div>
+      <div class="note">生成データのため活動の紐づけ詳細は先頭物件のみ。新規は物件名入りで登録します。</div>
     </div>`;
     root.querySelector('#xp').onclick=()=>{ state.property=null; render(); };
     const pnd0=$('propNewDeal'); if(pnd0) pnd0.onclick=()=>openDealFromCrm({propName:r.name, meta:`${r.domain}・${r.branch}`, from:`物件 ${r.name}`});
@@ -2800,7 +2852,7 @@ function fillPropertyDetail(root, pid){
   }).join('');
   const rel=st.all.filter(i=>['deal','lead','support'].includes(i.kind)).map(i=>`
     <tr data-openb="${i.id}" style="cursor:pointer">
-      <td><span class="kind ${KC[i.kind]}">${KIND[i.kind]}</span> ${i.title} <span class="ref">${i.ref}</span></td>
+      <td><span class="kind ${KC[i.kind]}">${actKindLabel(i)}</span> ${i.title} <span class="ref">${i.ref}</span></td>
       <td>${pill(i.status)}</td>
       <td style="font-size:11px;color:var(--muted)">⏳ ${waitingOf(i).t}</td>
     </tr>`).join('');
@@ -2820,7 +2872,7 @@ function fillPropertyDetail(root, pid){
       ${p.pendingChg?`<span class="pend-badge">変更申請中: ${p.pendingLabel||''}</span>`:''}
     </div>
     <div class="chg-bar"><span>この物件で:</span>
-      <button type="button" class="bp" id="propNewDeal">＋ 案件・問い合わせを起票</button>
+      <button type="button" class="bp" id="propNewDeal">📅 活動予定を立てる</button>
       <span style="margin-left:8px">変更・訂正:</span>
       <button type="button" class="sp-act" id="propEdit">編集</button>
       <button type="button" class="sp-act" id="propChg">変更を申請</button>
@@ -2833,12 +2885,12 @@ function fillPropertyDetail(root, pid){
           <dt>紐づく契約顧客</dt>${custs}
           <dt>契約・保証</dt>${contracts}
     </dl>
-        <h4 class="m-h">この物件のIssue <span class="ftoken">property:${pid}</span></h4>
-        <div class="note" style="margin:0 0 8px">契約顧客が未紐づけでも案件・問い合わせを起票できます。顧客は後から選べます。</div>
+        <h4 class="m-h">この物件の活動 <span class="ftoken">property:${pid}</span></h4>
+        <div class="note" style="margin:0 0 8px">契約顧客が未紐づけでも、この物件での活動予定を立てられます。顧客はあとから選べます。</div>
         <div class="table-wrap" style="border:1px solid var(--line);border-radius:10px">
-          <table class="ledger"><thead><tr><th>Title</th><th>進み</th><th>いま誰待ち</th></tr></thead><tbody>${rel||'<tr><td colspan="3" class="quiet">まだありません — 上の「＋ 案件・問い合わせを起票」から作成</td></tr>'}</tbody></table>
+          <table class="ledger"><thead><tr><th>Title</th><th>進み</th><th>いま誰待ち</th></tr></thead><tbody>${rel||'<tr><td colspan="3" class="quiet">まだありません — 上の「活動予定を立てる」から始められます</td></tr>'}</tbody></table>
         </div>
-        <h4 class="m-h">活動タイムライン（物件横断の集約）</h4>
+        <h4 class="m-h">これまでの動き（物件の履歴）</h4>
         <ul class="tl">${tl||'<li class="sys"><div>履歴なし</div></li>'}</ul>
         <div class="note" style="margin-top:10px">現場・保証・再施工は物件に紐づく。契約顧客が変わっても履歴は物件側に残る。</div>
     </div>
@@ -3858,7 +3910,7 @@ function renderSchedule(){
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
       <button type="button" class="m-back" id="schBack" style="margin:0">← 管理一覧</button>
       <h2 class="page" style="margin:0;flex:1">施工予定・人員アサイン（9/28〜10/2）</h2>
-      <button type="button" class="bp" id="schNewDeal">＋ 案件・問い合わせを起票</button>
+      <button type="button" class="bp" id="schNewDeal">📅 活動予定を立てる</button>
     </div>
     ${whyHtml(c,'static')}
     <div class="table-wrap"><table class="ledger"><thead><tr><th style="width:16%">担当</th>${DAYS.map(d=>`<th>${d}</th>`).join('')}</tr></thead><tbody>${grid}</tbody></table></div>
@@ -3868,7 +3920,7 @@ function renderSchedule(){
     <div class="note" style="max-width:960px">施工前ゲートが開いていない現場は割り当てられない（稟議・購買が Done になると解除）。割当は案件の施工行の履歴に残り、施工リーダーのInboxに届く。外注の注文書発行は後続。</div>
   </div>`;
   $('schBack').onclick=()=>go('mgmt',{mgmt:null});
-  const snd=$('schNewDeal'); if(snd) snd.onclick=()=>openFormModal('deal',{},{from:'施工予定'});
+  const snd=$('schNewDeal'); if(snd) snd.onclick=()=>openActivityPlanFromCrm({from:'施工予定'});
   $('main').querySelectorAll('[data-asg]').forEach(b=>b.onclick=()=>{
     const id=b.dataset.asg, u=UNASSIGNED.find(x=>x.id===id); if(!u) return;
     const ti=Number($('ut-'+id).value), di=Number($('ud-'+id).value);
@@ -4362,11 +4414,15 @@ function renderForm(){
 }
 
 /* ---- ヘッダ「＋ 新規」 ---- */
-const NEW_MENU=[['deal','案件・問い合わせを起票'],['ringi','稟議を起票'],['buy','購買申請（資材）'],['quote','見積を作成'],['cust','顧客を登録（仮）'],['prop','物件を登録'],['expense','経費を申請'],['safety','ヒヤリハット・事故を報告'],['vendor','外注・仕入先の登録申請']];
+const NEW_MENU=[['deal','活動予定を立てる'],['ringi','稟議を起票'],['buy','購買申請（資材）'],['quote','見積を作成'],['cust','顧客を登録（仮）'],['prop','物件を登録'],['expense','経費を申請'],['safety','ヒヤリハット・事故を報告'],['vendor','外注・仕入先の登録申請']];
 function renderNewMenu(){
-  $('newMenu').innerHTML='<h4>新しく作る（ポップアップで開きます）</h4>'+NEW_MENU.filter(([k])=>FORMS[k]).map(([k,l])=>`<button type="button" class="n" data-nf="${k}">${l}<small>${FORMS[k].asis.slice(0,34)}…</small></button>`).join('')
+  $('newMenu').innerHTML='<h4>新しく始める（ポップアップ）</h4>'+NEW_MENU.filter(([k])=>FORMS[k]).map(([k,l])=>`<button type="button" class="n" data-nf="${k}">${l}<small>${FORMS[k].why?FORMS[k].why.slice(0,36):FORMS[k].asis.slice(0,34)}…</small></button>`).join('')
     +`<button type="button" class="n" data-nmy="1"><b>自分の申請・下書きを見る</b></button>`;
-  $('newMenu').querySelectorAll('[data-nf]').forEach(b=>b.onclick=()=>{ $('newMenu').classList.remove('open'); openFormModal(b.dataset.nf, {}, {from:'ヘッダ「＋ 新規」'}); });
+  $('newMenu').querySelectorAll('[data-nf]').forEach(b=>b.onclick=()=>{
+    $('newMenu').classList.remove('open');
+    if(b.dataset.nf==='deal'){ openNewActivity({from:'ヘッダ「＋ 新規」'}); return; }
+    openFormModal(b.dataset.nf, {}, {from:'ヘッダ「＋ 新規」'});
+  });
   $('newMenu').querySelector('[data-nmy]').onclick=()=>{ $('newMenu').classList.remove('open'); go('myreq'); };
 }
 
@@ -4885,7 +4941,7 @@ const REQ_KINDS={
     title:r=>`${r.cust} ${r.item}（${r.status}）`, who:()=>'自分（メーカー対応）',
     open:r=>{ go('mgmt',{mgmt:'repair'}); },
     canWd:r=>r.status==='受付', wdLabel:'受付を取消', wd:r=>{ r.status='取消'; mlog(r,'受付を取消'); }},
-  lead:{type:'案件・問い合わせ', list:()=>issues.filter(i=>i.kind==='lead'||(i.kind==='deal'&&i.fromLead)), resubmit:false,
+  lead:{type:'活動予定', list:()=>issues.filter(i=>i.kind==='lead'||(i.kind==='deal'&&i.fromLead)), resubmit:false,
     st:r=>r.status==='見送り'?'取り下げ':r.kind==='deal'?'承認済・完了':'進行中',
     title:r=>`${r.title} ${r.ref}`, who:r=>PEOPLE[r.own],
     open:r=>openIssue(r.id),
@@ -4916,32 +4972,33 @@ FORMS.expense.resubmit=(v,r)=>{ const amt=Number(v.amount)||r.amount; Object.ass
   return {msg:`経費 ${yen(amt)} を修正して再申請しました。`}; };
 FORMS.safety.resubmit=(v,r)=>{ r.title=`${v.kind}: ${(v.what||'').slice(0,24)}`; r.formVals=v; r.status='確認中'; r.note=''; mlog(r,'追記して再提出'); return {msg:'追記して再提出しました（安全衛生課へ）。'}; };
 
-/* 案件・問い合わせの起票（登録型） */
+/* 活動予定を立てる（営業語彙）＝管理・台帳上の案件・問い合わせと同じレコード */
 FORMS.deal={
-  title:'案件・問い合わせの起票', submitLabel:'起票する',
-  asis:'依頼（紙・FAX・電話・Web）を受けて営業からES管理部へメール→eSMに登録→Excel3種へ転記→振り分け（ES_001）', why:'依頼を1件も取りこぼさず、誰が対応するかを決める',
+  title:'活動予定を立てる', submitLabel:'予定を登録する',
+  asis:'依頼（紙・FAX・電話・Web）を受けて営業からES管理部へメール→eSMに登録→Excel3種へ転記→振り分け（ES_001）',
+  why:'どの顧客・どの物件に、何の活動をするかをその場で決める（取りこぼし防止）',
   stop:'メールでの報告とExcel3種への転記', who:'営業・受付・事務',
   fields:[
     {k:'dtype', l:'取引形態', t:'select', opts:()=>DEALTYPES.map(d=>[d.id,d.name])},
-    {k:'cust', l:'顧客（未定可・後から紐づけ）', t:'select', opts:()=>[['','（顧客未定）']].concat(Object.values(CUSTOMERS).filter(c=>c.regi!=='取消').map(c=>[c.id, `${c.name}${c.regi==='仮'?'（仮）':''}`]))},
-    {k:'prop', l:'物件（未定可・後から紐づけ）', t:'select', opts:()=>[['','（物件未定）']].concat(Object.values(PROPERTIES).filter(p=>p.regi!=='取消').map(p=>[p.id,p.name]))},
-    {k:'via', l:'受付経路', t:'select', opts:()=>['電話','Webフォーム','管理会社から','紹介','FAX','飛込み'].map(x=>[x,x])},
-    {k:'title', l:'件名', req:true, full:true, def:'（例）外壁の調査依頼'},
-    {k:'memo', l:'内容', t:'textarea', full:true},
+    {k:'cust', l:'どの顧客に？（未定可）', t:'select', opts:()=>[['','（顧客未定）']].concat(Object.values(CUSTOMERS).filter(c=>c.regi!=='取消').map(c=>[c.id, `${c.name}${c.regi==='仮'?'（仮）':''}`]))},
+    {k:'prop', l:'どの物件で？（未定可）', t:'select', opts:()=>[['','（物件未定）']].concat(Object.values(PROPERTIES).filter(p=>p.regi!=='取消').map(p=>[p.id,p.name]))},
+    {k:'via', l:'きっかけ', t:'select', opts:()=>['電話','Webフォーム','管理会社から','紹介','FAX','飛込み'].map(x=>[x,x])},
+    {k:'title', l:'何の活動？（例: 初回訪問・調査・見積提示）', req:true, full:true, def:'（例）外壁の現地調査'},
+    {k:'memo', l:'メモ・申し送り', t:'textarea', full:true},
   ],
   preview:v=>{
     const dt=DEALTYPES.find(d=>d.id===v.dtype)||{}, c=CUSTOMERS[v.cust], p=PROPERTIES[v.prop];
     const org=c?`${c.domain}・${c.branch}`:(p?`${p.domain}・${p.branch}`:'（起票後に部門・拠点を確定）');
-    const link=[c?`顧客: <b>${c.name}</b>`:null, p?`物件: <b>${p.name}</b>`:null].filter(Boolean).join(' ／ ')||'<span class="warn-badge">顧客・物件とも未定</span>（件名だけで起票可）';
+    const link=[c?`顧客: <b>${c.name}</b>`:null, p?`物件: <b>${p.name}</b>`:null].filter(Boolean).join(' ／ ')||'<span class="warn-badge">顧客・物件とも未定</span>（活動内容だけで登録可）';
     const dup=v.prop?issues.filter(i=>i.depth===0 && i.open && ['lead','deal'].includes(i.kind) && i.property===v.prop):[];
-    const hint=!c&&p?'物件起点。契約顧客は後から紐づけできます。':c&&!p?'顧客起点。物件は後から紐づけできます。':'';
+    const hint=!c&&p?'この物件での活動。契約顧客はあとから紐づけできます。':c&&!p?'この顧客への活動。物件はあとから紐づけできます。':'';
     return `<dl class="idb"><dt>紐づけ</dt><dd>${link}</dd><dt>部門・拠点</dt><dd>${org}</dd><dt>請求先・書類（取引形態から）</dt><dd>${dt.billTo||'—'} ／ ${dt.docs||'—'}</dd><dt>手数料</dt><dd>${dt.fee||'—'}</dd></dl>`
       +(hint?`<div class="note">${hint}</div>`:'')
-      +(dup.length?`<div class="note warn">この物件に進行中の案件・問い合わせがあります: ${dup.map(d=>`${d.ref} ${d.title}`).join('、')}</div>`:'')
-      +'<div class="note">起票すると案件台帳に [リード] が1行立ち、自分の宿題に入ります。対応が進んだら「案件に昇格」。顧客詳細・物件詳細のどちらからでも同じフォームです。</div>';
+      +(dup.length?`<div class="note warn">この物件に進行中の活動があります（続きからでも可）: ${dup.map(d=>`${d.ref} ${d.title}`).join('、')}</div>`:'')
+      +'<div class="note">登録すると「活動」として自分の宿題に入ります。<span class="ref">管理・案件台帳では同じ行が案件として見えます。</span></div>';
   },
   submit:v=>{
-    if(!(v.title||'').trim()||v.title.startsWith('（例）')) return {err:'件名を入れてください'};
+    if(!(v.title||'').trim()||v.title.startsWith('（例）')) return {err:'何の活動かを入れてください'};
     const c=v.cust?CUSTOMERS[v.cust]:null, p=v.prop?PROPERTIES[v.prop]:null, dt=DEALTYPES.find(d=>d.id===v.dtype)||{}, id=nextId();
     const division=c?c.domain:(p?p.domain:'ES');
     const branch=c?c.branch:(p?p.branch:'横浜営業所');
@@ -4949,9 +5006,9 @@ FORMS.deal={
     const propLabel=p?p.name:(v.prop?'':'（未定）');
     insertIssue({id, ref:nextRef('sfa'), repo:'sfa', kind:'lead', depth:0, parent:null, customer:v.cust||null, property:v.prop||null,
       division, branch, title:v.title.trim(), status:'Todo', open:true, own:'sales', by:state.role, dealType:dt.name, formKey:'deal', formVals:v,
-      body:{'顧客':custLabel,'物件':propLabel,'経路':`${v.via} 9/25`,'取引形態':dt.name||'—','内容':v.memo||'—','用途':'未案件化のリード。顧客・物件は後から紐づけ可。対応後に [案件] へ昇格。'},
-      tl:[ev('sys','system',`起票フォームから登録（${v.via}${c?' · 顧客あり':''}${p?' · 物件あり':''}${!c&&!p?' · マスタ未定':''}）— Assignees: 星本`)]});
-    return {msg:`問い合わせ「${v.title.trim()}」を起票しました（案件台帳に1行）。`, openLabel:'台帳で開く', open:()=>openIssue(id)};
+      body:{'顧客':custLabel,'物件':propLabel,'きっかけ':`${v.via} 9/25`,'取引形態':dt.name||'—','内容':v.memo||'—','用途':'活動予定（営業）。管理台帳では案件行として扱う。顧客・物件は後から紐づけ可。'},
+      tl:[ev('sys','system',`活動予定を登録（${v.via}${c?' · 顧客あり':''}${p?' · 物件あり':''}${!c&&!p?' · マスタ未定':''}）— Assignees: 星本`)]});
+    return {msg:`「${v.title.trim()}」の活動予定を登録しました。`, openLabel:'活動を開く', open:()=>openIssue(id)};
   },
 };
 /* その他出荷（案件以外） */
@@ -5081,10 +5138,9 @@ MGMT.safety.tabs.splice(1,0,{id:'more', label:'追記依頼中', f:r=>r.status==
 MGMT.cars.acts=(orig=>r=>{ const mine=CAR_RES.filter(c=>c.car===r.i && c.who===meShort());
   return orig(r).concat(mine.map(m=>({l:`${DAYS[m.day]} の予約を取消`, f:()=>{ CAR_RES.splice(CAR_RES.indexOf(m),1); mlog(r,`${DAYS[m.day]} の予約を取消`); }}))); })(MGMT.cars.acts);
 
-NEW_MENU.unshift(['deal','案件・問い合わせを起票']);
 NEW_MENU.push(['repair','修理を受け付ける']);
 CAPS.splice(CAPS.findIndex(c=>c.l.startsWith('案件一覧')), 0,
-  {l:'案件・問い合わせの起票', t:'登録', asis:'紙・FAX・電話→メール報告→eSM登録→Excel3種へ転記（ES_001）', plan:'1行起票するだけ。転記しない', st:'ok', go:()=>openFormModal('deal',{},{from:'管理一覧'})});
+  {l:'活動予定を立てる（管理上は案件・問い合わせ）', t:'登録', asis:'紙・FAX・電話→メール報告→eSM登録→Excel3種へ転記（ES_001）', plan:'営業は「活動予定」。台帳・管理では同じ行が案件になる', st:'ok', go:()=>openFormModal('deal',{},{from:'管理一覧'})});
 CAPS.splice(CAPS.findIndex(c=>c.l.startsWith('顧客新規'))+1, 0,
   {l:'変更申請の確認（顧客・物件・外注など）', t:'管理', asis:'顧客情報変更の稟議・マスタ修正の紙回付', plan:'残す（確定まで元の値を表示）', st:'ok', go:()=>go('mgmt',{mgmt:'chgreq'})});
 CAPS.splice(CAPS.findIndex(c=>c.l.startsWith('外注注文書')), 0,
