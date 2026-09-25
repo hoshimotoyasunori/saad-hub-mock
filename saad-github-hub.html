@@ -18,18 +18,16 @@ body{font-family:var(--font);color:var(--ink);background:radial-gradient(1200px 
 body.is-mobile{height:auto;min-height:100%;overflow:auto}
 button,select,input,textarea{font:inherit}button{cursor:pointer}
 
-/* シェル: デモ帯は固定、Hub本体が残り高さを使い切る */
-.shell{max-width:1280px;margin:0 auto;padding:10px 12px 12px;height:100%;display:flex;flex-direction:column;gap:8px;min-height:0}
+/* シェル: モック画面のみ（デモ帯なし） */
+.shell{max-width:1280px;margin:0 auto;padding:12px;height:100%;display:flex;flex-direction:column;min-height:0}
 body.is-mobile .shell{height:auto;min-height:100%}
-.banner{flex:none;display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:8px 12px;background:rgba(247,249,252,.92);border:1px solid var(--line);border-radius:12px}
-.banner h1{margin:0;font-size:15px}.banner .sub{margin:0;font-size:11.5px;color:var(--muted);flex:1;min-width:160px}
-.roles{display:flex;flex-wrap:wrap;gap:5px}
-.role{border:1px solid var(--line);background:#fff;border-radius:999px;padding:5px 10px;font-size:11.5px;color:var(--muted)}
-.role[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:#fff;font-weight:600}
-.role .b{display:inline-block;min-width:14px;margin-left:4px;border-radius:999px;background:var(--rose);color:#fff;font-size:9px;padding:0 4px;text-align:center}
-.hint{flex:none;margin:0;padding:7px 12px;border-left:4px solid var(--teal);background:rgba(255,255,255,.78);border-radius:0 8px 8px 0;font-size:12.5px;line-height:1.55}
-.hint strong{color:var(--teal-deep)}
-.hint code{font-family:ui-monospace,Menlo,monospace;font-size:11px;background:#eef2f7;border-radius:4px;padding:0 4px}
+/* 開発用ペルソナ切替（ヘッダ・使い方の右）。?dev=0 で非表示 */
+.roles{display:none;flex:none;align-items:center;gap:3px;margin-left:6px;padding-left:8px;border-left:1px solid #31405c;max-width:min(420px,38vw);overflow-x:auto;overflow-y:hidden}
+body.dev-roles .roles{display:flex}
+.role{border:1px solid #31405c;background:#243049;border-radius:999px;padding:4px 8px;font-size:10.5px;color:#9fb0c9;white-space:nowrap;flex:none}
+.role:hover{color:#e8eef7;border-color:#4a5d7a}
+.role[aria-pressed="true"]{background:var(--teal);border-color:var(--teal);color:#fff;font-weight:600}
+.role .b{display:inline-block;min-width:13px;margin-left:3px;border-radius:999px;background:var(--rose);color:#fff;font-size:9px;padding:0 4px;text-align:center;line-height:14px}
 
 /* Hub本体: ヘッダー固定 / mainだけが中でスクロール */
 .app{position:relative;flex:1 1 auto;min-height:0;background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);overflow:hidden;display:flex;flex-direction:column}
@@ -460,10 +458,7 @@ tr.is-picked{background:#f0faf9}
 .my-sum button.hot{border-color:#f0c4bf;background:#fff8f7}
 .my-sum button:hover{border-color:var(--teal)}
 
-.cov{flex:none;max-height:72px;overflow:auto;overscroll-behavior:contain;padding:8px 12px;background:rgba(255,255,255,.88);border:1px solid var(--line);border-radius:12px;font-size:11.5px;line-height:1.5;color:var(--muted)}
-.cov b{color:var(--ink)}
-.cov ol{margin:4px 0 0;padding-left:18px}
-.cov li{margin-bottom:1px}
+.cov{display:none!important}
 
 /* ================= mobile (営業・施工) ================= */
 .app.mobile{flex:none;height:auto;background:transparent;border:0;box-shadow:none;overflow:visible;min-height:0}
@@ -504,20 +499,12 @@ tr.is-picked{background:#f0faf9}
 </head>
 <body>
 <div class="shell">
-  <div class="banner">
-    <div>
-      <h1>SAAD Hub — GitHubの構成にSAADを載せる</h1>
-      <p class="sub">全体構成（事業部×管理部の共有）＋ページ4層。正本: docs/system-page-structure.md。台帳＝窓、アプリ＝道具、マスタ＝共有正本。</p>
-    </div>
-    <div class="roles" id="roles"></div>
-  </div>
-  <p class="hint" id="hint"></p>
-
   <div class="app" id="app">
     <div class="gheader">
       <div class="brand">SA</div><strong style="font-size:12.5px">SAAD</strong>
       <div class="gnav" id="gnav"></div>
-      <input class="search" id="search" placeholder="／ 横断検索（Enter）">
+      <div class="roles" id="roles" title="開発用: 役割（ペルソナ）切替" aria-label="開発用ペルソナ切替"></div>
+      <input class="search" id="search" title="顧客・物件・案件番号をまとめて探す（Enterで横断検索）" aria-label="横断検索：顧客名・物件名・案件番号" placeholder="顧客・物件・案件番号を探す">
       <button type="button" class="iconbtn" id="newBtn">＋ 新規</button>
       <button type="button" class="iconbtn" id="myBtn">自分の申請<span class="b" id="myCount" style="display:none">0</span></button>
       <button type="button" class="iconbtn" id="bellBtn">Inbox<span class="b" id="bellCount" style="display:none">0</span></button>
@@ -549,7 +536,6 @@ tr.is-picked{background:#f0faf9}
     </aside>
   </div>
 
-  <div class="cov" id="cov"></div>
 </div>
 
 <script>
@@ -1052,9 +1038,9 @@ function actionsFor(it){
 /* ================= navigation ================= */
 function setRole(id){
   state.role=id; state.view=ROLES[id].view; state.sel=null; state.mScreen='mhome';
-  [...$('roles').children].forEach(el=>el.setAttribute('aria-pressed', el.dataset.role===id?'true':'false'));
-  $('hint').innerHTML=ROLES[id].hint + ' いまの担当: <strong>' + PEOPLE[id] + '</strong>'
-    + (ABSENCE[id]?` <span class="pend-badge">不在中 → 代理 ${PEOPLE[ABSENCE[id].proxy]}（〜${ABSENCE[id].until}）</span>`:'');
+  const box=$('roles');
+  if(box)[...box.children].forEach(el=>el.setAttribute('aria-pressed', el.dataset.role===id?'true':'false'));
+  document.title='SAAD Hub — '+ROLES[id].label+'（'+PEOPLE[id]+'）';
   render();
 }
 function go(screen, opts={}){
@@ -1124,8 +1110,9 @@ function render(){
   renderCov();
 }
 function renderRoleBadges(){
-  [...$('roles').children].forEach(el=>{
-    const n=inbox[el.dataset.role].length;
+  const box=$('roles'); if(!box) return;
+  [...box.children].forEach(el=>{
+    const n=(inbox[el.dataset.role]||[]).length;
     let b=el.querySelector('.b');
     if(n>0){ if(!b){ b=document.createElement('span'); b.className='b'; el.appendChild(b);} b.textContent=n; }
     else if(b) b.remove();
@@ -2196,20 +2183,7 @@ function renderPanel(root){
 }
 
 /* ================= coverage / demo ================= */
-function renderCov(){
-  $('cov').innerHTML=`<b>全体構成（事業部×管理部の共有を含む）</b> —
-  正本 <code>docs/system-page-structure.md</code>。ナビ「構成」で共有オブジェクト一覧。
-  データは1つ（顧客・物件・案件スパイン）／アプリは道具／ページは窓。
-  <ol>
-    <li><b>ポータル</b> — 玄関・ランチャー（カテゴリ別）</li>
-    <li><b>構成</b> — 共有項目とページの対応表</li>
-    <li><b>案件台帳</b> — 両系列が同じ表（部門・拠点列）</li>
-    <li><b>マスタ</b> — 顧客台帳｜物件台帳（仮登録→本登録）</li>
-    <li><b>管理</b> — ASIS由来の一覧・台帳・登録（定期点検・保証書・入金消込・取引先・在庫・施工予定・各種登録）</li>
-    <li><b>スペース</b> — アプリ入口（P2/P3は入口のみ）</li>
-  </ol>
-  デモ連鎖: 拠点長承認 → 管理部承認 → 購買発注済 → ゲート開通 → 施工完了 → 請求 → Close`;
-}
+function renderCov(){ /* デモ説明帯は廃止（モック画面のみ） */ }
 
 /* ================= manual（ASIS準拠の使い方） ================= */
 const MANUAL_STEPS = [
@@ -4859,10 +4833,19 @@ CAPS.splice(CAPS.findIndex(c=>c.l.startsWith('稟議起票')), 0,
 const myCap=CAPS.find(c=>c.l.startsWith('自分の申請')); if(myCap) myCap.l='自分の申請・登録（下書き・申請中・差戻し）';
 
 /* ================= boot ================= */
-Object.entries(ROLES).forEach(([id,r])=>{
-  const b=document.createElement('button'); b.type='button'; b.className='role'; b.textContent=r.label; b.dataset.role=id;
-  b.onclick=()=>setRole(id); $('roles').appendChild(b);
-});
+(function initDevRoles(){
+  const q=new URLSearchParams(location.search);
+  const dev=q.get('dev');
+  /* デフォルト表示（モック検証用）。製品寄りスクショは ?dev=0 */
+  const show=!(dev==='0'||dev==='false'||dev==='off');
+  document.body.classList.toggle('dev-roles', show);
+  const box=$('roles');
+  if(!box) return;
+  Object.entries(ROLES).forEach(([id,r])=>{
+    const b=document.createElement('button'); b.type='button'; b.className='role'; b.textContent=r.label; b.dataset.role=id;
+    b.title='開発用ペルソナ: '+r.label; b.onclick=()=>setRole(id); box.appendChild(b);
+  });
+})();
 $('bellBtn').onclick=()=>{ $('newMenu').classList.remove('open'); $('notif').classList.toggle('open'); };
 $('newBtn').onclick=()=>{ $('notif').classList.remove('open'); renderNewMenu(); $('newMenu').classList.toggle('open'); };
 $('myBtn').onclick=()=>{ $('newMenu').classList.remove('open'); go('myreq'); };
