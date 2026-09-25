@@ -26,9 +26,11 @@ saad-hub-mock/
 ├── index.html                   ← 公開の正入口（切替シェル）
 ├── saad-github-hub.html         ← PC版（GitHub型台帳）
 ├── saad-mobile-hub.html         ← スマホ版（ジョブ型）
-├── requirements.md              ← 本モックの要件定義
+├── requirements.md              ← 本モックの要件定義（HTML変更時は必ず更新）
 ├── asis-capability-coverage.md  ← ASIS由来機能の導入状況（正本コピー）
 ├── user-journey-requirements.md ← 利用者目線の想定要望台帳（正本コピー）
+├── saad-hub-manual.md           ← Hub利用マニュアル（正本コピー）
+├── system-page-structure.md     ← 全体ページ構成（正本コピー）
 └── README.md                    ← 本ファイル
 ```
 
@@ -79,7 +81,7 @@ GitHub Issues / Projects に近い **台帳メタファー**。
 | 管理 | ASIS由来の一覧・台帳・登録（定期点検・保証書・入金消込・取引先・在庫・施工予定・各種登録フォーム）。できること単位で並べた索引から開く |
 | 横断検索 | ヘッダの検索でEnter。進行中・Close済み・移行データ・マスタを1か所で |
 | 案件台帳 | 行＝仕事。Saved views（自分・稟議・購買・施工・請求など） |
-| 右パネル等 | Issue 詳細・タイムライン（Comment）・待ちバッジ |
+| 詳細パネル | **台帳エリア内の右オーバーレイ**（ページ全体モーダルではない）。本文｜メタ2カラム。左端ドラッグで幅変更（最小〜420px／最大エリアの2/3）。外側クリックでは閉じない（×／Escape）。Assignees列・右メタは固定幅 |
 | 役割切替 | 営業／施工／拠点長などレンズを切替（見える列・View が変わる） |
 
 ### スマホ版（`saad-mobile-hub.html`）
@@ -130,3 +132,10 @@ python3 -m http.server 8123
 2. PC / スマホを1URLに統合
 3. モード切替・embed 全画面の調整
 4. スマホをジョブ型UIへ。PC 内蔵の旧 GitHub Mobile シェルは使わない
+5. 2026-09-25: 詳細＝台帳エリア内オーバーレイ＋リサイズ（〜2/3）＋外側クリックで閉じない／Assignees・右メタ固定幅（要件 P-07〜P-12）
+
+---
+
+## ドキュメント同期（必須）
+
+HTMLを変えたら **同じ作業で** [requirements.md](./requirements.md) の要件ID・改訂履歴と、本READMEの画面概要を更新する。社内 `SANIX/SAAD_UI/docs/` の正本（`system-page-structure.md` 等）も揃え、Pages に載せる md は再コピーする。詳細は `requirements.md` §12。

@@ -84,6 +84,12 @@
 | P-04 | 役割レンズ（営業・施工・拠点長等）を切替できる | Must | ✅ |
 | P-05 | ポータル／マスタ／スペース等のナビ入口がある | Should | ✅ |
 | P-06 | スマホ内蔵シェル（旧GitHub Mobile）は使わない。スマホは別HTML | Must | ✅ |
+| P-07 | 詳細は**台帳エリア内の右オーバーレイ**とする（ページ全体のモーダル／スクリムではない）。テーブル列幅は開閉で崩さない | Must | ✅ 2026-09-25 |
+| P-08 | 詳細は**本文｜メタの2カラム**（従来の見た目）。メタ列（Assignees等）は**固定幅**、リサイズ時に伸びるのは本文側のみ | Must | ✅ 2026-09-25 |
+| P-09 | 詳細幅は左端ドラッグで変更可。最小約420px、最大は台帳エリア幅の**2/3**。セッション記憶 | Must | ✅ 2026-09-25 |
+| P-10 | 詳細は**外側クリックでは閉じない**。閉じるのは × または Escape。台帳行クリックで別件を開ける | Must | ✅ 2026-09-25 |
+| P-11 | 台帳の Assignees 列は固定幅（他列の伸縮で揺れない） | Should | ✅ 2026-09-25 |
+| P-12 | 進みの表示語は **未着手／対応中／完了／準備中**（内部キー Todo/InProgress/Done/Blocked は英語のままでよい） | Must | ✅ |
 
 ### 5.3 スマホ版（`saad-mobile-hub.html`）— 必須（モック範囲）
 
@@ -160,8 +166,8 @@
 | 本モック README | [README.md](./README.md) | ページ構成・切替 |
 | スマホUX設計 | `SANIX/SAAD_UI/docs/mobile-ux-design.md` | ジョブ型の設計正本 |
 | GitHub型UI提案 | `SANIX/SAAD_UI/docs/github-inspired-ui-proposal.md` | PC台帳方針 |
-| Hub利用マニュアル | `SANIX/SAAD_UI/docs/saad-hub-manual.md` | 手順・役割の1日 |
-| 全体ページ構成 | `SANIX/SAAD_UI/docs/system-page-structure.md` | 事業部×管理部の共有構造 |
+| Hub利用マニュアル | [saad-hub-manual.md](./saad-hub-manual.md)（社内正本のコピー） | 手順・役割の1日 |
+| 全体ページ構成 | [system-page-structure.md](./system-page-structure.md)（社内正本のコピー） | 事業部×管理部の共有構造 |
 | 要望台帳（広域） | `SANIX/SAAD_UI/docs/requirements.md` | Vue探索期含む要望の蓄積 |
 
 ---
@@ -171,3 +177,19 @@
 | 日付 | 内容 |
 | --- | --- |
 | 2026-09-25 | 初版。Pages リポ用に要件を整理し同梱 |
+| 2026-09-25 | **詳細パネル**: 台帳エリア内オーバーレイ／幅リサイズ（〜2/3）／外側クリックで閉じない／Assignees・右メタ固定幅／進み日本語表記。P-07〜P-12 追加 |
+
+---
+
+## 12. 更新ルール（必須）
+
+モックHTMLを変えたら、**同じコミット（または直後のコミット）で**次を必ず更新する。
+
+| 成果物 | 何を直すか |
+| --- | --- |
+| 本ファイル `requirements.md` | 要件IDの状態・文言・改訂履歴 |
+| `README.md` | 画面構成の概要に見える挙動 |
+| `asis-capability-coverage.md` / `user-journey-requirements.md` | 導入状況・操作流れに影響があれば |
+| 社内正本 `SANIX/SAAD_UI/docs/` | `system-page-structure.md`／`saad-hub-manual.md`／`github-inspired-ui-proposal.md` 等を同期し、Pages にコピーする対象があれば再コピー |
+
+「見た目だけの微調整」でも、利用者が操作として感じる変化（開閉・幅・クリック挙動・用語）は要件に残す。
