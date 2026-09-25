@@ -510,7 +510,7 @@ function homeSales(){
   <div class="tl-row"><time>14:00</time><div class="body"><div class="tt">佐藤さま宅 契約前説明</div><div class="ts">シロアリ防除 — 上のカードから報告</div></div></div>
   <div class="tl-row"><time>17:00</time><div class="body"><div class="tt">見積提出期限（サンプル社）</div><div class="ts">高圧洗浄 250,000円</div></div></div>
 
-  <div class="sec">申請の進み</div>
+  <div class="sec">申請の進み <button data-sub="myreq" style="margin-left:auto;border:0;background:none;color:var(--accent);font-size:11.5px;font-weight:700;cursor:pointer">自分の申請 ›</button></div>
   ${state.ringi==='pending'?`<div class="card"><div class="k">値引き申請（佐藤さま −8%）</div><div class="wait" style="margin-top:8px">⏳ 田中拠点長の承認待ち — 結果は通知に届きます</div></div>`:''}
   ${state.ringi==='ok'?`<div class="card"><div class="k">値引き申請（佐藤さま）</div><div class="wait ok" style="margin-top:8px">✓ 承認されました — 契約に進めます</div></div>`:''}
   ${state.ringi==='back'?`<div class="card"><div class="k">値引き申請（佐藤さま）</div><div class="wait" style="margin-top:8px;color:var(--danger);background:var(--danger-bg)">↩ 差戻し — ホーム上部から再申請</div></div>`:''}
@@ -702,6 +702,7 @@ function menuView(){
   ${mItem('🔍','顧客をさがす','data-sub="cust"','約12,000件 — 検索が入口')}
   ${mItem('🗂','過去の案件をさがす','data-sub="past"','完了・Close済みも')}
   <div class="sec">申請する</div>
+  ${mItem('📋','自分の申請（下書き・結果）','data-sub="myreq"','どこから出した申請もここに')}
   ${mItem('🧾','稟議（値引き・特価・着手）','data-sub="ringiForm"')}
   ${mItem('📦','資材・購買','data-sub="buyForm"')}
   ${mItem('👤','顧客を登録（仮）','data-sub="custreg"','30秒で仮登録')}
@@ -818,7 +819,7 @@ function custRegView(){
   <div class="slabel">電話番号</div><input class="fin" data-mfi="tel" value="${mfv('tel')}" placeholder="090-">
   <div class="slabel">種別</div>${mchips('kind',['個人','法人'])}
   <div class="slabel">どこから？</div>${mchips('via',['電話','Webフォーム','管理会社から','紹介','飛込み'])}
-  <button class="abtn p" style="margin-top:14px;${ok?'':'opacity:.4'}" data-msend="custreg">仮登録する</button>
+  <button class="abtn p" style="margin-top:14px;${ok?'':'opacity:.4'}" data-msend="custreg">仮登録する</button>${mDraftBtn('custreg')}
   <div class="note">登録するとPC版の顧客台帳に「仮登録」で載り、事務の本登録待ちに届きます。</div>`;
 }
 function ringiRouteM(){ return (Number(mfv('amount'))||0)>=1000000 ? '管理部（二次承認）' : '田中拠点長'; }
@@ -832,7 +833,7 @@ function ringiFormView(){
   <div class="slabel">④ 理由</div>${mchips('why',['お客さま予算','競合対抗','追加工事','その他'])}
   <textarea class="fin" data-mfi="memo" placeholder="補足（任意）">${mfv('memo')}</textarea>
   <div class="card" style="margin-top:10px"><div class="kvrow"><span class="kt">承認する人</span><span id="routeBox">${ringiRouteM()}</span></div></div>
-  <button class="abtn p" style="margin-top:12px;${ok?'':'opacity:.4'}" data-msend="ringi">申請する</button>`;
+  <button class="abtn p" style="margin-top:12px;${ok?'':'opacity:.4'}" data-msend="ringi">申請する</button>${mDraftBtn('ringiForm')}`;
 }
 function buyFormView(){
   const it=M_ITEMS.find(x=>x[0]===mfv('item')), qty=Number(mfv('qty'))||0, total=it?it[1]*qty:0;
@@ -845,7 +846,7 @@ function buyFormView(){
   <div class="slabel">④ いつまでに？</div>${mchips('eta',['明日','3日後','来週'])}
   ${it&&qty?`<div class="card" style="margin-top:10px"><div class="fsum"><span>合計</span><b>${total.toLocaleString()}円</b></div>
     <div class="s">${total>=50000?'5万円以上 — 拠点長の承認が自動で付きます':'承認不要枠（5万円未満）'}</div></div>`:''}
-  <button class="abtn p" style="margin-top:12px;${ok?'':'opacity:.4'}" data-msend="buy">申請する</button>`;
+  <button class="abtn p" style="margin-top:12px;${ok?'':'opacity:.4'}" data-msend="buy">申請する</button>${mDraftBtn('buyForm')}`;
 }
 function pastView(){
   const q=(state.pastQ||'').trim();
@@ -864,6 +865,7 @@ function doMSend(kind){
   const addHist=(deal,t)=>{ state._extra=state._extra||{}; (state._extra[deal]=state._extra[deal]||[]).unshift({d:nowD(),who,t}); };
   if(kind==='custreg'){
     const name=mfv('name').trim(); if(!name||!mfv('kind')){ toast('お名前と種別を選んでください'); return; }
+    addReq('custreg', `顧客の仮登録: ${name}`, {st:'受理'});
     CUSTS.push({name, kind:`${mfv('kind')} / 仮登録`, deal:null, info:`${mfv('via')||'受付'} · ${mfv('tel')||'電話未入力'} · 事務の本登録待ち`});
     state.mf={}; state.sub='cust'; state.custQ=name;
     toast('✓ 仮登録しました — 事務の本登録待ちに届きました'); render(); return;
@@ -872,6 +874,8 @@ function doMSend(kind){
     if(!mfv('deal')||!mfv('type')){ toast('案件と種類を選んでください'); return; }
     const d=DEALS[mfv('deal')], amt=Number(mfv('amount'))||0, route=ringiRouteM();
     addHist(mfv('deal'), `<b>${mfv('type')}の稟議を申請</b><div class="m">${amt?amt.toLocaleString()+'円 · ':''}${mfv('why')||''} ${mfv('memo')} → ${route}</div>`);
+    addReq('ringiForm', `${mfv('type')}の稟議（${d.cust}）`);
+    if(mfv('deal')==='d1' && state.ringi==='back'){ state.ringi='pending'; }
     pushNotif('boss',{ic:'🧾',tt:`承認依頼: ${mfv('type')}（${d.cust}）`,ss:`${ROLES[state.role].name}さんから · ${route}`,go:{deal:mfv('deal')}});
     state.mf={}; state.sub=null;
     toast(`✓ 申請しました — ${route}へ`); render(); return;
@@ -881,10 +885,140 @@ function doMSend(kind){
     if(!mfv('deal')||!it||!qty){ toast('案件・品目・数量を選んでください'); return; }
     const total=it[1]*qty;
     addHist(mfv('deal'), `<b>資材を申請 — ${it[0]} ×${qty}</b><div class="m">${total.toLocaleString()}円 · 希望 ${mfv('eta')||'指定なし'}${total>=50000?' · 拠点長の承認付き':''}</div>`);
+    addReq('buyForm', `資材 ${it[0]} ×${qty}（${d.cust}）`);
     if(total>=50000) pushNotif('boss',{ic:'📦',tt:`承認依頼: 資材 ${it[0]} ×${qty}`,ss:`${total.toLocaleString()}円`,go:{deal:mfv('deal')}});
     state.mf={}; state.sub=null;
     toast('✓ 申請しました — 購買（鈴木さん）へ届きました'); render(); return;
   }
+}
+
+/* ================= 下書き・自分の申請・残りの道具（スマホ） ================= */
+const M_DRAFTS=[], M_REQS=[];
+state.mf=state.mf||{};
+const M_FORM_TITLE={custreg:'顧客の仮登録', ringiForm:'稟議', buyForm:'資材の申請', quote:'見積', keihi:'経費', anzen:'安全の報告', photo:'写真の報告'};
+function mDraftBtn(kind){ return `<button class="abtn g" style="margin-top:8px" data-mdraft="${kind}">下書きに保存</button>`; }
+function saveMDraft(kind){
+  const mf=Object.assign({},state.mf||{});
+  const d=mf.deal&&DEALS[mf.deal];
+  const title=`${M_FORM_TITLE[kind]||kind}${d?`（${d.cust}）`:mf.name?`（${mf.name}）`:''}`;
+  const ex=state.mDraftId&&M_DRAFTS.find(x=>x.id===state.mDraftId);
+  if(ex){ ex.mf=mf; ex.title=title; ex.saved='たった今'; }
+  else M_DRAFTS.unshift({id:'md'+Date.now(), kind, mf, title, saved:'たった今', role:state.role});
+  state.mf={}; state.mDraftId=null; state.sub=null;
+  toast('💾 下書きに保存しました — メニュー「自分の申請」から再開'); render();
+}
+function addReq(kind, title, extra){ M_REQS.unshift(Object.assign({id:'mr'+Date.now(), kind, title, st:'申請中', when:'たった今', role:state.role}, extra||{})); if(state.mDraftId){ const i=M_DRAFTS.findIndex(x=>x.id===state.mDraftId); if(i>=0) M_DRAFTS.splice(i,1); state.mDraftId=null; } }
+function myReqView(){
+  const me=state.role;
+  const r1=me==='sales'?[{id:'r1', title:'値引き申請（佐藤さま −8%）', st:state.ringi==='ok'?'承認済':state.ringi==='back'?'差戻し':'申請中', when:'9/23', r1:true}]:[];
+  const rows=r1.concat(M_REQS.filter(r=>r.role===me));
+  const drafts=M_DRAFTS.filter(d=>d.role===me);
+  const tag=s=>s==='差戻し'?'<span class="tagNG">差戻し</span>':s==='承認済'||s==='受理'?'<span class="tagOK">'+s+'</span>':'<span class="tagP">'+s+'</span>';
+  return `<div class="dethead"><button class="backbtn" data-back="1">‹ 戻る</button><h2>自分の申請</h2>
+  <div class="sub">どこから出した申請も、ここで「いまどこか」が分かります</div></div>
+  <div class="sec">下書き <span class="cnt">${drafts.length}</span></div>
+  ${drafts.length?drafts.map(d=>`<div class="card"><div class="k">💾 下書き · ${d.saved}</div><div class="t">${d.title}</div>
+    <div class="btnrow"><button class="abtn p" data-mresume="${d.id}">再開する</button><button class="abtn g" data-mdel="${d.id}">削除</button></div></div>`).join(''):'<p class="quiet">下書きはありません。申請の途中で「下書きに保存」すると、ここに残ります。</p>'}
+  <div class="sec">出した申請 <span class="cnt">${rows.length}</span></div>
+  ${rows.length?rows.map(r=>`<div class="card"><div class="k">${tag(r.st)} · ${r.when}</div><div class="t">${r.title}</div>
+    ${r.st==='差戻し'&&r.r1?`<div class="s">田中拠点長: −5%なら即決します</div><div class="btnrow"><button class="abtn p" data-mfix="r1">修正して再申請</button></div>`:''}
+    ${r.st==='申請中'&&!r.r1?`<div class="btnrow"><button class="abtn g" data-mwd="${r.id}">取り下げ</button></div>`:''}</div>`).join(''):'<p class="quiet">まだ申請はありません。</p>'}
+  <div class="note">PC版の「自分の申請」と同じ内容です。</div>`;
+}
+const Q_LINES=[['調査・点検',30000],['防除作業（1階）',180000],['床下換気扇 設置',72000],['高圧洗浄',120000]];
+function quoteView(){
+  const picked=Q_LINES.filter(([n])=>(state.mf.lines||[]).includes(n));
+  const sub=picked.reduce((s,[,p])=>s+p,0), disc=Number(mfv('disc'))||0, tax=Math.round(sub*(1-disc/100)*1.1);
+  return `<div class="dethead"><button class="backbtn" data-back="1">‹ 戻る</button><h2>見積を作る</h2><div class="sub">標準単価から自動計算。値引きはそのまま稟議へ</div></div>
+  <div class="slabel">① どの案件？</div>${mdealPick()}
+  <div class="slabel">② 品目（複数選べます）</div><div class="chips">${Q_LINES.map(([n,p])=>`<button class="chip" data-mfm="lines:${n}" aria-pressed="${(state.mf.lines||[]).includes(n)}">${n}<br><span style="font-size:10.5px;font-weight:500">${p.toLocaleString()}円</span></button>`).join('')}</div>
+  <div class="slabel">③ 値引き</div>${mchips('disc',['0','3','5','8','12','15'])}
+  <div class="card" style="margin-top:10px"><div class="fsum"><span>合計（税込）</span><b>${tax.toLocaleString()}円</b></div>
+    <div class="s">${disc>12?'12%超 — 管理部の二次承認':disc>0?'値引きあり — 拠点長の承認が自動で付きます':'承認不要'} · ${tax>=300000?'工事申込書':'契約書作成依頼WF'}</div></div>
+  <button class="abtn p" style="margin-top:12px;${mfv('deal')&&sub?'':'opacity:.4'}" data-msend2="quote">見積を登録する</button>${mDraftBtn('quote')}`;
+}
+function photoView(){
+  return `<div class="dethead"><button class="backbtn" data-back="1">‹ 戻る</button><h2>写真を報告</h2><div class="sub">撮ると案件に自動で紐づき、報告書に入ります</div></div>
+  <div class="slabel">① どの案件？</div>${mdealPick()}
+  <div class="slabel">② 種類</div>${mchips('ptype',['調査','作業前','作業後','その他'])}
+  <div class="slabel">③ 写真</div><div class="photo-grid">${[0,1,2].map(i=>`<button data-mfp="${i}" class="${state.mf['ph'+i]?'has':''}">${state.mf['ph'+i]?'✓':'📷'}</button>`).join('')}</div>
+  <button class="abtn p" style="margin-top:12px;${mfv('deal')?'':'opacity:.4'}" data-msend2="photo">送信する</button>`;
+}
+function expenseView(){
+  return `<div class="dethead"><button class="backbtn" data-back="1">‹ 戻る</button><h2>経費を申請</h2><div class="sub">領収書は写真を撮るだけ。今月の締切 9/30 17:00</div></div>
+  <div class="slabel">① 区分</div>${mchips('cat',['交通費','出張','車両（燃料・駐車）','消耗品','その他'])}
+  <div class="slabel">② 金額（円）</div><input class="fin" data-mfi="amount" inputmode="numeric" value="${mfv('amount')}" placeholder="例: 1200">
+  <div class="slabel">③ 領収書</div><div class="photo-grid"><button data-mfp="0" class="${state.mf.ph0?'has':''}">${state.mf.ph0?'✓':'📷'}</button></div>
+  <button class="abtn p" style="margin-top:12px" data-msend2="keihi">申請する</button>${mDraftBtn('keihi')}`;
+}
+function safetyView(){
+  return `<div class="dethead"><button class="backbtn" data-back="1">‹ 戻る</button><h2>安全衛生・ヒヤリハット</h2><div class="sub">ヒヤリハットは匿名でも報告できます</div></div>
+  <div class="slabel">① 種類</div>${mchips('skind',['ヒヤリハット','作業事故','交通事故'])}
+  <div class="slabel">② 匿名にする？</div>${mchips('anon',['いいえ','はい'])}
+  <div class="slabel">③ 何があった？</div><textarea class="fin" data-mfi="what" placeholder="例: 床下で脚立がぐらついた">${mfv('what')}</textarea>
+  <div class="slabel">写真（任意）</div><div class="photo-grid"><button data-mfp="0" class="${state.mf.ph0?'has':''}">${state.mf.ph0?'✓':'📷'}</button></div>
+  <button class="abtn p" style="margin-top:12px" data-msend2="anzen">報告する</button>`;
+}
+function stockView(){
+  const rows=[['防除薬剤A 18L','藤沢倉庫 14缶 / 本部 60缶',false],['防除薬剤B 5L','藤沢倉庫 4缶（安全在庫 8）',true],['床下換気扇 UF-2','藤沢倉庫 9台',false],['調査キット一式','横浜倉庫 3式（安全在庫 5）',true]];
+  return `<div class="dethead"><button class="backbtn" data-back="1">‹ 戻る</button><h2>在庫・倉庫</h2><div class="sub">倉庫に電話しなくても、その場で在庫が分かります</div></div>
+  ${rows.map(([n,s,w])=>`<div class="card"><div class="k">${w?'<span class="tagP">残りわずか</span>':'<span class="tagOK">在庫あり</span>'}</div><div class="t">${n}</div><div class="s">${s}</div></div>`).join('')}
+  <button class="abtn p" data-sub="buyForm">資材を注文する</button>`;
+}
+function docsView(){
+  const d=state.deal?DEALS[state.deal]:null;
+  const docs=[['見積書','2026-09-21'],['調査報告書（写真4枚）','2026-09-21'],['契約書（未締結）','—']];
+  return `<div class="dethead"><button class="backbtn" data-back="1">‹ 戻る</button><h2>案件の書類</h2><div class="sub">${d?d.cust+' — '+d.title:'担当案件の書類'}</div></div>
+  ${docs.map(([n,dt],i)=>`<button class="card" data-mdoc="${i}" style="width:100%;text-align:left"><div class="k">📄 ${dt}</div><div class="t">${n}</div>${state.mdoc===i?`<div class="ann-body">（PDFプレビュー）${n} — ${d?d.cust:''}。お客さまにこの画面を見せる／メールで送る。</div>`:'<div class="s">タップでプレビュー</div>'}</button>`).join('')}`;
+}
+function calView(){
+  const days=[['9/25(木)',['9:00 横浜支店ビル 現地調査','14:00 佐藤さま宅 契約前説明','17:00 見積提出期限']],['9/26(金)',['16:00 SAADモック説明会']],['9/29(月)',['10:00 拠点会議']]];
+  return `<div class="dethead"><button class="backbtn" data-back="1">‹ 戻る</button><h2>カレンダー・予定</h2><div class="sub">Googleカレンダーと同期（予定はPCと共通）</div></div>
+  ${days.map(([d,es])=>`<div class="sec">${d}</div>${es.map(e=>`<div class="tl-row"><time>${e.split(' ')[0]}</time><div class="body"><div class="tt">${e.split(' ').slice(1).join(' ')}</div></div></div>`).join('')}`).join('')}`;
+}
+function biView(){
+  const k=[['今月の売上','812万円'],['成約','14件'],['訪問','63件'],['未回収','238万円'],['承認待ち','2件'],['点検の未実施','4件']];
+  return `<div class="dethead"><button class="backbtn" data-back="1">‹ 戻る</button><h2>拠点の数字</h2><div class="sub">台帳からそのまま集計（転記していません）</div></div>
+  <div class="card"><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;text-align:center">${k.map(([l,v])=>`<div><div style="font-size:18px;font-weight:800">${v}</div><div class="s">${l}</div></div>`).join('')}</div></div>
+  <div class="note">詳しい分析はPC版の「経営・BI」で。</div>`;
+}
+function knowView(){
+  const list=[['床下作業の安全手順（2人体制）','安全'],['施工写真の撮り方（完了報告の必須3枚）','施工'],['顧客の仮登録→本登録の流れ','営業'],['値引きの承認ルート（12%超は管理部）','営業'],['貯水槽清掃の断水案内テンプレート','PCS']];
+  const q=(state.knowQ||'').trim(), hit=list.filter(([t,c])=>!q||(t+c).includes(q));
+  return `<div class="dethead"><button class="backbtn" data-back="1">‹ 戻る</button><h2>社内ナレッジ</h2><div class="sub">手順書・FAQ。先輩に聞かなくても分かるように</div></div>
+  <input class="searchbox" id="knowQ" value="${state.knowQ||''}" placeholder="🔍 キーワード">
+  ${hit.map(([t,c])=>`<div class="card"><div class="k"><span class="tagDom">${c}</span></div><div class="t">${t}</div></div>`).join('')||'<p class="quiet">該当なし</p>'}`;
+}
+function settingsView(){
+  const opts=['承認の結果','差戻し','着工OK','通達','点検・保証の期限'];
+  state.notifOff=state.notifOff||[];
+  return `<div class="dethead"><button class="backbtn" data-back="1">‹ 戻る</button><h2>設定</h2><div class="sub">${ROLES[state.role].name}さん · 福岡南営業所</div></div>
+  <div class="slabel">通知を受け取る（タップで切替）</div>
+  <div class="chips">${opts.map(o=>`<button class="chip" data-noff="${o}" aria-pressed="${!state.notifOff.includes(o)}">${o}</button>`).join('')}</div>`;
+}
+const IMPL_WIPS={quote:quoteView, photo:photoView, keihi:expenseView, anzen:safetyView, stock:stockView, docs:docsView, cal:calView, bi:biView, knowledge:knowView, settings:settingsView};
+function doMSend2(kind){
+  const d=mfv('deal')&&DEALS[mfv('deal')];
+  const who=ROLES[state.role].name.slice(0,1);
+  const addHist=(deal,t)=>{ state._extra=state._extra||{}; (state._extra[deal]=state._extra[deal]||[]).unshift({d:nowD(),who,t}); };
+  if(kind==='quote'){
+    const picked=Q_LINES.filter(([n])=>(state.mf.lines||[]).includes(n)); if(!d||!picked.length){ toast('案件と品目を選んでください'); return; }
+    const disc=Number(mfv('disc'))||0, tax=Math.round(picked.reduce((s,[,p])=>s+p,0)*(1-disc/100)*1.1);
+    addHist(mfv('deal'), `<b>見積を登録 — ${tax.toLocaleString()}円</b><div class="m">${picked.map(x=>x[0]).join('・')}${disc?` · 値引き${disc}%（稟議を自動起票）`:''}</div>`);
+    addReq('quote', `見積 ${tax.toLocaleString()}円（${d.cust}）`);
+    if(disc) { pushNotif('boss',{ic:'🧾',tt:`承認依頼: 値引き${disc}%（${d.cust}）`,ss:'見積から自動起票',go:{deal:mfv('deal')}}); addReq('ringiForm', `値引き${disc}%の稟議（${d.cust}）`); }
+    state.mf={}; state.sub=null; toast('✓ 見積を登録しました'+(disc?' — 値引きの稟議も起票':'')); render(); return;
+  }
+  if(kind==='photo'){ if(!d){ toast('案件を選んでください'); return; }
+    const n=[0,1,2].filter(i=>state.mf['ph'+i]).length;
+    addHist(mfv('deal'), `<b>写真を報告（${mfv('ptype')||'その他'}）</b><div class="m">${n}枚 — 報告書に自動で入ります</div>`);
+    state.mf={}; state.sub=null; toast(`✓ 写真${n}枚を送信しました`); render(); return; }
+  if(kind==='keihi'){ const amt=Number(mfv('amount'))||0; if(!amt||!mfv('cat')){ toast('区分と金額を入れてください'); return; }
+    addReq('keihi', `経費 ${mfv('cat')} ${amt.toLocaleString()}円`); state.mf={}; state.sub=null; toast('✓ 経費を申請しました — 経理へ'); render(); return; }
+  if(kind==='anzen'){ if(!mfv('skind')||!mfv('what').trim()){ toast('種類と内容を入れてください'); return; }
+    addReq('anzen', `${mfv('skind')}: ${mfv('what').slice(0,20)}`, {st:'受理'});
+    if(mfv('skind')!=='ヒヤリハット') pushNotif('boss',{ic:'⚠️',tt:`${mfv('skind')}の報告`,ss:mfv('what').slice(0,24),go:{tab:'home'}});
+    state.mf={}; state.sub=null; toast('✓ 報告しました — 安全衛生課へ'); render(); return; }
 }
 
 /* ================= シート（報告・ランチャー） ================= */
@@ -944,7 +1078,7 @@ function wireSheet(){
   sh.querySelectorAll('[data-close]').forEach(b=>b.onclick=closeSheet);
   sh.querySelectorAll('[data-launch]').forEach(b=>b.onclick=()=>{
     const a=b.dataset.launch;
-    if(a.startsWith('wip:')){closeSheet();state.sub={wip:a.slice(4)};render();return;}
+    if(a.startsWith('wip:')){closeSheet();state.mf={};state.mDraftId=null;state.sub={wip:a.slice(4)};render();return;}
     if(a.startsWith('sub:')){closeSheet();state.deal=null;state.approving=null;state.mf={};state.sub=a.slice(4);render();return;}
     if(a==='goboss'){closeSheet();state.sub=null;state.tab='home';render();return;}
     if(a==='enter'){closeSheet();doEnter(state.deal||'d3');return;}
@@ -993,24 +1127,25 @@ function openDrawer(){
       ${dItem('🔍','顧客をさがす','sub:cust')}
       ${dItem('🗂','過去の案件をさがす','sub:past')}
       <div class="d-sec">申請する</div>
+      ${dItem('📋','自分の申請（下書き・結果）','sub:myreq')}
       ${dItem('🧾','稟議（値引き・特価・着手）','sub:ringiForm')}
       ${dItem('📦','資材・購買','sub:buyForm')}
       ${dItem('👤','顧客を登録（仮）','sub:custreg')}
-      ${dItem('🚗','経費','wip:keihi','準備中')}
-      ${dItem('🧑‍💼','休暇・勤怠（人事）','wip:jinji','準備中')}
+      ${dItem('🚗','経費','wip:keihi')}
+      ${dItem('🧑‍💼','休暇・勤怠（人事）','wip:jinji','外部')}
       <div class="d-sec">仕事の道具</div>
-      ${dItem('🗓','カレンダー・予定','wip:cal','準備中')}
-      ${dItem('🏬','在庫・倉庫','wip:stock','準備中')}
-      ${dItem('🧮','見積を作る','wip:quote','準備中')}
-      ${dItem('📊','拠点の数字（BI）','wip:bi','準備中')}
+      ${dItem('🗓','カレンダー・予定','wip:cal')}
+      ${dItem('🏬','在庫・倉庫','wip:stock')}
+      ${dItem('🧮','見積を作る','wip:quote')}
+      ${dItem('📊','拠点の数字（BI）','wip:bi')}
       <div class="d-sec">会社の情報</div>
       ${dItem('📢','お知らせ・通達','sub:ann',ANNS.length+'件')}
-      ${dItem('📚','社内ナレッジ','wip:knowledge','準備中')}
-      ${dItem('⚠️','安全衛生・ヒヤリハット','wip:anzen','準備中')}
+      ${dItem('📚','社内ナレッジ','wip:knowledge')}
+      ${dItem('⚠️','安全衛生・ヒヤリハット','wip:anzen')}
       <div class="d-sec">ヘルプ・設定</div>
       ${dItem('📖','このアプリの使い方','sub:help')}
       ${dItem('💻','PC版でできること','sub:pcinfo')}
-      ${dItem('⚙️','設定','wip:settings','準備中')}
+      ${dItem('⚙️','設定','wip:settings')}
     </div>
     <div class="d-foot">「準備中」は今後実装予定の画面が開きます。<br>入口の場所は先に固定（PC版Hubと同じ方針）。</div>`;
   $('drawer').querySelectorAll('[data-dgo]').forEach(b=>b.onclick=()=>{
@@ -1020,7 +1155,7 @@ function openDrawer(){
     const [k,v]=g.split(':');
     state.deal=null; state.approving=null; state.annOpen=-1;
     if(k==='sub') state.sub=v;
-    if(k==='wip') state.sub={wip:v};
+    if(k==='wip'){ state.sub={wip:v}; state.mf={}; state.mDraftId=null; }
     if(k==='tab'){ state.sub=null; state.tab=v; }
     render();
   });
@@ -1065,7 +1200,7 @@ function render(){
   let html='';
   if(state.sub){
     const s=state.sub;
-    html = s.wip?wipView(s.wip) : s==='help'?helpView() : s==='ann'?annView() : s==='cust'?custView() : s==='pcinfo'?pcInfoView()
+    html = s.wip?(IMPL_WIPS[s.wip]?IMPL_WIPS[s.wip]():wipView(s.wip)) : s==='myreq'?myReqView() : s==='help'?helpView() : s==='ann'?annView() : s==='cust'?custView() : s==='pcinfo'?pcInfoView()
       : s==='custreg'?custRegView() : s==='ringiForm'?ringiFormView() : s==='buyForm'?buyFormView() : s==='past'?pastView() : '';
   }
   else if(state.approving) html=approveView(state.approving);
@@ -1132,7 +1267,7 @@ function wireView(){
     b.tagName==='INPUT'?b.addEventListener('focus',h):b.onclick=h;
   });
   v.querySelectorAll('[data-sub]').forEach(b=>b.onclick=()=>{state.sub=b.dataset.sub;state.mf={};render();});
-  v.querySelectorAll('[data-subwip]').forEach(b=>b.onclick=()=>{state.sub={wip:b.dataset.subwip};render();});
+  v.querySelectorAll('[data-subwip]').forEach(b=>b.onclick=()=>{state.sub={wip:b.dataset.subwip};state.mf={};state.mDraftId=null;render();});
   v.querySelectorAll('[data-ann]').forEach(b=>b.onclick=()=>{
     const i=+b.dataset.ann;
     state.annOpen = state.annOpen===i ? -1 : i;
@@ -1160,6 +1295,18 @@ function wireView(){
     const rb=$('routeBox'); if(rb) rb.textContent=ringiRouteM();
   }));
   v.querySelectorAll('[data-msend]').forEach(b=>b.onclick=()=>doMSend(b.dataset.msend));
+  v.querySelectorAll('[data-msend2]').forEach(b=>b.onclick=()=>doMSend2(b.dataset.msend2));
+  v.querySelectorAll('[data-mdraft]').forEach(b=>b.onclick=()=>saveMDraft(b.dataset.mdraft));
+  v.querySelectorAll('[data-mresume]').forEach(b=>b.onclick=()=>{ const d=M_DRAFTS.find(x=>x.id===b.dataset.mresume); state.mf=Object.assign({},d.mf); state.mDraftId=d.id; state.sub=IMPL_WIPS[d.kind]?{wip:d.kind}:d.kind; render(); });
+  v.querySelectorAll('[data-mdel]').forEach(b=>b.onclick=()=>{ const i=M_DRAFTS.findIndex(x=>x.id===b.dataset.mdel); if(i>=0) M_DRAFTS.splice(i,1); toast('下書きを削除しました'); render(); });
+  v.querySelectorAll('[data-mfix]').forEach(b=>b.onclick=()=>{ state.mf={deal:'d1', type:'値引き', amount:'19000', why:'お客さま予算', memo:'−5%に見直し'}; state.sub='ringiForm'; render(); toast('前回の内容を入れて開きました'); });
+  v.querySelectorAll('[data-mwd]').forEach(b=>b.onclick=()=>{ const r=M_REQS.find(x=>x.id===b.dataset.mwd); if(r){ r.st='取り下げ'; } toast('取り下げました（履歴には残ります）'); render(); });
+  v.querySelectorAll('[data-mfm]').forEach(b=>b.onclick=()=>{ const i=b.dataset.mfm.indexOf(':'), k=b.dataset.mfm.slice(0,i), val=b.dataset.mfm.slice(i+1);
+    state.mf[k]=state.mf[k]||[]; const j=state.mf[k].indexOf(val); j>=0?state.mf[k].splice(j,1):state.mf[k].push(val); const y=v.scrollTop; render(); $('view').scrollTop=y; });
+  v.querySelectorAll('[data-mfp]').forEach(b=>b.onclick=()=>{ const k='ph'+b.dataset.mfp; state.mf[k]=!state.mf[k]; const y=v.scrollTop; render(); $('view').scrollTop=y; });
+  v.querySelectorAll('[data-mdoc]').forEach(b=>b.onclick=()=>{ const i=+b.dataset.mdoc; state.mdoc=state.mdoc===i?-1:i; render(); });
+  v.querySelectorAll('[data-noff]').forEach(b=>b.onclick=()=>{ const o=b.dataset.noff, a=state.notifOff, i=a.indexOf(o); i>=0?a.splice(i,1):a.push(o); render(); });
+  const kq=$('knowQ'); if(kq) kq.addEventListener('input',e=>{ state.knowQ=e.target.value; render(); const el=$('knowQ'); el.focus(); el.setSelectionRange(el.value.length,el.value.length); });
   const pq=$('pastQ'); if(pq) pq.addEventListener('input',e=>{
     state.pastQ=e.target.value; render();
     const el=$('pastQ'); el.focus(); el.setSelectionRange(el.value.length,el.value.length);

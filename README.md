@@ -7,6 +7,7 @@
 - **リポジトリ**: https://github.com/hoshimotoyasunori/saad-hub-mock
 - **要件定義**: [requirements.md](./requirements.md)
 - **ASIS由来の導入状況（必読）**: [asis-capability-coverage.md](./asis-capability-coverage.md) — 何が導入済／未導入か、なぜASISで要ったか、無駄な管理をやめる方針
+- **利用者目線の想定要望台帳**: [user-journey-requirements.md](./user-journey-requirements.md) — どこから起票するか・ポップアップか・下書きはどこか など操作の流れの問いと対応状況
 
 ---
 
@@ -27,6 +28,7 @@ saad-hub-mock/
 ├── saad-mobile-hub.html         ← スマホ版（ジョブ型）
 ├── requirements.md              ← 本モックの要件定義
 ├── asis-capability-coverage.md  ← ASIS由来機能の導入状況（正本コピー）
+├── user-journey-requirements.md ← 利用者目線の想定要望台帳（正本コピー）
 └── README.md                    ← 本ファイル
 ```
 

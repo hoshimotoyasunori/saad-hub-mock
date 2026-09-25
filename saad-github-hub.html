@@ -373,6 +373,32 @@ table.man .who{white-space:nowrap;font-weight:600}
 .sch-chip.new{background:#fff4e8;color:#8a5a10;box-shadow:inset 0 0 0 1px #f0d6a8}
 .sch-sel{border:1px solid var(--line);border-radius:6px;padding:3px 6px;font-size:12px;background:#fff}
 
+/* ポップアップ・文脈起票・承認ルート・書類 */
+#newMenu{right:150px;width:340px}
+.modal{position:fixed;inset:0;background:rgba(12,18,34,.45);display:none;z-index:100;align-items:flex-start;justify-content:center;padding:40px 16px;overflow:auto}
+.modal.open{display:flex}
+.modal-box{background:#fff;border-radius:14px;max-width:820px;width:100%;padding:16px 20px 18px;box-shadow:var(--shadow)}
+.modal-h{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:4px}
+.modal-h h3{margin:0;font-size:16px}
+.ctx-new{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:8px 0;padding:8px 10px;border:1px dashed var(--line);border-radius:8px;background:#fbfcfe;font-size:11.5px;color:var(--muted)}
+.route{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:8px 0;font-size:11.5px}
+.route b{margin-right:4px}
+.route i{color:#9aa8bc;font-style:normal}
+.rs{border:1px solid var(--line);border-radius:999px;padding:2px 9px;background:#fff;color:var(--muted)}
+.rs.done{background:#ece8f6;color:var(--done);border-color:#d8d0ec}
+.rs.cur{background:#fff4e8;color:#8a5a10;border-color:#f0d6a8;font-weight:700}
+.rs.back{background:#fdecea;color:var(--rose);border-color:#f0c4bf;font-weight:700}
+.rs.skip{text-decoration:line-through}
+.docs{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:8px 0;font-size:12px}
+.paper{border:1px solid var(--line);border-radius:6px;padding:18px 22px;background:#fff;box-shadow:inset 0 0 0 6px #f7f9fc;font-size:12.5px}
+.paper-h{display:flex;justify-content:space-between;align-items:baseline;border-bottom:2px solid var(--ink);padding-bottom:6px;margin-bottom:10px}
+.paper-h b{font-size:18px;letter-spacing:.2em}
+.my-sum{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 16px}
+.my-sum button{border:1px solid #d0d7de;background:#fff;border-radius:6px;padding:6px 12px;font-size:12.5px;display:flex;gap:6px;align-items:center}
+.my-sum button b{font-variant-numeric:tabular-nums}
+.my-sum button.hot{border-color:#f0c4bf;background:#fff8f7}
+.my-sum button:hover{border-color:var(--teal)}
+
 .cov{flex:none;max-height:72px;overflow:auto;overscroll-behavior:contain;padding:8px 12px;background:rgba(255,255,255,.88);border:1px solid var(--line);border-radius:12px;font-size:11.5px;line-height:1.5;color:var(--muted)}
 .cov b{color:var(--ink)}
 .cov ol{margin:4px 0 0;padding-left:18px}
@@ -431,6 +457,8 @@ table.man .who{white-space:nowrap;font-weight:600}
       <div class="brand">SA</div><strong style="font-size:12.5px">SAAD</strong>
       <div class="gnav" id="gnav"></div>
       <input class="search" id="search" placeholder="／ 横断検索（Enter）">
+      <button type="button" class="iconbtn" id="newBtn">＋ 新規</button>
+      <button type="button" class="iconbtn" id="myBtn">自分の申請<span class="b" id="myCount" style="display:none">0</span></button>
       <button type="button" class="iconbtn" id="bellBtn">Inbox<span class="b" id="bellCount" style="display:none">0</span></button>
       <div class="avatar" id="avatar">—</div>
     </div>
@@ -439,6 +467,7 @@ table.man .who{white-space:nowrap;font-weight:600}
       <span class="urlbox" id="urlbox"></span>
     </div>
     <div class="notif" id="notif"></div>
+    <div class="notif" id="newMenu"></div>
     <div class="main" id="main"></div>
   </div>
 
@@ -466,7 +495,7 @@ const REPOS = {
   koji:{name:'koji', label:'施工管理', cat:'施工', pri:'P1', desc:'現場・写真・安全・工程', share:'案件・物件・資材'},
   jimu:{name:'jimu', label:'受注事務', cat:'事務', pri:'P2', desc:'契約書類・受発注', share:'契約・受注・案件'},
   billing:{name:'billing', label:'経理・請求', cat:'経理', pri:'P1', desc:'請求・入金', share:'受注・請求・案件'},
-  bi:{name:'bi', label:'経営・BI', cat:'経営', pri:'P2', desc:'KPI・横断集計', share:'受注・売上・原価', stub:true},
+  bi:{name:'bi', label:'経営・BI', cat:'経営', pri:'P2', desc:'KPI・横断集計', share:'受注・売上・原価'},
 };
 const SHARED_OBJECTS = [
   {id:'org', name:'組織・拠点・部門', who:'管理が維持／全員がスコープ', page:'案件の部門・拠点列'},
@@ -684,10 +713,10 @@ function $(id){return document.getElementById(id)}
 function byId(id){return issues.find(i=>i.id===id)}
 function kids(id){return issues.filter(i=>i.parent===id)}
 function progressOf(it){ const k=kids(it.id); if(!k.length) return null; return [k.filter(x=>x.status==='Done').length, k.length]; }
-function gateDone(){ return kids('841-gate').every(i=>i.status==='Done'); }
+function gateDone(){ return kids('841-gate').filter(i=>i.status!=='取り下げ').every(i=>i.status==='Done'); }
 function kojiDone(){ return ['841-k1','841-k2'].every(id=>byId(id).status==='Done'); }
 function allKidsDone(id){ return kids(id).every(i=>i.status==='Done' && (!kids(i.id).length || allKidsDone(i.id))); }
-function pill(s){ const c = s==='承認待ち'?'wait': s==='In Progress'?'prog': s==='Done'?'done': s==='Blocked'?'block': s==='差戻し'?'back':''; return `<span class="pill ${c}">${s}</span>`; }
+function pill(s){ const c = s==='承認待ち'?'wait': s==='In Progress'?'prog': s==='Done'?'done': (s==='Blocked'||s==='取り下げ')?'block': s==='差戻し'?'back':''; return `<span class="pill ${c}">${s}</span>`; }
 function orgOf(it){
   let cur=it;
   while(cur && !cur.division){ cur = cur.parent ? byId(cur.parent) : null; }
@@ -699,6 +728,7 @@ function orgLabel(it, short=false){
 }
 function waitingOf(it){
   if(!it) return null;
+  if(it.status==='取り下げ') return {t:'取り下げ済み（履歴として残る）', cls:'done'};
   if(!it.open) return {t:'Close済（完了・履歴）', cls:'done'};
   if(it.kind==='gate' && it.status!=='Done'){ const k=kids(it.id); return {t:`稟議・購買の完了待ち（残り ${k.filter(x=>x.status!=='Done').length}件）`, cls:''}; }
   if(it.status==='Done') return {t:'この行は完了。親の残り待ち', cls:'done'};
@@ -729,6 +759,18 @@ function recalc(){
 /* ================= actions (連携の核) ================= */
 function act(kindA, id){
   const it=byId(id); const me=PEOPLE[state.role];
+  if(kindA==='resubmitEdit'){ openResubmit(it); return; }
+  if(kindA==='withdraw'){
+    it.status='取り下げ'; it.open=false; it.blocked=false;
+    addEvent(it, ev('sys', me, `${me} が取り下げ — 行は消さず履歴に残す`));
+    notify(it.approver||it.own, `取り下げ: ${it.title}（${it.ref}）`, it.id);
+    recalc(); render(); return;
+  }
+  if(kindA==='nudge'){
+    addEvent(it, ev('sys', me, `${me} が ${PEOPLE[it.own]} に催促`));
+    notify(it.own, `催促: ${it.title}（${it.ref}）`, it.id);
+    render(); return;
+  }
   const gateBefore=gateDone(); const kojiBefore=kojiDone();
   if(kindA==='approve'){
     it.status='Done';
@@ -782,7 +824,8 @@ function act(kindA, id){
 function actionsFor(it){
   const r=state.role;
   if(it.kind==='ringi' && it.status==='承認待ち' && it.own===r) return [['approve','承認して Status=Done','bp'],['reject','差戻し','bd']];
-  if(it.kind==='ringi' && it.status==='差戻し' && r==='sales') return [['resubmit','再申請する','bp']];
+  if(['ringi','buy'].includes(it.kind) && it.status==='差戻し' && it.by===r) return [['resubmitEdit','修正して再申請','bp'],['withdraw','取り下げ','bg']];
+  if(['ringi','buy'].includes(it.kind) && ['承認待ち','Todo'].includes(it.status) && it.by===r && it.own!==r) return [['nudge','催促する','bg'],['withdraw','取り下げ','bg']];
   if(it.kind==='buy' && r==='buy' && it.status!=='Done') return [['buyProg','手配中','bg'],['buyDone','発注済にする','bp']];
   if(it.repo==='koji' && it.kind==='task' && r==='koji' && it.status==='Todo') return [['taskDone','完了にする','bp']];
   if(it.kind==='bill' && r==='kanri' && it.status==='Todo') return [['billDone','請求書発行 → Done','bp']];
@@ -801,15 +844,16 @@ function setRole(id){
 function go(screen, opts={}){
   if(screen==='repo' && opts.repo==='stock'){ screen='mgmt'; opts={mgmt:'stock'}; }
   if(screen==='repo' && opts.repo==='order'){ screen='form'; opts={form:'buy'}; }
+  if(screen==='repo' && opts.repo==='bi'){ screen='bi'; opts={}; }
   if(opts.mgmt!==undefined){ state.mgmtKey=opts.mgmt; state.mgmtQ=''; }
-  if(opts.form!==undefined){ state.formKey=opts.form; state.formDone=null; state.formPre=opts.pre||null; }
+  if(opts.form!==undefined){ state.formKey=opts.form; state.formDone=null; state.formPre=opts.pre||null; state.formCtx=null; }
   state.screen=screen;
   if(opts.view) state.view=opts.view;
   if(opts.sel!==undefined) state.sel=opts.sel;
   if(opts.repo!==undefined) state.repo=opts.repo;
   if(opts.wip!==undefined) state.wipKey=opts.wip;
   if(screen!=='board' && screen!=='repo') state.sel=null;
-  $('notif').classList.remove('open');
+  $('notif').classList.remove('open'); $('newMenu').classList.remove('open');
   render();
   const main=$('main'); if(main) main.scrollTop=0;
 }
@@ -854,6 +898,9 @@ function render(){
   else if(s==='mgmt') renderMgmt();
   else if(s==='form') renderForm();
   else if(s==='search') renderSearch();
+  else if(s==='myreq') renderMyReq();
+  else if(s==='bi') renderBI();
+  const mc=myPendingCount(); $('myCount').style.display=mc?'':'none'; $('myCount').textContent=mc;
   renderCov();
 }
 function renderRoleBadges(){
@@ -886,6 +933,8 @@ function renderGnav(){
     mgmt:state.mgmtKey?`sanix / 管理 / <b>${state.mgmtKey==='schedule'?'施工予定・人員アサイン':(MGMT[state.mgmtKey]||{}).title}</b>`:'sanix / <b>管理（一覧・台帳・登録）</b>',
     form:`sanix / 管理 / <b>${state.formKey&&FORMS[state.formKey]?FORMS[state.formKey].title:'新しく登録する'}</b>`,
     search:'sanix / <b>横断検索</b>',
+    myreq:'sanix / <b>自分の申請（下書き・申請中・差戻し）</b>',
+    bi:'sanix / アプリ / <b>経営・BI</b>',
   };
   $('crumb').innerHTML=crumbs[state.screen]||'';
   const sel=state.sel?`&pane=issue&item=${(byId(state.sel)||{}).ref||state.sel}`:'';
@@ -902,6 +951,7 @@ function renderGnav(){
     mgmt:`saad.sanix/manage${state.mgmtKey?'/'+state.mgmtKey:''}`,
     form:`saad.sanix/new${state.formKey?'/'+state.formKey:''}`,
     search:`saad.sanix/search?q=${encodeURIComponent(state.searchQ||'')}`,
+    myreq:'saad.sanix/me/requests',
   };
   $('urlbox').textContent=urls[state.screen]||'';
 }
@@ -931,12 +981,12 @@ const ANNOUNCEMENTS = [
 ];
 const SHORTCUTS = [
   {id:'kintai', label:'勤怠（打刻・休暇）', ext:'SSO'},
-  {id:'cal', label:'カレンダー', ext:'GWS'},
-  {id:'keihi', label:'経費精算', ext:'P2'},
+  {id:'cal', label:'カレンダー', ext:''},
+  {id:'keihi', label:'経費申請', ext:''},
   {id:'know', label:'ナレッジ・手順書', ext:''},
   {id:'hr', label:'人事ポータル', ext:'SSO'},
-  {id:'safety', label:'安全衛生', ext:'P3'},
-  {id:'car', label:'車両予約', ext:'P3'},
+  {id:'safety', label:'安全衛生', ext:''},
+  {id:'car', label:'車両予約', ext:''},
 ];
 /* 外部SSO・後続フェーズ・まだ深い画面がない入口 → 開発中ページ */
 const WIP = {
@@ -1019,6 +1069,10 @@ const APP_COLORS = {sfa:'#0d7377', ringi:'#cf222e', koji:'#3d5a80', billing:'#1a
 
 function openShortcut(id){
   if(id==='know'){ go('knowledge'); return; }
+  if(id==='keihi'){ openFormModal('expense',{},{from:'ポータルのショートカット'}); return; }
+  if(id==='safety'){ go('mgmt',{mgmt:'safety'}); return; }
+  if(id==='car'){ go('mgmt',{mgmt:'cars'}); return; }
+  if(id==='cal'){ go('mgmt',{mgmt:'calendar'}); return; }
   goWip(id);
 }
 
@@ -1177,6 +1231,11 @@ function renderPortal(){
       <div class="sc-list">${scRows}</div>
     </aside>
     <div class="db-main">
+      <div class="sec-h"><h3>自分の申請</h3><button type="button" class="more" id="goMy">すべて →</button></div>
+      <div class="my-sum">${(()=>{ const rs=myReqRows(); const n=s=>rs.filter(r=>r.st===s).length;
+        return [['draft','下書き',n('下書き')],['wait','申請中',n('申請中')],['back','差戻し',n('差戻し')],['done','承認済・完了',n('承認済・完了')]]
+          .map(([k,l,c])=>`<button type="button" data-myg="${k}" class="${k==='back'&&c?'hot':''}">${l} <b>${c}</b></button>`).join('')
+          +'<button type="button" id="portalNew">＋ 新規（稟議・購買・見積…）</button>'; })()}</div>
       <div class="db-sec">
         <div class="sec-h"><h3>自分宛</h3><span class="cnt">${mine.length}</span><button type="button" class="more" id="goMine">宿題View →</button></div>
         <div class="wk-list">${wkRows}</div>
@@ -1211,6 +1270,9 @@ function renderPortal(){
   </div>`;
 
   $('goBoard').onclick=()=>go('board');
+  $('goMy').onclick=()=>go('myreq');
+  $('portalNew').onclick=()=>{ renderNewMenu(); $('newMenu').classList.add('open'); };
+  $('main').querySelectorAll('[data-myg]').forEach(b=>b.onclick=()=>{ state.myTab=b.dataset.myg; go('myreq'); });
   $('goMine').onclick=()=>{ state.view='mine'; go('board'); };
   $('goSpaces').onclick=()=>go('spaces');
   $('main').querySelectorAll('[data-ext]').forEach(b=>b.onclick=()=>openShortcut(b.dataset.ext));
@@ -1531,6 +1593,7 @@ function renderPanel(root){
       <div class="plink">${parent?`Parent: <button type="button" data-open="${parent.id}">${KIND[parent.kind]} ${parent.title} ${parent.ref}</button>`:'Parent: —'}</div>
       <dl class="idb">${bodyRows||'<dt>用途</dt><dd>識別のみ。判断はタイムラインへ。</dd>'}</dl>
       ${actHtml}
+      ${panelExtras(it)}
       <ul class="tl">${tl||'<li class="sys"><span class="who">system</span><div>まだ履歴はありません</div></li>'}</ul>
       <div class="composer">
         <textarea id="cmt" placeholder="# 見出し&#10;メモ・判断理由を追記（Markdown想定）"></textarea>
@@ -1552,6 +1615,7 @@ function renderPanel(root){
   root.querySelectorAll('[data-repo]').forEach(b=>b.onclick=()=>go('repo',{repo:b.dataset.repo}));
   root.querySelectorAll('[data-act]').forEach(b=>b.onclick=()=>act(b.dataset.act, it.id));
   const ch=root.querySelector('#closeHint'); if(ch) ch.onclick=()=>goWip('closeissue');
+  bindPanelExtras(root, it);
   root.querySelector('#addCm').onclick=()=>{
     const v=root.querySelector('#cmt').value.trim(); if(!v) return;
     const lines=v.split('\n'); const head=lines[0].startsWith('#')?lines[0].replace(/^#\s*/,'# '):'# メモ';
@@ -2424,7 +2488,8 @@ function renderMgmt(){
   }).join('');
   $('main').innerHTML=`<div class="mg-page">
     <div class="mg-top"><button type="button" class="linkbtn" id="mgBack">← 管理一覧</button><h2>${c.title}</h2>
-      ${(c.tools||[]).map((t,i)=>`<button type="button" class="bp" data-mtool="${i}">${t.l}</button>`).join('')}</div>
+      ${(c.tools||[]).map((t,i)=>`<button type="button" class="bp" data-mtool="${i}">${t.l}</button>`).join('')}
+      <button type="button" class="bg" id="mgCsv" ${(c.tools||[]).length?'':'style="margin-left:auto"'}>CSV出力</button></div>
     ${whyHtml(c)}
     <div class="filterbar"><div class="seg" role="tablist">${seg}</div>
       <input class="mg-q" id="mgQ" value="${state.mgmtQ||''}" placeholder="この台帳を検索">
@@ -2433,6 +2498,11 @@ function renderMgmt(){
       <tbody>${body||`<tr><td colspan="${c.cols.length+2}" class="quiet">該当なし</td></tr>`}</tbody></table></div>
     ${c.foot?`<div class="add-row">${c.foot(all)}</div>`:''}</div>`;
   $('mgBack').onclick=()=>go('mgmt',{mgmt:null});
+  $('mgCsv').onclick=()=>{
+    const strip=h=>{ const d=document.createElement('div'); d.innerHTML=h; return d.textContent.replace(/"/g,'""').trim(); };
+    const csv=[c.cols.map(x=>`"${x.h}"`).join(',')].concat(rows.map(r=>c.cols.map(x=>`"${strip(x.v(r))}"`).join(','))).join('\r\n');
+    const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob(['\ufeff'+csv],{type:'text/csv'})); a.download=`${c.title}.csv`; a.click();
+  };
   $('main').querySelectorAll('[data-mt]').forEach(b=>b.onclick=()=>{ state.mgmtTab[key]=b.dataset.mt; render(); });
   $('main').querySelectorAll('[data-mtool]').forEach(b=>b.onclick=()=>c.tools[Number(b.dataset.mtool)].f());
   $('main').querySelectorAll('[data-mr]').forEach(b=>b.onclick=()=>{
@@ -2479,7 +2549,7 @@ function renderMgmtIndex(){
   const rows=CAPS.map((c,i)=>`<tr>
     <td><button type="button" class="linkbtn" data-cap="${i}" style="font-size:12.5px"><b>${c.l}</b></button></td>
     <td>${c.t}</td><td style="font-size:11.5px;color:var(--muted)">${c.asis}</td><td style="font-size:11.5px">${c.plan}</td>
-    <td>${c.st==='ok'?'<span class="st-mark ok">触れる</span>':'<span class="st-mark wip">入口のみ</span>'}</td>
+    <td>${c.st==='ok'?'<span class="st-mark ok">触れる</span>':c.st==='ext'?'<span class="st-mark wip">外部SSO</span>':'<span class="st-mark wip">入口のみ</span>'}</td>
   </tr>`).join('');
   $('main').innerHTML=`<div class="pad">
     <h2 class="page">管理 — 一覧・台帳・登録</h2>
@@ -2546,7 +2616,7 @@ function ringiRoute(type, amount, disc){
 }
 function addRingi(dealId, type, amount, reason, disc=0){
   const id=nextId(), own=ringiRoute(type, amount, disc);
-  insertIssue({id, ref:nextRef('ringi'), repo:'ringi', kind:'ringi', parent:dealId, title:`${type}の稟議`, status:'承認待ち', open:true, own,
+  insertIssue({id, ref:nextRef('ringi'), repo:'ringi', kind:'ringi', parent:dealId, title:`${type}の稟議`, status:'承認待ち', open:true, own, by:state.role, approver:own,
     amount:amount?yen(amount):undefined,
     body:{'案件':`${byId(dealId).ref} ${byId(dealId).title}`,'種類':type,'金額':amount?yen(amount):'—','用途':'決裁の識別。判断理由はタイムラインへ。'},
     tl:[ev('cm', meShort(), '# 起票', reason||'（理由未記入）'), ev('sys','system',`${PEOPLE[own]} のキューへ（種類と金額で自動判定）`)]});
@@ -2645,7 +2715,7 @@ const FORMS={
       if(!v.deal) return {err:'案件を選んでください'};
       const c=FORMS.quote.calc(v); if(!c.sub) return {err:'明細を入れてください'};
       const id=nextId(), lines=['l1','l2','l3'].filter(k=>v[k+'n']).map(k=>`${v[k+'n']} ×${v[k+'q']} @${yen(v[k+'p'])}`).join(' ／ ');
-      insertIssue({id, ref:nextRef('sfa'), repo:'sfa', kind:'task', parent:parentForQuote(v.deal), title:`見積 ${yen(c.tax)}（値引${c.disc}%）`, status:'In Progress', open:true, own:'sales',
+      insertIssue({id, ref:nextRef('sfa'), repo:'sfa', kind:'task', parent:parentForQuote(v.deal), title:`見積 ${yen(c.tax)}（値引${c.disc}%）`, status:'In Progress', open:true, own:'sales', by:state.role, formKey:'quote', formVals:v,
         body:{'明細':lines,'合計（税込）':yen(c.tax),'契約書式':c.tax>=300000?'工事申込書':'契約書作成依頼WF','メモ':v.memo||'—'},
         tl:[ev('sys','system',`見積作成フォームから登録 — ${yen(c.tax)}`)]});
       let extra='';
@@ -2670,10 +2740,21 @@ const FORMS={
       const own=ringiRoute(v.type, Number(v.amount)||0, 0);
       return `<div class="note">承認ルート: <b>${PEOPLE[own]}</b>（${own==='kanri'?'100万円以上、または売上訂正・解約・顧客情報変更は管理部':'拠点長の一次承認'}）。案件の子として1行立ち、結果は起票者のInboxに届く。</div>`;
     },
-    submit:v=>{
+    submit:(v,ctx)=>{
       if(!v.deal) return {err:'案件を選んでください'};
-      const r=addRingi(v.deal, v.type, Number(v.amount)||0, v.reason);
-      return {msg:`${r.ref}（${v.type}）を起票しました。${PEOPLE[r.own]} の承認待ちです。`, openLabel:'稟議を開く', open:()=>openIssue(r.id)};
+      const amt=Number(v.amount)||0;
+      if(ctx&&ctx.editId){
+        const it=byId(ctx.editId), own=ringiRoute(v.type, amt, 0);
+        it.status='承認待ち'; it.own=own; it.approver=own; it.formVals=v; it.formKey='ringi';
+        it.title=`${v.type}の稟議`; it.amount=amt?yen(amt):it.amount;
+        it.body=Object.assign({}, it.body, {'種類':v.type,'金額':amt?yen(amt):'—'});
+        addEvent(it, ev('cm', meShort(), '# 修正して再申請', `${v.type} / ${amt?yen(amt):'金額なし'}。${v.reason||''}`));
+        notify(own, `再申請: ${it.title}（${it.ref}）`, it.id);
+        return {msg:`${it.ref} を修正して再申請しました。${PEOPLE[own]} のInboxに届いています。`, openLabel:'稟議を開く', open:()=>openIssue(it.id)};
+      }
+      const r=addRingi(v.deal, v.type, amt, v.reason);
+      r.formKey='ringi'; r.formVals=v;
+      return {msg:`${r.ref}（${v.type}）を起票しました。${PEOPLE[r.own]} のInboxに届いています。`, openLabel:'稟議を開く', open:()=>openIssue(r.id)};
     },
   },
   buy:{
@@ -2696,7 +2777,7 @@ const FORMS={
     submit:v=>{
       const it=itemOf(v.sku), qty=Number(v.qty)||0; if(!qty) return {err:'数量を入れてください'};
       const total=it.price*qty, id=nextId(), deal=v.deal?byId(v.deal):null;
-      const o={id, ref:nextRef('buy'), repo:'buy', kind:'buy', parent:v.deal||null, depth:0, title:`資材発注: ${it.name} ×${qty}`, status:'Todo', open:true, own:'buy',
+      const o={id, ref:nextRef('buy'), repo:'buy', kind:'buy', parent:v.deal||null, depth:0, title:`資材発注: ${it.name} ×${qty}`, status:'Todo', open:true, own:'buy', by:state.role, approver:'buy', formKey:'buy', formVals:v,
         eta:`希望 ${v.eta||'—'}`, amount:yen(total),
         body:{'案件':deal?`${deal.ref} ${deal.title}`:'（在庫補充）','品目':`${it.name}（${it.sku}）`,'数量':`${qty} ${it.unit}`,'希望納期':v.eta||'—','メモ':v.memo||'—'},
         tl:[ev('sys','system','購買申請フォームから起票 — Assignees: 鈴木')]};
@@ -2743,7 +2824,7 @@ function fieldHtml(f, pre){
   else input=`<input name="${f.k}" ${f.t==='number'?'type="number"':''} value="${v}">`;
   return `<div class="${f.full?'full':''}">${lab}${input}</div>`;
 }
-function renderForm(){
+function renderFormLegacy(){
   const key=state.formKey;
   if(!key || !FORMS[key]){
     const rows=Object.entries(FORMS).map(([k,f])=>`<tr><td><button type="button" class="linkbtn" data-fk="${k}" style="font-size:12.5px"><b>${f.title}</b></button></td><td style="font-size:11.5px;color:var(--muted)">${f.asis}</td></tr>`).join('');
@@ -2823,12 +2904,580 @@ function renderSearch(){
   $('main').querySelectorAll('[data-sp]').forEach(tr=>tr.onclick=()=>{ state.property=tr.dataset.sp; state.customer=null; state.crmAxis='property'; go('crm'); });
 }
 
+/* ================= 操作の流れ: 入口・ポップアップ・下書き・自分の申請 ================= */
+const DRAFTS=[];
+const REQ_FORMS=['ringi','buy','quote','expense','safety'];
+issues.forEach(i=>{ if(['ringi','buy'].includes(i.kind) && !i.by){ i.by='sales'; i.approver=i.own; } });
+function rootOf(it){ let x=it; while(x&&x.parent) x=byId(x.parent); return x; }
+function nowHM(){ const d=new Date(); return `9/25 ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`; }
+function formTitleOf(key, v){
+  const f=FORMS[key]; const d=v&&v.deal&&byId(v.deal);
+  if(key==='ringi') return `${v.type||'稟議'}の稟議${d?`（${d.title}）`:''}`;
+  if(key==='buy') return `購買申請${v.sku?`: ${itemOf(v.sku).name}`:''}${d?`（${d.title}）`:''}`;
+  if(key==='quote') return `見積${d?`（${d.title}）`:''}`;
+  if(key==='cust') return `顧客登録: ${v.name||'（名前未入力）'}`;
+  if(key==='prop') return `物件登録: ${v.name||'（名前未入力）'}`;
+  return f?f.title:key;
+}
+function formBodyHtml(key, pre, mode){
+  const f=FORMS[key];
+  return `<form class="form-grid" data-fm onsubmit="return false">${f.fields.map(x=>fieldHtml(x,pre)).join('')}
+      <div class="full"><label>添付（見積書・写真など）</label><input type="file" name="__file" multiple></div></form>
+    <div class="form-prev" data-fprev></div>
+    <div class="actions">
+      <button class="bp" type="button" data-fsubmit>${f.submitLabel}</button>
+      <button class="bg" type="button" data-fdraft>下書き保存</button>
+      <button class="bg" type="button" data-fcancel>${mode==='modal'?'閉じる':'キャンセル'}</button>
+    </div>`;
+}
+/* ctx: {draftId, editId} / hooks: {done(res), cancel(dirty, vals), drafted(msg)} */
+function bindForm(root, key, ctx, hooks){
+  const f=FORMS[key];
+  const vals=()=>{ const o={}; root.querySelectorAll('[data-fm] [name]').forEach(el=>{ if(el.name==='__file') o.__files=[...el.files].map(x=>x.name).join('、'); else o[el.name]=el.value; }); return o; };
+  const initial=JSON.stringify(vals());
+  const upd=()=>{ const p=root.querySelector('[data-fprev]'); if(p) p.innerHTML=(f.preview?f.preview(vals(),ctx):'')+dupWarn(key,vals(),ctx); };
+  const fm=root.querySelector('[data-fm]');
+  fm.addEventListener('input',upd); fm.addEventListener('change',upd); upd();
+  root.querySelector('[data-fsubmit]').onclick=()=>{
+    const v=vals(); const res=f.submit(v, ctx||{});
+    if(res.err){ root.querySelector('[data-fprev]').innerHTML=`<div class="note warn">${res.err}</div>`; return; }
+    if(ctx&&ctx.draftId){ const i=DRAFTS.findIndex(d=>d.id===ctx.draftId); if(i>=0) DRAFTS.splice(i,1); }
+    if(v.__files) res.msg+=` 添付: ${v.__files}`;
+    hooks.done(res);
+  };
+  root.querySelector('[data-fdraft]').onclick=()=>{
+    const v=vals(); saveDraft(key, v, ctx);
+    hooks.drafted(`下書きに保存しました（${nowHM()}）。ヘッダ「自分の申請」→ 下書き から再開できます。`);
+  };
+  root.querySelector('[data-fcancel]').onclick=()=>hooks.cancel(JSON.stringify(vals())!==initial, vals());
+}
+function saveDraft(key, v, ctx){
+  let d=ctx&&ctx.draftId?DRAFTS.find(x=>x.id===ctx.draftId):null;
+  if(!d){ d={id:'dr'+(DRAFTS.length+1)+'-'+SEQ.n++, form:key, by:state.role}; DRAFTS.unshift(d); if(ctx) ctx.draftId=d.id; }
+  d.vals=v; d.title=formTitleOf(key,v); d.saved=nowHM();
+  return d;
+}
+function dupWarn(key, v, ctx){
+  if(key!=='ringi' || !v.deal || (ctx&&ctx.editId)) return '';
+  const same=issues.filter(i=>i.kind==='ringi' && rootOf(i)&&rootOf(i).id===v.deal && i.status==='承認待ち' && (i.body&&i.body['種類']===v.type || i.title.startsWith(v.type)));
+  return same.length?`<div class="note warn">同じ案件に申請中の「${v.type}」稟議があります: ${same.map(s=>s.ref).join('、')}（二重申請に注意）</div>`:'';
+}
+
+/* ---- ポップアップ ---- */
+function ensureModal(){
+  if($('modal')) return;
+  const m=document.createElement('div'); m.id='modal'; m.className='modal';
+  m.innerHTML='<div class="modal-box" id="modalBox" role="dialog" aria-modal="true"></div>';
+  document.body.appendChild(m);
+}
+function openFormModal(key, pre, ctx){
+  ensureModal();
+  const f=FORMS[key]; ctx=ctx||{};
+  const box=$('modalBox');
+  const head=`<div class="modal-h"><h3>${ctx.editId?'修正して再申請: ':''}${f.title}</h3><button class="x" type="button" data-mclose aria-label="閉じる">×</button></div>
+    <p class="quiet" style="margin:0 0 10px">${ctx.from?`${ctx.from} から開いています（閉じると元の画面に戻ります）。`:''}主に使う人: ${f.who}</p>`;
+  box.innerHTML=head+formBodyHtml(key, pre||{}, 'modal')+'<div data-mconfirm></div>';
+  $('modal').classList.add('open');
+  const close=()=>{ $('modal').classList.remove('open'); box.innerHTML=''; render(); };
+  const doneView=(msg, openLabel, open)=>{
+    box.innerHTML=`<div class="modal-h"><h3>${f.title}</h3><button class="x" type="button" data-mclose>×</button></div>
+      <div class="note">✓ ${msg}</div>
+      <div class="actions">${open?`<button class="bp" type="button" data-mopen>${openLabel}</button>`:''}<button class="bg" type="button" data-mmy>自分の申請を見る</button><button class="bg" type="button" data-mclose2>閉じる</button></div>`;
+    box.querySelector('[data-mclose]').onclick=close; box.querySelector('[data-mclose2]').onclick=close;
+    box.querySelector('[data-mmy]').onclick=()=>{ $('modal').classList.remove('open'); box.innerHTML=''; go('myreq'); };
+    const o=box.querySelector('[data-mopen]'); if(o) o.onclick=()=>{ $('modal').classList.remove('open'); box.innerHTML=''; open(); };
+  };
+  const askClose=(dirty, vals)=>{
+    if(!dirty){ close(); return; }
+    box.querySelector('[data-mconfirm]').innerHTML=`<div class="note warn">入力した内容があります。
+      <div class="actions" style="margin:8px 0 0"><button class="bp" type="button" data-cs>下書きに保存して閉じる</button><button class="bd" type="button" data-cx>破棄して閉じる</button><button class="bg" type="button" data-cb>入力に戻る</button></div></div>`;
+    box.querySelector('[data-cs]').onclick=()=>{ saveDraft(key, vals, ctx); close(); };
+    box.querySelector('[data-cx]').onclick=close;
+    box.querySelector('[data-cb]').onclick=()=>{ box.querySelector('[data-mconfirm]').innerHTML=''; };
+  };
+  bindForm(box, key, ctx, {
+    done:res=>doneView(res.msg, res.openLabel, res.open),
+    drafted:msg=>doneView(msg),
+    cancel:askClose,
+  });
+  box.querySelector('[data-mclose]').onclick=()=>box.querySelector('[data-fcancel]').click();
+}
+function openResubmit(it){
+  const key=it.formKey||(it.kind==='buy'?'buy':'ringi');
+  const root=rootOf(it);
+  const pre=it.formVals?Object.assign({},it.formVals):{deal:root&&root.id, type:(it.body&&it.body['種類'])||it.title.replace(/の稟議$|（.*）/g,'').replace('起案',''), amount:String(it.amount||'').replace(/[^\d]/g,''), reason:''};
+  openFormModal(key, pre, {editId:it.id, from:`${it.ref} の差戻し`});
+}
+
+/* ---- 専用ページ（管理 → 登録） ---- */
+function renderForm(){
+  const key=state.formKey;
+  if(!key || !FORMS[key]){ renderFormLegacy(); return; }
+  const f=FORMS[key], done=state.formDone;
+  const ctx=state.formCtx||(state.formCtx={});
+  $('main').innerHTML=`<div class="pad">
+    <button type="button" class="m-back" id="fmBack">← 管理一覧</button>
+    <h2 class="page">${f.title}</h2>
+    ${whyHtml(f,'static')}
+    ${done?`<div class="note" style="max-width:760px">✓ ${done.msg}</div>
+      <div class="actions">${done.open?`<button class="bp" type="button" id="fmOpen">${done.openLabel}</button>`:''}<button class="bg" type="button" id="fmMy">自分の申請を見る</button><button class="bg" type="button" id="fmAgain">続けて登録</button></div>`
+      : `<div id="fmRoot">${formBodyHtml(key, state.formPre||{}, 'page')}<div data-mconfirm></div></div>`}
+  </div>`;
+  $('fmBack').onclick=()=>go('mgmt',{mgmt:null});
+  if(done){
+    const o=$('fmOpen'); if(o) o.onclick=()=>{ state.formDone=null; done.open(); };
+    $('fmMy').onclick=()=>go('myreq');
+    $('fmAgain').onclick=()=>go('form',{form:key});
+    return;
+  }
+  const root=$('fmRoot');
+  bindForm(root, key, ctx, {
+    done:res=>{ state.formDone=res; state.formPre=null; state.formCtx=null; render(); },
+    drafted:msg=>{ state.formDone={msg}; state.formCtx=null; render(); },
+    cancel:(dirty, vals)=>{
+      if(!dirty){ go('mgmt',{mgmt:null}); return; }
+      root.querySelector('[data-mconfirm]').innerHTML=`<div class="note warn">入力した内容があります。
+        <div class="actions" style="margin:8px 0 0"><button class="bp" type="button" data-cs>下書きに保存して戻る</button><button class="bd" type="button" data-cx>破棄して戻る</button></div></div>`;
+      root.querySelector('[data-cs]').onclick=()=>{ saveDraft(key, vals, ctx); go('mgmt',{mgmt:null}); };
+      root.querySelector('[data-cx]').onclick=()=>go('mgmt',{mgmt:null});
+    },
+  });
+}
+
+/* ---- ヘッダ「＋ 新規」 ---- */
+const NEW_MENU=[['ringi','稟議を起票'],['buy','購買申請（資材）'],['quote','見積を作成'],['cust','顧客を登録（仮）'],['prop','物件を登録'],['expense','経費を申請'],['safety','ヒヤリハット・事故を報告'],['vendor','外注・仕入先の登録申請']];
+function renderNewMenu(){
+  $('newMenu').innerHTML='<h4>新しく作る（ポップアップで開きます）</h4>'+NEW_MENU.filter(([k])=>FORMS[k]).map(([k,l])=>`<button type="button" class="n" data-nf="${k}">${l}<small>${FORMS[k].asis.slice(0,34)}…</small></button>`).join('')
+    +`<button type="button" class="n" data-nmy="1"><b>自分の申請・下書きを見る</b></button>`;
+  $('newMenu').querySelectorAll('[data-nf]').forEach(b=>b.onclick=()=>{ $('newMenu').classList.remove('open'); openFormModal(b.dataset.nf, {}, {from:'ヘッダ「＋ 新規」'}); });
+  $('newMenu').querySelector('[data-nmy]').onclick=()=>{ $('newMenu').classList.remove('open'); go('myreq'); };
+}
+
+/* ---- 詳細パネル: 文脈から起票・承認ルート・書類 ---- */
+function panelExtras(it){
+  const root=rootOf(it); let h='';
+  if(root && root.kind==='deal' && root.open && state.role!=='koji'){
+    const btns=[['ringi','稟議を起票'],['buy','購買申請'],['quote','見積を作成']].map(([k,l])=>`<button type="button" class="sp-act" data-cform="${k}">＋ ${l}</button>`).join('');
+    h+=`<div class="ctx-new"><span>この案件（${root.ref}）で:</span>${btns}</div>`;
+  }
+  if(['ringi','buy'].includes(it.kind)){
+    const by=it.by||'sales', ap=it.approver||it.own;
+    const st=it.status;
+    const s1='done', s2=st==='Done'?'done':st==='差戻し'?'back':st==='取り下げ'?'skip':'cur';
+    h+=`<div class="route"><b>${it.kind==='ringi'?'承認ルート':'処理の流れ'}</b>
+      <span class="rs ${s1}">起票 ${PEOPLE[by]}</span><i>→</i>
+      <span class="rs ${s2}">${it.kind==='ringi'?'承認':'手配'} ${PEOPLE[ap]}${s2==='cur'?'（いまここ）':s2==='back'?'（差戻し）':s2==='skip'?'（取り下げ）':''}</span><i>→</i>
+      <span class="rs ${st==='Done'?'done':''}">${it.kind==='ringi'?'案件に反映':'納期登録'}</span></div>`;
+  }
+  const docs=docsOf(it);
+  if(docs.length) h+=`<div class="docs"><b>書類</b>${docs.map((d,i)=>`<button type="button" class="linkbtn" data-doc="${i}">📄 ${d.name}</button>`).join('')}</div>`;
+  return h;
+}
+function bindPanelExtras(root, it){
+  const r=rootOf(it);
+  root.querySelectorAll('[data-cform]').forEach(b=>b.onclick=()=>openFormModal(b.dataset.cform, {deal:r.id}, {from:`${r.ref} の詳細パネル`}));
+  const docs=docsOf(it);
+  root.querySelectorAll('[data-doc]').forEach(b=>b.onclick=()=>openDoc(docs[Number(b.dataset.doc)], it));
+}
+function docsOf(it){
+  const r=rootOf(it); if(!r) return [];
+  const list=[];
+  if(r.id==='841'){ list.push({name:'調査報告書（9/19）', kind:'report'},{name:'見積書 v1（¥1,500,000）', kind:'quote'}); }
+  if(r.id==='2103') list.push({name:'前回点検報告書（2025-10）', kind:'report'});
+  if(r.id==='44') list.push({name:'完了報告書', kind:'report'},{name:'10年保証書', kind:'warranty'});
+  issues.filter(i=>rootOf(i)===r && i.kind==='task' && i.title.startsWith('見積 ')).forEach((q,n)=>list.push({name:`見積書 v${n+2}（${q.title.replace('見積 ','')}）`, kind:'quote', it:q}));
+  return list;
+}
+function openDoc(d, it){
+  ensureModal();
+  const r=rootOf(it), c=r&&r.customer&&CUSTOMERS[r.customer];
+  const box=$('modalBox');
+  const lines=d.kind==='quote'
+    ? `<tr><td>調査・点検作業</td><td>1</td><td>120,000</td></tr><tr><td>施工作業一式</td><td>1</td><td>1,380,000</td></tr><tr><td colspan="2">値引</td><td>−180,000</td></tr>`
+    : `<tr><td colspan="3">${d.kind==='warranty'?'保証内容・保証期間・免責事項':'作業内容・所見・写真（3枚）・申し送り'}</td></tr>`;
+  box.innerHTML=`<div class="modal-h"><h3>📄 ${d.name}</h3><button class="x" type="button" data-mclose>×</button></div>
+    <div class="paper"><div class="paper-h"><b>${d.kind==='quote'?'御見積書':d.kind==='warranty'?'保証書':'報告書'}</b><span>株式会社サニックス</span></div>
+      <p>${c?c.name:'お客さま'} 御中　／　案件 ${r?r.ref:''} ${r?r.title:''}</p>
+      <table class="ledger"><thead><tr><th>項目</th><th>数量</th><th>金額（円）</th></tr></thead><tbody>${lines}</tbody></table>
+      <p class="quiet" style="margin-top:10px">モックの書類ビューア。本番は保存済みPDFを表示・ダウンロード・お客さまへ送付。</p></div>
+    <div class="actions"><button class="bg" type="button" data-mclose2>閉じる</button></div>`;
+  $('modal').classList.add('open');
+  const close=()=>{ $('modal').classList.remove('open'); box.innerHTML=''; };
+  box.querySelector('[data-mclose]').onclick=close; box.querySelector('[data-mclose2]').onclick=close;
+}
+
+/* ---- 自分の申請 ---- */
+const EXPENSES=[], SAFETY_REPORTS=[];
+function myReqRows(){
+  const me=state.role, rows=[];
+  DRAFTS.filter(d=>d.by===me).forEach(d=>rows.push({id:d.id, type:FORMS[d.form].title.replace(/（.*）/,''), title:d.title, st:'下書き', who:'—', upd:d.saved, draft:d}));
+  issues.filter(i=>i.by===me && ['ringi','buy','task'].includes(i.kind) && (i.kind!=='task'||i.title.startsWith('見積 '))).forEach(i=>{
+    const st=i.status==='取り下げ'?'取り下げ':i.status==='差戻し'?'差戻し':i.status==='Done'?'承認済・完了':'申請中';
+    rows.push({id:i.id, type:i.kind==='ringi'?'稟議':i.kind==='buy'?'購買申請':'見積', title:`${i.title} ${i.ref}`, st, who:PEOPLE[i.own], upd:(i.tl.length?'9/25':'—'), amount:i.amount, issue:i});
+  });
+  EXPENSES.filter(e=>e.by===me).forEach(e=>rows.push({id:e.id, type:'経費', title:e.title, st:e.status, who:'経理', upd:e.date, amount:yen(e.amount), rec:e}));
+  SAFETY_REPORTS.filter(e=>e.by===me).forEach(e=>rows.push({id:e.id, type:'安全報告', title:e.title, st:e.status, who:'安全衛生課', upd:e.date, rec:e}));
+  return rows;
+}
+function renderMyReq(){
+  const all=myReqRows();
+  const tabs=[['all','すべて',r=>true],['draft','下書き',r=>r.st==='下書き'],['wait','申請中',r=>r.st==='申請中'||r.st==='確認中'],['back','差戻し',r=>r.st==='差戻し'],['done','承認済・完了',r=>r.st==='承認済・完了'||r.st==='受理'],['wd','取り下げ',r=>r.st==='取り下げ']];
+  const cur=tabs.find(t=>t[0]===state.myTab)||tabs[0];
+  const q=(state.myQ||'').trim();
+  const rows=all.filter(cur[2]).filter(r=>!q||(r.type+r.title).includes(q));
+  const stp=s=>`<span class="pill ${s==='下書き'?'block':s==='差戻し'?'back':s==='申請中'||s==='確認中'?'wait':s==='取り下げ'?'block':'done'}">${s}</span>`;
+  const act=r=>{
+    if(r.draft) return `<button class="sp-act pri" data-dr="${r.id}">再開</button><button class="sp-act" data-dd="${r.id}">削除</button>`;
+    if(r.issue){
+      const i=r.issue, b=[`<button class="sp-act" data-oi="${i.id}">開く</button>`];
+      if(r.st==='差戻し') b.unshift(`<button class="sp-act pri" data-rs="${i.id}">修正して再申請</button>`);
+      if(r.st==='申請中' && i.own!==state.role && ['ringi','buy'].includes(i.kind)) b.push(`<button class="sp-act" data-nu="${i.id}">催促</button>`,`<button class="sp-act" data-wd="${i.id}">取り下げ</button>`);
+      return b.join('');
+    }
+    return '—';
+  };
+  $('main').innerHTML=`<div class="mg-page">
+    <div class="mg-top"><h2>自分の申請 — ${PEOPLE[state.role]}</h2><button type="button" class="bp" id="myNew">＋ 新規</button></div>
+    <div class="mg-why"><div><b>ここで分かること</b>出した申請が今どこにあるか（誰待ちか）</div><div><b>下書き</b>途中で保存したもの。再開・削除できる</div><div><b>差戻し</b>「修正して再申請」で前回の内容から直す（同じ行を更新）</div><div><b>取り下げ</b>承認前なら取り下げ可。行は履歴に残る</div></div>
+    <div class="filterbar"><div class="seg" role="tablist">${tabs.map(t=>`<button type="button" role="tab" data-myt="${t[0]}" aria-selected="${t[0]===cur[0]}">${t[1]} <span class="ref">${all.filter(t[2]).length}</span></button>`).join('')}</div>
+      <input class="mg-q" id="myQ" value="${state.myQ||''}" placeholder="件名・種類で検索"><span class="count">${rows.length} 件</span></div>
+    <div class="table-wrap"><table class="ledger"><thead><tr><th>種類</th><th style="width:34%">件名</th><th>状態</th><th>いま誰の手元</th><th>金額</th><th>更新</th><th>操作</th></tr></thead>
+    <tbody>${rows.map(r=>`<tr><td>${r.type}</td><td><b>${r.title}</b></td><td>${stp(r.st)}</td><td>${r.st==='申請中'?r.who:'—'}</td><td class="num-r">${state.role==='koji'&&r.amount?'（非表示）':(r.amount||'—')}</td><td>${r.upd}</td><td><div style="display:flex;gap:4px;flex-wrap:wrap">${act(r)}</div></td></tr>`).join('')||'<tr><td colspan="7" class="quiet">該当なし</td></tr>'}</tbody></table></div>
+    <div class="add-row">入口: ヘッダ「＋ 新規」／案件の詳細パネル「この案件で: ＋稟議を起票」／管理 → 登録。どこから出しても、ここに集まる。</div></div>`;
+  $('myNew').onclick=()=>{ renderNewMenu(); $('newMenu').classList.add('open'); };
+  $('main').querySelectorAll('[data-myt]').forEach(b=>b.onclick=()=>{ state.myTab=b.dataset.myt; render(); });
+  $('main').querySelectorAll('[data-dr]').forEach(b=>b.onclick=()=>{ const d=DRAFTS.find(x=>x.id===b.dataset.dr); openFormModal(d.form, d.vals, {draftId:d.id, from:'自分の申請（下書き）'}); });
+  $('main').querySelectorAll('[data-dd]').forEach(b=>b.onclick=()=>{ const i=DRAFTS.findIndex(x=>x.id===b.dataset.dd); if(i>=0) DRAFTS.splice(i,1); render(); });
+  $('main').querySelectorAll('[data-oi]').forEach(b=>b.onclick=()=>openIssue(b.dataset.oi));
+  $('main').querySelectorAll('[data-rs]').forEach(b=>b.onclick=()=>openResubmit(byId(b.dataset.rs)));
+  $('main').querySelectorAll('[data-nu]').forEach(b=>b.onclick=()=>act('nudge', b.dataset.nu));
+  $('main').querySelectorAll('[data-wd]').forEach(b=>b.onclick=()=>act('withdraw', b.dataset.wd));
+  $('myQ').addEventListener('input',e=>{ state.myQ=e.target.value; render(); const el=$('myQ'); el.focus(); el.setSelectionRange(el.value.length,el.value.length); });
+}
+function myPendingCount(){ return myReqRows().filter(r=>['下書き','差戻し'].includes(r.st)).length; }
+
+/* ================= 追加の台帳（入出荷・外注注文書・売上計上・修理・紹介手数料・取引形態・PPA/FIT・契約書類） ================= */
+const MOVES=[
+  {id:'mv1', type:'入荷', sku:'TRM-A-18', qty:20, wh:'藤沢倉庫', ref:'PO-0912', date:'9/26', status:'入荷予定', log:[]},
+  {id:'mv2', type:'入荷', sku:'FLT-W-10', qty:12, wh:'相模原倉庫', ref:'PO-0915（海外）', date:'10/3', status:'入荷予定', log:[]},
+  {id:'mv3', type:'出荷', sku:'FAN-UF-02', qty:2, wh:'藤沢倉庫', ref:'sfa#2103', date:'9/28', status:'出荷予定', log:[]},
+  {id:'mv4', type:'入荷', sku:'SFT-KIT', qty:10, wh:'本部倉庫', ref:'PO-0901', date:'9/05', status:'入荷済', log:['9/05 鈴木: 検収 10式']},
+];
+function syncMoves(){
+  issues.filter(i=>i.kind==='buy' && i.status==='Done' && !MOVES.some(m=>m.issue===i.id)).forEach(i=>{
+    const sku=(i.formVals&&i.formVals.sku)||'KIT-ES-01', qty=Number(i.formVals&&i.formVals.qty)||1;
+    MOVES.unshift({id:'mv'+i.id, type:'入荷', sku, qty, wh:'横浜倉庫', ref:i.ref, issue:i.id, date:'9/26', status:'入荷予定', log:[`9/25 system: ${i.ref} 発注済から入荷予定を作成`]});
+  });
+  return MOVES;
+}
+function stockAdd(sku, wh, d){ let s=STOCK.find(x=>x.sku===sku && x.wh===wh); if(!s){ s={id:'st'+sku+wh, sku, wh, qty:0, safety:0, counted:'—', log:[]}; STOCK.push(s); } s.qty+=d; }
+const PORDERS=[
+  {id:'po1', no:'GO-2026-0301', vendor:'九州防水工業', deal:'sfa#1342', work:'川崎倉庫 外壁防水', amount:640000, status:'発行済', log:[]},
+  {id:'po2', no:'', vendor:'横浜設備サービス', deal:'sfa#841', work:'横浜支店ビル 高圧洗浄（補助）', amount:180000, status:'作成中', log:[]},
+  {id:'po3', no:'GO-2026-0288', vendor:'湘南環境（産廃運搬）', deal:'sfa#1777', work:'産廃 収集運搬（マニフェスト）', amount:42000, status:'完了報告待ち', log:[]},
+  {id:'po4', no:'GO-2026-0270', vendor:'相模クリーン', deal:'sfa#1777', work:'貯水槽清掃（年次）', amount:120000, status:'支払待ち', log:['9/20 山本: 完了確認']},
+];
+const PO_FLOW=['作成中','発行済','完了報告待ち','支払待ち','支払済'];
+const SALESREC=[
+  {id:'sr44', deal:'sfa#44', cust:'グリーンハイツ管理組合', amount:860000, basis:'請求発行', month:'2026-08', status:'計上済', log:[]},
+  {id:'sr841', deal:'sfa#841', cust:'株式会社サンプル', amount:1320000, basis:'請求発行', month:'2026-09', status:null, dyn:true, log:[]},
+  {id:'sr1', deal:'sfa#1990', cust:'高橋 様', amount:380000, basis:'施工完了', month:'2026-09', status:'計上待ち', log:[]},
+  {id:'sr2', deal:'sfa#1994', cust:'伊藤 様', amount:250000, basis:'施工完了', month:'2026-09', status:'計上待ち', log:[]},
+  {id:'sr3', deal:'sfa#1971', cust:'株式会社山田管理', amount:1200000, basis:'請求発行', month:'2026-09', status:'計上済', log:[]},
+  {id:'sr4', deal:'sfa#1952', cust:'渡辺 様', amount:64000, basis:'施工完了', month:'2026-09', status:'訂正申請中', log:['9/22 佐藤: 金額誤り → 売上訂正の稟議']},
+];
+function srst(r){ if(!r.dyn) return r.status; const b=byId('841-bill1'); return b&&b.status==='Done'?(r.status||'計上待ち'):'請求前'; }
+const REPAIRS=[
+  {id:'rp1', cust:'佐藤 一郎', item:'床下換気扇 UF-2', maker:'サンケミカル', symptom:'異音がする', warranty:'保証内', status:'受付', log:[]},
+  {id:'rp2', cust:'グリーンハイツ管理組合', item:'防錆機器 DS-300', maker:'東和計測', symptom:'表示ランプ消灯', warranty:'保証内', status:'メーカー依頼中', log:['9/20 星本: メーカーへ依頼']},
+  {id:'rp3', cust:'田中 様', item:'トライブリッド蓄電池', maker:'ニチコン販売', symptom:'エラーコード E12', warranty:'保証内', status:'回答済', log:['9/22 system: 基板交換で対応と回答']},
+  {id:'rp4', cust:'株式会社サンプル', item:'防錆機器 DS-300', maker:'東和計測', symptom:'交換希望', warranty:'有償', status:'修理完了', log:[]},
+];
+const REPAIR_FLOW=['受付','メーカー依頼中','回答済','修理完了'];
+const FEES=PARTNERS.filter(p=>/%/.test(p.fee)).map(p=>{ const rate=Number(p.fee.match(/(\d+(?:\.\d+)?)%/)[1]); const base=p.n*420000;
+  return {id:'fe'+p.id, partner:p.name, type:p.type, month:'2026-09', n:p.n, base, rate, fee:Math.round(base*rate/100), status:p.n?'計算済':'対象なし', log:[]}; });
+const DEALTYPES=[
+  {id:'dt1', name:'一般（個人・直販）', billTo:'お客さま', docs:'見積書・契約書（30万円で書式分岐）', fee:'なし', warranty:'お客さまへ直接', note:'基本形'},
+  {id:'dt2', name:'JA紹介', billTo:'JA（支所ごと）', docs:'JA用契約報告書兼請求明細書', fee:'割戻し（月末締め）', warranty:'JA経由', note:'JA支所別の新規依頼内訳が必要'},
+  {id:'dt3', name:'レオパレス', billTo:'レオパレス本社', docs:'完了報告書（指定様式）', fee:'年間単価契約', warranty:'レオパレスへ送付', note:'ポスティング・調査から始まる'},
+  {id:'dt4', name:'建前消毒（ビルダー）', billTo:'ビルダー', docs:'施工完了報告', fee:'単価契約', warranty:'施主へ（ビルダー経由）', note:'顧客登録は施工時'},
+  {id:'dt5', name:'再消毒', billTo:'お客さま', docs:'点検案内はがき・見積・契約', fee:'なし', warranty:'お客さまへ', note:'定期点検リストが入口'},
+  {id:'dt6', name:'買取再販', billTo:'買取業者', docs:'調査報告書・工事完了報告', fee:'なし', warranty:'業者へ送付', note:'物件の所有者が途中で変わる'},
+  {id:'dt7', name:'管理会社紹介（ES）', billTo:'管理会社またはオーナー', docs:'成約報告（管理会社へ）', fee:'紹介手数料（3〜5%）', warranty:'オーナーへ', note:'管理会社別の進捗表が不要になる'},
+  {id:'dt8', name:'PPA（SE）', billTo:'PPA事業者', docs:'仮申込・審査・本申込・完工報告', fee:'なし', warranty:'メーカー保証', note:'電力・FIT申請と並走'},
+];
+const ENERGY_STEPS={
+  'FIT申請':['書類準備','申請','認定待ち','認定'],
+  'FIT名義変更':['書類準備','申請','変更完了'],
+  '電力申請（連系）':['申込','技術検討','連系工事','受給開始'],
+  'PPA':['仮申込','仮審査','本申込','施工','完工報告'],
+};
+const ENERGY=[
+  {id:'en1', cust:'田中 様', kind:'FIT申請', step:1, log:[]},
+  {id:'en2', cust:'株式会社林建物管理', kind:'PPA', step:2, log:[]},
+  {id:'en3', cust:'清水 様', kind:'電力申請（連系）', step:0, log:[]},
+  {id:'en4', cust:'森 様', kind:'FIT名義変更', step:2, log:['9/10 system: 変更完了']},
+];
+const CONTRACTS=[
+  {id:'ct841', deal:'sfa#841', dealId:'841', cust:'株式会社サンプル', amount:1452000, status:'作成待ち', log:[]},
+  {id:'ct1', deal:'sfa#2103', dealId:'2103', cust:'佐藤 一郎', amount:264000, status:'署名待ち', log:[]},
+  {id:'ct2', deal:'sfa#1990', cust:'高橋 様', amount:418000, status:'受注登録待ち', log:[]},
+  {id:'ct3', deal:'sfa#1971', cust:'株式会社山田管理', amount:1320000, status:'完了', log:[]},
+];
+const CT_FLOW=['作成待ち','署名待ち','受注登録待ち','完了'];
+const nextOf=(flow,s)=>flow[flow.indexOf(s)+1];
+Object.assign(MGMT, {
+  moves:{
+    title:'入出荷', asis:'入荷入力・出荷入力・その他出荷（CSV／Excel）、倉庫ごとの手入力', why:'在庫を実数に合わせ、発注したものが届いたかを確かめる',
+    stop:'入出荷をCSVで集めて在庫表に転記すること', who:'購買物流・倉庫・現場',
+    rows:()=>syncMoves(),
+    tabs:[{id:'plan', label:'予定', f:r=>['入荷予定','出荷予定'].includes(r.status)},{id:'in', label:'入荷', f:r=>r.type==='入荷'},{id:'out', label:'出荷', f:r=>r.type==='出荷'},{id:'all', label:'すべて', f:r=>true}],
+    cols:[{h:'区分', v:r=>r.type},{h:'品名', v:r=>`<b>${itemOf(r.sku).name}</b>`},{h:'数量', v:r=>`<span class="num-r">${r.qty} ${itemOf(r.sku).unit}</span>`},{h:'倉庫', v:r=>r.wh},{h:'元', v:r=>`<span class="ref">${r.ref}</span>`},{h:'予定日', v:r=>r.date},{h:'状態', v:r=>`<span class="pill ${/予定/.test(r.status)?'wait':'done'}">${r.status}</span>`}],
+    q:r=>r.type+itemOf(r.sku).name+r.wh+r.ref+r.status,
+    acts:r=>{
+      if(r.status==='入荷予定') return [{l:'入荷検収', c:'bp', f:()=>{ r.status='入荷済'; stockAdd(r.sku,r.wh,r.qty); mlog(r,`検収 ${r.qty}${itemOf(r.sku).unit}・在庫に加算`); if(r.issue) addEvent(byId(r.issue), ev('sys', meShort(), `入荷検収 — ${r.wh} に ${r.qty}${itemOf(r.sku).unit}`)); }}];
+      if(r.status==='出荷予定') return [{l:'出荷登録', c:'bp', f:()=>{ r.status='出荷済'; stockAdd(r.sku,r.wh,-r.qty); mlog(r,`出荷 ${r.qty}${itemOf(r.sku).unit}・在庫から減算`); }}];
+      return [];
+    },
+    foot:()=>'購買申請が「発注済」になると、ここに入荷予定が自動で1行立つ。検収で在庫一覧の数量が増える。',
+  },
+  porders:{
+    title:'外注注文書・支払', asis:'協力業者依頼・注文書発行（紙）、外注処理（着工前／完工後）、外注実績表、産廃の下請支払', why:'外注に何をいくらで頼んだかを残し、完了確認してから支払う',
+    stop:'注文書の手書き・外注実績表への転記', who:'施工リーダー・購買・経理',
+    rows:()=>PORDERS,
+    tabs:[{id:'open', label:'進行中', f:r=>r.status!=='支払済'},{id:'pay', label:'支払待ち', f:r=>r.status==='支払待ち'},{id:'all', label:'すべて', f:r=>true}],
+    cols:[{h:'注文書No', v:r=>r.no?`<span class="ref">${r.no}</span>`:'（未発行）'},{h:'外注先', v:r=>`<b>${r.vendor}</b>`},{h:'案件', v:r=>`<span class="ref">${r.deal}</span>`},{h:'作業', v:r=>r.work},{h:'金額', v:r=>`<span class="num-r">${state.role==='koji'?'（非表示）':yen(r.amount)}</span>`},{h:'状態', v:r=>`<span class="pill ${r.status==='支払済'?'done':r.status==='支払待ち'?'wait':'prog'}">${r.status}</span>`}],
+    q:r=>r.no+r.vendor+r.deal+r.work+r.status,
+    acts:r=>{
+      const n=nextOf(PO_FLOW,r.status); if(!n) return [];
+      const label={'発行済':'注文書を発行','完了報告待ち':'着工（完了報告待ちへ）','支払待ち':'完了を確認','支払済':'支払済にする'}[n];
+      return [{l:label, c:'bp', f:()=>{ if(n==='発行済'){ SEQ.go=(SEQ.go||310)+1; r.no=`GO-2026-${String(SEQ.go).padStart(4,'0')}`; } r.status=n; mlog(r,label); }}];
+    },
+    foot:()=>'発注先は外注・仕入先マスタの「取引中」のみ。保険期限切れの業者は選べない想定。',
+  },
+  salesrec:{
+    title:'売上計上', asis:'売上計上処理（部門別）・売上訂正の稟議兼伝票・売上計上進捗確認・月次締め', why:'いつの売上として確定するかを決める（締め）',
+    stop:'計上用Excelへの転記と、進捗確認の問い合わせ', who:'管理部（経理）',
+    rows:()=>SALESREC,
+    tools:[{l:'9月を締める', f:()=>{ SALESREC.filter(r=>r.month==='2026-09' && srst(r)==='計上待ち').forEach(r=>{ r.status='計上済'; mlog(r,'9月締めで計上'); }); state.srClosed=true; render(); }}],
+    tabs:[{id:'wait', label:'計上待ち', f:r=>srst(r)==='計上待ち'},{id:'fix', label:'訂正申請中', f:r=>srst(r)==='訂正申請中'},{id:'done', label:'計上済', f:r=>srst(r)==='計上済'},{id:'pre', label:'請求前', f:r=>srst(r)==='請求前'},{id:'all', label:'すべて', f:r=>true}],
+    cols:[{h:'案件', v:r=>`<span class="ref">${r.deal}</span>`},{h:'顧客', v:r=>`<b>${r.cust}</b>`},{h:'金額', v:r=>`<span class="num-r">${yen(r.amount)}</span>`},{h:'計上基準', v:r=>r.basis},{h:'計上月', v:r=>r.month},{h:'状態', v:r=>`<span class="pill ${srst(r)==='計上済'?'done':srst(r)==='訂正申請中'?'back':'wait'}">${srst(r)}</span>`}],
+    q:r=>r.deal+r.cust+r.basis+srst(r),
+    acts:r=>{
+      const s=srst(r);
+      if(s==='計上待ち') return [{l:'計上する', c:'bp', f:()=>{ r.status='計上済'; mlog(r,`${r.month} で計上`); }}];
+      if(s==='計上済' && r.dyn) return [{l:'売上訂正の稟議', f:()=>{ openFormModal('ringi',{deal:'841', type:'売上訂正', amount:String(r.amount)},{from:'売上計上'}); return 'nav'; }}];
+      if(s==='訂正申請中') return [{l:'訂正を反映', f:()=>{ r.status='計上済'; mlog(r,'訂正稟議の承認を受け修正計上'); }}];
+      return [];
+    },
+    foot:()=>`会計仕訳の最終確定は会計連携（P3候補）。ここは「基幹で計上を確定するところ」まで。${state.srClosed?' 9月は締め済み。':''}`,
+  },
+  repair:{
+    title:'修理・メーカー依頼', asis:'修理対応・メーカー依頼（HS_060 等）、DS修理依頼、ニチコン保証書発行依頼', why:'アフターの依頼を取りこぼさず、メーカー回答と保証の有無を残す',
+    stop:'電話メモとメーカーへのFAX・メールの個別管理', who:'営業・技術・HSE管理部',
+    rows:()=>REPAIRS, tools:[{l:'＋ 修理を受け付ける', f:()=>openFormModal('repair',{},{from:'修理・メーカー依頼'})}],
+    tabs:[{id:'open', label:'対応中', f:r=>r.status!=='修理完了'},{id:'done', label:'修理完了', f:r=>r.status==='修理完了'},{id:'all', label:'すべて', f:r=>true}],
+    cols:[{h:'顧客', v:r=>`<b>${r.cust}</b>`},{h:'機器', v:r=>r.item},{h:'メーカー', v:r=>r.maker},{h:'症状', v:r=>r.symptom},{h:'保証', v:r=>r.warranty==='有償'?'<span class="warn-badge">有償</span>':'保証内'},{h:'状態', v:r=>`<span class="pill ${r.status==='修理完了'?'done':r.status==='回答済'?'prog':'wait'}">${r.status}</span>`}],
+    q:r=>r.cust+r.item+r.maker+r.symptom+r.status,
+    acts:r=>{ const n=nextOf(REPAIR_FLOW,r.status); if(!n) return [];
+      const label={'メーカー依頼中':'メーカーへ依頼','回答済':'回答を登録','修理完了':'修理完了にする'}[n];
+      return [{l:label, c:'bp', f:()=>{ r.status=n; mlog(r,label); }}]; },
+    foot:()=>'保証の有無は保証書管理と同じ物件・機器に紐づく。',
+  },
+  fees:{
+    title:'紹介手数料・割戻し', asis:'紹介手数料（入金月末業務）、JA用割り戻し手数料資料、手数料実績一覧、紹介制度の商品券', why:'紹介元へ約束どおりの手数料を支払う',
+    stop:'月末に成約を拾って手数料Excelで計算すること', who:'経理・法人営業部・ES管理部',
+    rows:()=>FEES,
+    tabs:[{id:'calc', label:'計算済', f:r=>r.status==='計算済'},{id:'fix', label:'確定', f:r=>r.status==='確定'},{id:'paid', label:'支払済', f:r=>r.status==='支払済'},{id:'all', label:'すべて', f:r=>true}],
+    cols:[{h:'紹介元', v:r=>`<b>${r.partner}</b>`},{h:'区分', v:r=>r.type},{h:'対象月', v:r=>r.month},{h:'成約', v:r=>`<span class="num-r">${r.n} 件</span>`},{h:'対象額', v:r=>`<span class="num-r">${yen(r.base)}</span>`},{h:'率', v:r=>`${r.rate}%`},{h:'手数料', v:r=>`<span class="num-r"><b>${yen(r.fee)}</b></span>`},{h:'状態', v:r=>`<span class="pill ${r.status==='支払済'?'done':r.status==='確定'?'prog':'wait'}">${r.status}</span>`}],
+    q:r=>r.partner+r.type+r.status,
+    acts:r=>r.status==='計算済'?[{l:'確定する', c:'bp', f:()=>{ r.status='確定'; mlog(r,'手数料を確定'); }}]:r.status==='確定'?[{l:'支払済にする', f:()=>{ r.status='支払済'; mlog(r,'支払'); }}]:[],
+    foot:()=>'率は提携先・管理会社マスタの条件から自動計算。成約は案件の紹介元から集計（モックは件数×平均額）。',
+  },
+  dealtypes:{
+    title:'取引形態（案件タイプ）', asis:'JA・レオパレス・建前消毒・再消毒・買取再販などを取引先ごとの専用フロー・専用Excelで運用', why:'取引先ごとに請求先・書類・手数料・保証の送り先が違う',
+    stop:'取引先ごとに別システム・別Excelを持つこと（違いはこの表の属性で持つ）', who:'法人営業部・ES管理部・経理',
+    rows:()=>DEALTYPES,
+    tabs:[{id:'all', label:'すべて', f:r=>true}],
+    cols:[{h:'取引形態', v:r=>`<b>${r.name}</b>`},{h:'請求先', v:r=>r.billTo},{h:'必要書類', v:r=>r.docs},{h:'手数料', v:r=>r.fee},{h:'保証書の送付先', v:r=>r.warranty},{h:'特記', v:r=>r.note}],
+    q:r=>r.name+r.billTo+r.docs+r.fee+r.note,
+    acts:r=>[{l:'この形態の案件を探す', f:()=>{ state.searchQ=r.name.replace(/（.*）/,''); go('search'); return 'nav'; }}],
+    foot:()=>'案件を起票するとき取引形態を選ぶと、請求先・書類・手数料・保証送付先がこの表から決まる（案件の属性）。',
+  },
+  energy:{
+    title:'PPA・FIT・電力申請', asis:'FIT申請・名義変更、電力申請、PPA仮申込〜本申込〜完工報告（SE）', why:'制度手続きの期限と進みを案件と並べて追う',
+    stop:'申請ごとの進捗Excel', who:'SE営業・SE事務',
+    rows:()=>ENERGY,
+    tabs:[{id:'open', label:'進行中', f:r=>r.step<ENERGY_STEPS[r.kind].length-1},{id:'done', label:'完了', f:r=>r.step>=ENERGY_STEPS[r.kind].length-1},{id:'all', label:'すべて', f:r=>true}],
+    cols:[{h:'顧客', v:r=>`<b>${r.cust}</b>`},{h:'手続き', v:r=>r.kind},{h:'進み', v:r=>ENERGY_STEPS[r.kind].map((s,i)=>`<span class="rs ${i<r.step?'done':i===r.step?'cur':''}">${s}</span>`).join(' ')}],
+    q:r=>r.cust+r.kind,
+    acts:r=>{ const st=ENERGY_STEPS[r.kind]; if(r.step>=st.length-1) return [];
+      return [{l:`次へ（${st[r.step+1]}）`, c:'bp', f:()=>{ r.step++; mlog(r,`${st[r.step]} に進めた`); }}]; },
+    foot:()=>'SE案件の工程（施工・請求）と並走する手続き。案件台帳の同じ顧客から辿れる想定。',
+  },
+  contracts:{
+    title:'契約書類・受注登録', asis:'契約書作成・締結、契約入力、契約内容入力率。税込30万円未満は契約書作成依頼WF、以上は工事申込書（ES_091）', why:'受注を確定させ、請求・施工の前提を揃える',
+    stop:'契約入力の二重入力と入力率の集計', who:'地区事務・拠点事務・営業',
+    rows:()=>CONTRACTS,
+    tabs:[{id:'open', label:'処理中', f:r=>r.status!=='完了'},{id:'done', label:'完了', f:r=>r.status==='完了'},{id:'all', label:'すべて', f:r=>true}],
+    cols:[{h:'案件', v:r=>`<span class="ref">${r.deal}</span>`},{h:'顧客', v:r=>`<b>${r.cust}</b>`},{h:'金額（税込）', v:r=>`<span class="num-r">${yen(r.amount)}</span>`},{h:'書式', v:r=>r.amount>=300000?'工事申込書':'契約書作成依頼WF'},{h:'状態', v:r=>`<span class="pill ${r.status==='完了'?'done':'wait'}">${r.status}</span>`}],
+    q:r=>r.deal+r.cust+r.status,
+    acts:r=>{ const n=nextOf(CT_FLOW,r.status); if(!n) return [];
+      const label={'署名待ち':'契約書を作成','受注登録待ち':'署名を確認','完了':'受注登録'}[n];
+      return [{l:label, c:'bp', f:()=>{ r.status=n; mlog(r,label);
+        if(n==='完了' && r.dealId==='841'){ const j=byId('841-j1'); if(j && j.status!=='Done'){ j.status='Done'; addEvent(j, ev('sys', meShort(), '契約書類整備・受注登録 完了')); } }
+      }}]; },
+    foot:()=>'sfa#841 は受注登録まで進めると、案件台帳の「契約書類整備（jimu#41）」が Done になる。',
+  },
+});
+CAPS.splice(CAPS.findIndex(c=>c.l.startsWith('経営BI')), 0,
+  {l:'入出荷（入荷検収・出荷登録）', t:'管理', asis:'入荷入力・出荷入力（CSV・Excel）', plan:'残す（発注済から入荷予定を自動作成）', st:'ok', go:()=>go('mgmt',{mgmt:'moves'})},
+  {l:'外注注文書・支払', t:'管理', asis:'協力業者依頼・注文書発行（紙）・外注実績表', plan:'残す', st:'ok', go:()=>go('mgmt',{mgmt:'porders'})},
+  {l:'売上計上・月次締め', t:'管理', asis:'売上計上処理・売上訂正の稟議兼伝票', plan:'残す（仕訳の確定は会計連携）', st:'ok', go:()=>go('mgmt',{mgmt:'salesrec'})},
+  {l:'修理・メーカー依頼', t:'管理', asis:'修理対応・メーカー依頼・DS修理依頼', plan:'残す', st:'ok', go:()=>go('mgmt',{mgmt:'repair'})},
+  {l:'紹介手数料・割戻し', t:'管理', asis:'紹介手数料（月末）・JA割戻し資料', plan:'残す（率はマスタから自動計算）', st:'ok', go:()=>go('mgmt',{mgmt:'fees'})},
+  {l:'取引形態（JA・レオパレス等の違い）', t:'マスタ', asis:'取引先ごとの専用フロー・専用Excel', plan:'別システムにせず属性で持つ', st:'ok', go:()=>go('mgmt',{mgmt:'dealtypes'})},
+  {l:'PPA・FIT・電力申請', t:'管理', asis:'FIT申請・名義変更・電力申請・PPA', plan:'残す', st:'ok', go:()=>go('mgmt',{mgmt:'energy'})},
+  {l:'契約書類・受注登録', t:'管理', asis:'契約書作成・締結・契約入力', plan:'残す（30万円で書式を自動判定）', st:'ok', go:()=>go('mgmt',{mgmt:'contracts'})},
+  {l:'自分の申請（下書き・申請中・差戻し）', t:'一覧', asis:'NEXTの申請一覧・紙の控え', plan:'残す（どこから出してもここに集まる）', st:'ok', go:()=>go('myreq')},
+);
+
+/* ================= 周辺: 経費・安全衛生・車両・カレンダー・修理受付・BI ================= */
+Object.assign(FORMS, {
+  expense:{
+    title:'経費申請', submitLabel:'申請する', asis:'紙＋NEXTで経費精算、領収書は紙で提出（締切は毎月末営業日17:00）', why:'立替・出張・車両費を精算する',
+    stop:'紙の申請書と領収書の回付', who:'全員（申請）／経理（確認）',
+    fields:[
+      {k:'cat', l:'区分', t:'select', opts:()=>['交通費','出張','車両（燃料・駐車）','消耗品','接待・会議','その他'].map(x=>[x,x])},
+      {k:'date', l:'利用日', def:'9/24'},
+      {k:'amount', l:'金額（円）', t:'number', def:'0', req:true},
+      {k:'deal', l:'関連する案件（任意）', t:'select', opts:()=>[['','（なし）']].concat(dealOpts())},
+      {k:'memo', l:'内容', full:true},
+    ],
+    preview:v=>`<div class="note">${(Number(v.amount)||0)>=30000?'3万円以上のため拠点長の確認が入ります。':'経理の確認のみ。'} 領収書は添付欄に写真を付けます。今月の締切: 9/30 17:00。</div>`,
+    submit:(v)=>{ const amt=Number(v.amount)||0; if(!amt) return {err:'金額を入れてください'};
+      EXPENSES.unshift({id:nextId(), by:state.role, title:`${v.cat} ${v.memo||''}`.trim(), amount:amt, date:'9/25', status:'申請中'});
+      return {msg:`経費 ${yen(amt)} を申請しました（${amt>=30000?'拠点長 → ':''}経理へ）。`}; },
+  },
+  safety:{
+    title:'ヒヤリハット・事故報告', submitLabel:'報告する', asis:'ヒヤリハット・作業事故報告・労災資料・交通事故資料を紙で作成（HS・ES）', why:'事故の芽を共有し、再発を防ぐ。法定の記録',
+    stop:'紙の報告書と、集計用Excelへの転記', who:'現場（報告）／安全衛生課（確認）',
+    fields:[
+      {k:'kind', l:'種類', t:'select', opts:()=>['ヒヤリハット','作業事故','交通事故','労災'].map(x=>[x,x])},
+      {k:'place', l:'場所', def:'現場'},
+      {k:'deal', l:'関連する案件（任意）', t:'select', opts:()=>[['','（なし）']].concat(dealOpts())},
+      {k:'anon', l:'匿名で報告', t:'select', opts:()=>[['いいえ','いいえ'],['はい','はい（ヒヤリハットのみ）']]},
+      {k:'what', l:'何があったか', t:'textarea', full:true, req:true},
+    ],
+    preview:v=>`<div class="note ${v.kind!=='ヒヤリハット'?'warn':''}">${v.kind==='ヒヤリハット'?'安全衛生課と拠点長に共有されます。':'事故のため拠点長・安全衛生課に即時通知。保険請求の要否を確認します。'}</div>`,
+    submit:(v)=>{ if(!(v.what||'').trim()) return {err:'何があったかを書いてください'};
+      SAFETY_REPORTS.unshift({id:nextId(), by:state.role, kind:v.kind, title:`${v.kind}: ${v.what.slice(0,24)}`, place:v.place, anon:v.anon==='はい', date:'9/25', status:'確認中', log:[]});
+      if(v.kind!=='ヒヤリハット') notify('leader', `${v.kind}の報告: ${v.what.slice(0,20)}`, '841');
+      return {msg:`${v.kind}を報告しました（安全衛生課${v.kind!=='ヒヤリハット'?'・拠点長に即時通知':''}）。`, openLabel:'安全衛生の一覧を開く', open:()=>go('mgmt',{mgmt:'safety'})}; },
+  },
+  repair:{
+    title:'修理の受付', submitLabel:'受け付ける', asis:'電話で修理依頼を受け、メモしてメーカーへFAX', why:'アフター依頼を取りこぼさない',
+    stop:'電話メモの個別管理', who:'営業・相談室',
+    fields:[
+      {k:'cust', l:'顧客', t:'select', opts:()=>Object.values(CUSTOMERS).map(c=>[c.name,c.name]), full:true},
+      {k:'item', l:'機器', t:'select', opts:()=>ITEMS.map(x=>[x.name,x.name])},
+      {k:'warranty', l:'保証', t:'select', opts:()=>[['保証内','保証内'],['有償','有償']]},
+      {k:'symptom', l:'症状', full:true, req:true},
+    ],
+    preview:()=>'<div class="note">受け付けると修理・メーカー依頼の一覧に「受付」で載ります。</div>',
+    submit:v=>{ if(!(v.symptom||'').trim()) return {err:'症状を入れてください'};
+      const it=ITEMS.find(x=>x.name===v.item)||{supplier:'—'};
+      REPAIRS.unshift({id:nextId(), cust:v.cust, item:v.item, maker:it.supplier, symptom:v.symptom, warranty:v.warranty, status:'受付', log:[`9/25 ${meShort()}: 受付`]});
+      return {msg:`${v.cust} の修理を受け付けました。`, openLabel:'修理一覧を開く', open:()=>go('mgmt',{mgmt:'repair'})}; },
+  },
+});
+const CARS=['横浜 101（軽バン）','横浜 102（ハイエース）','藤沢 201（軽トラ）'];
+const CAR_RES=[{car:0, day:0, who:'山本', what:'グリーンハイツ'},{car:1, day:2, who:'井上', what:'川崎倉庫'},{car:2, day:1, who:'星本', what:'藤沢 訪問'}];
+const CAL_EVENTS=[
+  {day:0, tm:'9:00', t:'横浜支店ビル 現地調査', who:'sales'},{day:0, tm:'13:30', t:'藤沢 定期点検の訪問', who:'sales'},
+  {day:1, tm:'10:00', t:'拠点会議', who:'all'},{day:2, tm:'16:00', t:'SAADモック説明会', who:'all'},{day:3, tm:'9:00', t:'相模原 定期点検 3件', who:'koji'},
+];
+Object.assign(MGMT, {
+  safety:{
+    title:'安全衛生（ヒヤリハット・事故）', asis:'ヒヤリハット・作業事故・労災・交通事故の報告を紙で作成し、安全会議資料に集計', why:'事故の芽を共有し再発を防ぐ。法定記録',
+    stop:'紙の報告書と集計Excel', who:'全員（報告）／安全衛生課',
+    rows:()=>SAFETY_REPORTS.concat(SAFETY_SEED), tools:[{l:'＋ 報告する', f:()=>openFormModal('safety',{},{from:'安全衛生'})}],
+    tabs:[{id:'open', label:'確認中', f:r=>r.status==='確認中'},{id:'done', label:'対策済', f:r=>r.status==='対策済'},{id:'all', label:'すべて', f:r=>true}],
+    cols:[{h:'日付', v:r=>r.date},{h:'種類', v:r=>r.kind==='ヒヤリハット'?r.kind:`<span class="warn-badge">${r.kind}</span>`},{h:'内容', v:r=>`<b>${r.title}</b>`},{h:'場所', v:r=>r.place},{h:'報告者', v:r=>r.anon?'（匿名）':PEOPLE[r.by]||r.by},{h:'状態', v:r=>`<span class="pill ${r.status==='対策済'?'done':'wait'}">${r.status}</span>`}],
+    q:r=>r.kind+r.title+r.place,
+    acts:r=>r.status==='確認中'?[{l:'対策を記録して完了', c:'bp', f:()=>{ r.status='対策済'; mlog(r,'対策: 2人体制・声かけを徹底'); }}]:[],
+    foot:all=>`今月の報告 ${all.length} 件（うち事故 ${all.filter(r=>r.kind!=='ヒヤリハット').length} 件）。安全会議資料はここから集計する。`,
+  },
+  cars:{
+    title:'車両予約', asis:'車両持ち帰り申請書（紙）、車両入力、車両事故・違反の記録', why:'社用車の空きを確認し、誰がいつ使うかを残す',
+    stop:'紙の申請と拠点ホワイトボード', who:'全員',
+    rows:()=>CARS.map((c,i)=>({id:'car'+i, name:c, i})),
+    tabs:[{id:'all', label:'今週', f:r=>true}],
+    cols:[{h:'車両', v:r=>`<b>${r.name}</b>`}].concat(DAYS.map((d,di)=>({h:d, v:r=>{ const x=CAR_RES.find(c=>c.car===r.i&&c.day===di); return x?`<span class="sch-chip">${x.who}：${x.what}</span>`:'<span class="quiet" style="margin:0">空き</span>'; }}))),
+    q:r=>r.name,
+    acts:r=>{ const free=DAYS.findIndex((d,di)=>!CAR_RES.some(c=>c.car===r.i&&c.day===di)); if(free<0) return [];
+      return [{l:`${DAYS[free]} を予約`, c:'bp', f:()=>{ CAR_RES.push({car:r.i, day:free, who:meShort(), what:'予約'}); mlog(r,`${DAYS[free]} を予約`); }}]; },
+    foot:()=>'事故・違反の記録は安全衛生の「交通事故」で報告する。',
+  },
+  calendar:{
+    title:'カレンダー（今週）', asis:'eSMスケジュール・技術行動予定・各自の手帳', why:'訪問・現場・会議の予定を案件とつなげて見る',
+    stop:'eSMと手帳とホワイトボードの三重管理', who:'全員（正本はGoogleカレンダー連携を想定）',
+    rows:()=>DAYS.map((d,i)=>({id:'d'+i, d, i})),
+    tabs:[{id:'me', label:'自分', f:r=>true},{id:'all', label:'拠点全体', f:r=>true}],
+    cols:[{h:'日', v:r=>`<b>${r.d}</b>`},{h:'予定', v:r=>{ const tab=(state.mgmtTab||{}).calendar||'me';
+      const ev1=CAL_EVENTS.filter(e=>e.day===r.i && (tab==='all'||e.who==='all'||e.who===state.role)).map(e=>`<span class="sch-chip">${e.tm} ${e.t}</span>`);
+      const sc=SCHED.filter(s=>s.day===r.i && (tab==='all'||state.role==='koji')).map(s=>`<span class="sch-chip ext">${TECHS[s.tech]}：${s.t}</span>`);
+      return ev1.concat(sc).join('')||'<span class="quiet" style="margin:0">予定なし</span>'; }}],
+    q:r=>r.d,
+    acts:r=>[{l:'予定を追加', f:()=>{ CAL_EVENTS.push({day:r.i, tm:'15:00', t:'（新しい予定）', who:state.role}); mlog(r,'予定を追加'); }}],
+    foot:()=>'施工予定・人員アサインで割り当てた現場も「拠点全体」に出る。本番はGoogleカレンダーと同期。',
+  },
+});
+const SAFETY_SEED=[
+  {id:'sf1', by:'koji', kind:'ヒヤリハット', title:'ヒヤリハット: 床下で脚立がぐらついた', place:'藤沢 戸建', date:'9/18', status:'対策済', log:[]},
+  {id:'sf2', by:'koji', kind:'作業事故', title:'作業事故: 屋根で工具落下（けが人なし）', place:'グリーンハイツ', date:'9/12', status:'確認中', log:[]},
+];
+CAPS.splice(CAPS.findIndex(c=>c.l.startsWith('経費精算')), 3,
+  {l:'経費申請', t:'登録', asis:'紙＋NEXT', plan:'残す（自分の申請で進みを確認）', st:'ok', go:()=>openFormModal('expense',{},{from:'管理一覧'})},
+  {l:'安全衛生（ヒヤリハット・事故）', t:'管理', asis:'紙の報告書・安全会議資料', plan:'残す', st:'ok', go:()=>go('mgmt',{mgmt:'safety'})},
+  {l:'車両予約', t:'管理', asis:'車両持ち帰り申請書（紙）', plan:'残す', st:'ok', go:()=>go('mgmt',{mgmt:'cars'})},
+  {l:'カレンダー（今週）', t:'一覧', asis:'eSMスケジュール・技術行動予定', plan:'Googleカレンダーと同期する前提で残す', st:'ok', go:()=>go('mgmt',{mgmt:'calendar'})},
+  {l:'修理の受付', t:'登録', asis:'電話メモ→メーカーへFAX', plan:'残す', st:'ok', go:()=>openFormModal('repair',{},{from:'管理一覧'})},
+  {l:'勤怠・人事', t:'外部', asis:'既存の勤怠・人事システム', plan:'基幹に作らず外部SSOで入る（意図的）', st:'ext', go:()=>goWip('kintai')},
+);
+const biCap=CAPS.find(c=>c.l.startsWith('経営BI')); if(biCap){ biCap.st='ok'; biCap.plan='転記用の画面は作らず、台帳の数字をそのまま集計'; biCap.go=()=>go('bi'); }
+
+function renderBI(){
+  const deals=issues.filter(i=>i.kind==='deal'), leads=issues.filter(i=>i.kind==='lead'&&i.open);
+  const paidSum=PAYMENTS.filter(r=>pst(r)==='消込済').reduce((s,r)=>s+r.amount,0);
+  const waitSum=PAYMENTS.filter(r=>['入金待ち','一部入金','期日超過'].includes(pst(r))).reduce((s,r)=>s+r.amount,0);
+  const salesSum=SALESREC.filter(r=>srst(r)==='計上済'&&r.month==='2026-09').reduce((s,r)=>s+r.amount,0);
+  const ringiWait=issues.filter(i=>i.kind==='ringi'&&i.status==='承認待ち').length;
+  const hide=state.role==='koji';
+  const kpi=[['今月の計上売上',hide?'（非表示）':yen(salesSum),'売上計上'],['入金済（消込）',hide?'（非表示）':yen(paidSum),'入金・消込'],['未回収（入金待ち＋超過）',hide?'（非表示）':yen(waitSum),'入金・消込'],
+    ['進行中の案件',`${deals.filter(d=>d.open).length} 件`,'案件台帳'],['未対応リード',`${leads.length} 件`,'案件台帳'],['承認待ちの稟議',`${ringiWait} 件`,'稟議View'],
+    ['点検の未実施',`${INSPECTIONS.filter(r=>r.status==='未実施').length} 件`,'定期点検'],['安全在庫割れ',`${STOCK.filter(s=>s.qty<s.safety).length} 品目`,'在庫'],['保証書の発行待ち',`${WARRANTIES.filter(w=>w.status==='発行待ち').length} 件`,'保証書']];
+  const byBranch={}; SALESREC.concat([]).forEach(()=>{});
+  issues.filter(i=>i.kind==='deal').forEach(d=>{ const k=`${d.division}・${d.branch}`; byBranch[k]=byBranch[k]||{open:0,done:0}; d.open?byBranch[k].open++:byBranch[k].done++; });
+  $('main').innerHTML=`<div class="pad">
+    <h2 class="page">経営・BI（拠点の数字）</h2>
+    ${whyHtml({asis:'日計表・日報・歩合／報奨・社長提出資料をExcelで集計し転記', why:'拠点と会社の数字を毎日見て判断する', stop:'集計のためだけのExcel転記（数字は台帳からそのまま出す）', who:'拠点長・管理職・経営'},'static')}
+    <div class="grid3">${kpi.map(k=>`<div class="card"><span class="tag">${k[2]}</span><h3 style="font-size:20px">${k[1]}</h3><p>${k[0]}</p></div>`).join('')}</div>
+    <h3 class="m-h" style="margin-top:16px">拠点別の案件</h3>
+    <div class="table-wrap"><table class="ledger"><thead><tr><th>部門・拠点</th><th>進行中</th><th>完了</th></tr></thead><tbody>
+      ${Object.entries(byBranch).map(([k,v])=>`<tr><td class="orgcell">${k}</td><td>${v.open}</td><td>${v.done}</td></tr>`).join('')}</tbody></table></div>
+    <div class="note" style="max-width:960px">この画面の数字は、案件台帳・入金・売上計上・点検・在庫の台帳からその場で集計している（転記していない）。歩合・報奨の計算ルールは要件確定後に追加。</div>
+  </div>`;
+}
+
 /* ================= boot ================= */
 Object.entries(ROLES).forEach(([id,r])=>{
   const b=document.createElement('button'); b.type='button'; b.className='role'; b.textContent=r.label; b.dataset.role=id;
   b.onclick=()=>setRole(id); $('roles').appendChild(b);
 });
-$('bellBtn').onclick=()=>$('notif').classList.toggle('open');
+$('bellBtn').onclick=()=>{ $('newMenu').classList.remove('open'); $('notif').classList.toggle('open'); };
+$('newBtn').onclick=()=>{ $('notif').classList.remove('open'); renderNewMenu(); $('newMenu').classList.toggle('open'); };
+$('myBtn').onclick=()=>{ $('newMenu').classList.remove('open'); go('myreq'); };
 $('search').addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); state.searchQ=e.target.value; go('search'); }});
 $('app').addEventListener('wheel', e=>{
   const main=$('main'); if(!main) return;
