@@ -3816,18 +3816,31 @@ function openDoc(d, it){
   ensureModal();
   const r=rootOf(it), c=r&&r.customer&&CUSTOMERS[r.customer];
   const box=$('modalBox');
+  d.sends=d.sends||[];
   const lines=d.kind==='quote'
     ? `<tr><td>調査・点検作業</td><td>1</td><td>120,000</td></tr><tr><td>施工作業一式</td><td>1</td><td>1,380,000</td></tr><tr><td colspan="2">値引</td><td>−180,000</td></tr>`
     : `<tr><td colspan="3">${d.kind==='warranty'?'保証内容・保証期間・免責事項':'作業内容・所見・写真（3枚）・申し送り'}</td></tr>`;
+  const sendHist=d.sends.length?`<ul class="chg-hist">${d.sends.map(s=>`<li>${s.at} ${s.who} · ${s.how} → ${s.to}</li>`).join('')}</ul>`:'<p class="quiet">まだ送付履歴はありません。</p>';
   box.innerHTML=`<div class="modal-h"><h3>📄 ${d.name}</h3><button class="x" type="button" data-mclose>×</button></div>
     <div class="paper"><div class="paper-h"><b>${d.kind==='quote'?'御見積書':d.kind==='warranty'?'保証書':'報告書'}</b><span>株式会社サニックス</span></div>
       <p>${c?c.name:'お客さま'} 御中　／　案件 ${r?r.ref:''} ${r?r.title:''}</p>
       <table class="ledger"><thead><tr><th>項目</th><th>数量</th><th>金額（円）</th></tr></thead><tbody>${lines}</tbody></table>
       <p class="quiet" style="margin-top:10px">モックの書類ビューア。本番は保存済みPDFを表示・ダウンロード・お客さまへ送付。</p></div>
-    <div class="actions"><button class="bg" type="button" data-mclose2>閉じる</button></div>`;
+    <div class="note" style="margin-top:10px"><b>送付履歴</b>${sendHist}</div>
+    <div class="actions">
+      <button class="bp" type="button" data-send>送付を記録</button>
+      <button class="bg" type="button" data-mclose2>閉じる</button>
+    </div>`;
   $('modal').classList.add('open');
   const close=()=>{ $('modal').classList.remove('open'); box.innerHTML=''; };
   box.querySelector('[data-mclose]').onclick=close; box.querySelector('[data-mclose2]').onclick=close;
+  box.querySelector('[data-send]').onclick=()=>{
+    const how=prompt('送付方法（メール／郵送／手渡し）','メール'); if(!how) return;
+    const to=prompt('送付先', c?c.name:'お客さま'); if(!to) return;
+    d.sends.unshift({at:nowHM(), who:meShort(), how, to});
+    if(r) addEvent(r, ev('sys', meShort(), `書類送付: ${d.name} を ${how} で ${to} へ`));
+    close(); openDoc(d, it);
+  };
 }
 
 /* ---- 自分の申請 ---- */

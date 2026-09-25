@@ -426,6 +426,8 @@ const state={
     boss:[{ic:'🔔',tt:'承認待ちが2件あります',ss:'値引き（佐藤さま）／着手（サンプル社）',when:'9:00',go:{tab:'home'},unread:true}],
   },
   sheet:null, pick:{},
+  offline:false,
+  pending:[], /* オフライン送信待ち */
 };
 
 /* ================= 基盤 ================= */
@@ -620,8 +622,8 @@ function dealDetail(id){
     <h2>${d.cust}</h2>
     <div class="sub">${d.addr}${hideAmt?'':' · 契約金額 '+d.amount}</div>
     <div class="iconrow">
-      <button data-wip="発信: ${d.tel}（実機では電話アプリ起動）"><span class="ic">📞</span>電話</button>
-      <button data-wip="地図アプリで ${d.addr} を開く"><span class="ic">🗺</span>地図</button>
+      <button data-tel="${d.tel}"><span class="ic">📞</span>電話</button>
+      <button data-map="${d.addr}"><span class="ic">🗺</span>地図</button>
       <button data-subwip="docs"><span class="ic">📄</span>書類</button>
     </div>
   </div>
@@ -633,7 +635,7 @@ function dealDetail(id){
     <li><span class="hd">${h.d}</span><span class="av${h.who==='sys'?' sys':''}">${h.who==='sys'?'⚙':h.who}</span><span class="tx">${h.t}</span></li>`).join('')}
   </ul></div>
   <div class="note">履歴はPC版の同じ案件のタイムラインと同一です。管理番号: ${id.toUpperCase()}-2026</div>
-  ${acts.length?`<div class="fixact"><div class="inner"><button class="abtn icon" data-wip="発信: ${d.tel}">📞</button>${acts.join('')}</div></div>`:''}`;
+  ${acts.length?`<div class="fixact"><div class="inner"><button class="abtn icon" data-tel="${d.tel}">📞</button>${acts.join('')}</div></div>`:''}`;
 }
 function histOf(id){
   const base=[...DEALS[id].hist];
@@ -875,6 +877,17 @@ function pastView(){
   <div class="note">書類PDFの閲覧は準備中です（書類の有無だけ表示）。</div>`;
 }
 function doMSend(kind){
+  if(state.offline){
+    state.pending.push({kind, mf:Object.assign({},state.mf), at:'たった今'});
+    state.mf={}; state.sub=null; state.mDraftId=null;
+    toast(`📡 オフラインのため送信待ちに保存（${state.pending.length}件）`); render(); return;
+  }
+  if(['ringi','buy','lead','custreg'].includes(kind)){
+    if(!confirm('この内容で送信します。よろしいですか？')) return;
+  }
+  _doMSendBody(kind);
+}
+function _doMSendBody(kind){
   const who=ROLES[state.role].name.slice(0,1);
   const addHist=(deal,t)=>{ state._extra=state._extra||{}; (state._extra[deal]=state._extra[deal]||[]).unshift({d:nowD(),who,t}); };
   if(kind==='custreg'){
@@ -905,7 +918,7 @@ function doMSend(kind){
     if(!mfv('deal')||!it||!qty){ toast('案件・品目・数量を選んでください'); return; }
     const total=it[1]*qty;
     addHist(mfv('deal'), `<b>資材を申請 — ${it[0]} ×${qty}</b><div class="m">${total.toLocaleString()}円 · 希望 ${mfv('eta')||'指定なし'}${total>=50000?' · 拠点長の承認付き':''}</div>`);
-    addReq('buyForm', `資材 ${it[0]} ×${qty}（${d.cust}）`);
+    addReq('buyForm', `資材 ${it[0]} ×${qty}（${DEALS[mfv('deal')].cust}）`);
     if(total>=50000) pushNotif('boss',{ic:'📦',tt:`承認依頼: 資材 ${it[0]} ×${qty}`,ss:`${total.toLocaleString()}円`,go:{deal:mfv('deal')}});
     state.mf={}; state.sub=null;
     toast('✓ 申請しました — 購買（鈴木さん）へ届きました'); render(); return;
@@ -1013,8 +1026,14 @@ function settingsView(){
   const opts=['承認の結果','差戻し','着工OK','通達','点検・保証の期限'];
   state.notifOff=state.notifOff||[];
   return `<div class="dethead"><button class="backbtn" data-back="1">‹ 戻る</button><h2>設定</h2><div class="sub">${ROLES[state.role].name}さん · 福岡南営業所</div></div>
+  <div class="card"><div class="t">電波なしモード（オフライン）</div>
+    <div class="s">現場で電波がないときに入力した内容は「送信待ち」に溜まり、復帰時にまとめて送れます</div>
+    <div class="btnrow"><button class="abtn ${state.offline?'p':'g'}" data-offline="1">${state.offline?'オフライン中（タップで復帰）':'オフラインにする'}</button></div>
+    ${state.pending.length?`<div class="s" style="margin-top:8px">送信待ち ${state.pending.length} 件</div><button class="abtn p" data-flush="1">送信待ちを送る</button>`:''}
+  </div>
   <div class="slabel">通知を受け取る（タップで切替）</div>
-  <div class="chips">${opts.map(o=>`<button class="chip" data-noff="${o}" aria-pressed="${!state.notifOff.includes(o)}">${o}</button>`).join('')}</div>`;
+  <div class="chips">${opts.map(o=>`<button class="chip" data-noff="${o}" aria-pressed="${!state.notifOff.includes(o)}">${o}</button>`).join('')}</div>
+  <div class="card" style="margin-top:10px"><div class="t">写真</div><div class="s">長辺1600pxに圧縮 · 1報告20枚まで（モック）</div></div>`;
 }
 const IMPL_WIPS={quote:quoteView, photo:photoView, keihi:expenseView, anzen:safetyView, stock:stockView, docs:docsView, cal:calView, bi:biView, knowledge:knowView, settings:settingsView};
 function doMSend2(kind){
@@ -1317,6 +1336,19 @@ function wireView(){
   }));
   v.querySelectorAll('[data-msend]').forEach(b=>b.onclick=()=>doMSend(b.dataset.msend));
   v.querySelectorAll('[data-msend2]').forEach(b=>b.onclick=()=>doMSend2(b.dataset.msend2));
+  v.querySelectorAll('[data-offline]').forEach(b=>b.onclick=()=>{
+    state.offline=!state.offline;
+    toast(state.offline?'📡 オフラインモード — 送信は待ち行列へ':'✓ オンラインに復帰');
+    render();
+  });
+  v.querySelectorAll('[data-flush]').forEach(b=>b.onclick=()=>{
+    if(state.offline){ toast('オンラインに戻してから送信してください'); return; }
+    const n=state.pending.length;
+    state.pending.forEach(p=>{ state.mf=p.mf; _doMSendBody(p.kind==='ringiForm'?'ringi':p.kind==='buyForm'?'buy':p.kind==='leadForm'?'lead':p.kind); });
+    state.pending=[]; toast(`✓ 送信待ち ${n} 件を送りました`); render();
+  });
+  v.querySelectorAll('[data-tel]').forEach(b=>b.onclick=()=>{ toast(`📞 ${b.dataset.tel} に発信（実機では電話アプリ）`); });
+  v.querySelectorAll('[data-map]').forEach(b=>b.onclick=()=>{ toast(`🗺 ${b.dataset.map} を地図で開く（実機ではマップアプリ）`); });
   v.querySelectorAll('[data-mdraft]').forEach(b=>b.onclick=()=>saveMDraft(b.dataset.mdraft));
   v.querySelectorAll('[data-mresume]').forEach(b=>b.onclick=()=>{ const d=M_DRAFTS.find(x=>x.id===b.dataset.mresume); state.mf=Object.assign({},d.mf); state.mDraftId=d.id; state.sub=IMPL_WIPS[d.kind]?{wip:d.kind}:d.kind; render(); });
   v.querySelectorAll('[data-mdel]').forEach(b=>b.onclick=()=>{ const i=M_DRAFTS.findIndex(x=>x.id===b.dataset.mdel); if(i>=0) M_DRAFTS.splice(i,1); toast('下書きを削除しました'); render(); });
