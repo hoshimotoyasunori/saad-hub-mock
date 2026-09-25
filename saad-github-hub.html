@@ -4896,16 +4896,11 @@ $('myBtn').onclick=()=>{ $('newMenu').classList.remove('open'); go('myreq'); };
 $('aiBtn').onclick=()=>{ $('notif').classList.remove('open'); $('newMenu').classList.remove('open'); toggleAiPanel(); };
 $('aiClose').onclick=closeAiPanel;
 $('aiScrim').onclick=closeAiPanel;
-$('detScrim').onclick=closeDetailDrawer;
 $('aiForm').onsubmit=e=>{ e.preventDefault(); aiSend($('aiInput').value); };
-window.addEventListener('resize',()=>{
-  const p=$('detail'); if(!p||p.hidden||!state.sel) return;
-  applyDetWidth(p);
-});
 document.addEventListener('keydown',e=>{
   if(e.key!=='Escape') return;
   if(state.aiOpen){ closeAiPanel(); return; }
-  if(state.sel && (state.screen==='board'||state.screen==='repo')){ closeDetailDrawer(); return; }
+  if(state.sel && (state.screen==='board'||state.screen==='repo')){ state.sel=null; render(); return; }
   if(state.sideOpen) setSideOpen(false);
 });
 $('search').addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); state.searchQ=e.target.value; go('search'); }});
