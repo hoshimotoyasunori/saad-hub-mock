@@ -381,6 +381,13 @@ table.man .who{white-space:nowrap;font-weight:600}
 .modal-h{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:4px}
 .modal-h h3{margin:0;font-size:16px}
 .ctx-new{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:8px 0;padding:8px 10px;border:1px dashed var(--line);border-radius:8px;background:#fbfcfe;font-size:11.5px;color:var(--muted)}
+.chg-bar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:8px 0;padding:8px 10px;border:1px solid #e6ebf2;border-radius:8px;background:#f7f9fc;font-size:11.5px;color:var(--muted)}
+.chg-bar > span{margin-right:2px}
+.chg-bar .sp-act{background:#fff}
+.chg-hist{margin:6px 0 0;padding:0;list-style:none;font-size:11.5px}
+.chg-hist li{padding:3px 0;border-bottom:1px dashed #eef1f5;color:var(--muted)}
+.chg-hist b{color:var(--ink);font-weight:600}
+.pend-badge{display:inline-block;margin-left:6px;padding:1px 8px;border-radius:999px;background:#fff4e8;color:#8a5a10;border:1px solid #f0d6a8;font-size:11px;font-weight:700}
 .route{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:8px 0;font-size:11.5px}
 .route b{margin-right:4px}
 .route i{color:#9aa8bc;font-style:normal}
@@ -780,38 +787,45 @@ function act(kindA, id){
   }
   const gateBefore=gateDone(); const kojiBefore=kojiDone();
   if(kindA==='approve'){
-    it.status='Done';
+    rememberPrev(it); it.status='Done';
     addEvent(it, ev('sys', me, `${me} が承認 — Status: 承認待ち → Done（Issueは Open のまま）`));
+    recordChg(it, '状態', '承認待ち', 'Done', '承認');
     notify('sales', `${it.ref}（${it.title}）が承認されました`, it.id);
   }
   if(kindA==='reject'){
-    it.status='差戻し'; it.own='sales';
+    rememberPrev(it); it.status='差戻し'; it.own='sales';
     addEvent(it, ev('cm', me, '# 差戻し', '条件を確認のうえ再申請してください。'));
+    recordChg(it, '状態', it._prev?it._prev.status:'承認待ち', '差戻し', '差戻し');
     notify('sales', `${it.ref}（${it.title}）が差戻されました`, it.id);
   }
   if(kindA==='resubmit'){
-    it.status='承認待ち'; it.own = (it.id==='841-r3') ? 'kanri' : 'leader';
+    rememberPrev(it); it.status='承認待ち'; it.own = (it.id==='841-r3') ? 'kanri' : 'leader';
     addEvent(it, ev('cm', me, '# 再申請', '条件を修正して再申請します。'));
+    recordChg(it, '状態', '差戻し', '承認待ち', '再申請');
     notify(it.own, `再申請: ${it.title}`, it.id);
   }
-  if(kindA==='buyProg'){ it.status='In Progress'; addEvent(it, ev('sys', me, '手配中に更新')); }
+  if(kindA==='buyProg'){ rememberPrev(it); it.status='In Progress'; addEvent(it, ev('sys', me, '手配中に更新')); recordChg(it,'状態',it._prev.status,'In Progress','手配'); }
   if(kindA==='buyDone'){
-    it.status='Done'; it.eta='確定 9/26';
+    rememberPrev(it); it.status='Done'; it.eta='確定 9/26';
     addEvent(it, ev('sys', me, '発注済 — 納期 9/26 をフィールドに登録'));
+    recordChg(it,'状態',it._prev.status,'Done','発注済');
     notify('sales', `buy#31 発注済（納期 9/26）`, it.id);
   }
   if(kindA==='taskDone'){
-    it.status='Done';
+    rememberPrev(it); it.status='Done';
     addEvent(it, ev('sys', me, '完了 — Status: Done'));
+    recordChg(it,'状態',it._prev.status,'Done','完了');
   }
   if(kindA==='billDone'){
-    it.status='Done';
+    rememberPrev(it); it.status='Done';
     addEvent(it, ev('sys', me, '請求書発行 — Status: Done'));
+    recordChg(it,'状態',it._prev.status,'Done','請求発行');
     notify('sales', 'billing#77 請求書を発行しました', it.id);
   }
   if(kindA==='closeDeal'){
-    it.open=false; it.status='Done';
+    rememberPrev(it); it.open=false; it.status='Done';
     addEvent(it, ev('sys', me, '全工程完了 — 案件を Close（紫）。作業メモの Close とは違い、これが唯一の Close。'));
+    recordChg(it,'状態',it._prev.status,'Done','Close');
     notify('sales', 'sfa#841 案件が完了（Close）しました', it.id);
   }
   recalc();
@@ -974,7 +988,7 @@ function renderInbox(){
     inbox[state.role].splice(Number(b.dataset.i),1);
     if(n.cust){ state.customer=n.cust; state.property=null; state.crmAxis='customer'; go('crm'); return; }
     if(n.prop){ state.property=n.prop; state.customer=null; state.crmAxis='property'; go('crm'); return; }
-    if(n.screen){ if(n.screen==='myreq') state.myTab=/差戻|追記/.test(n.text)?'back':'all'; go(n.screen, n.opts||{}); return; }
+    if(n.screen){ if(n.screen==='myreq') state.myTab=/差戻|追記/.test(n.text)?'back':'all'; go(n.screen, n.opts||(n.mgmt?{mgmt:n.mgmt}:{})); return; }
     openIssue(n.ref);
   });
 }
@@ -1603,6 +1617,7 @@ function renderPanel(root){
       <div class="plink">${parent?`Parent: <button type="button" data-open="${parent.id}">${KIND[parent.kind]} ${parent.title} ${parent.ref}</button>`:'Parent: —'}</div>
       <dl class="idb">${bodyRows||'<dt>用途</dt><dd>識別のみ。判断はタイムラインへ。</dd>'}</dl>
       ${actHtml}
+      ${chgBarForIssue(it)}
       ${panelExtras(it)}
       <ul class="tl">${tl||'<li class="sys"><span class="who">system</span><div>まだ履歴はありません</div></li>'}</ul>
       <div class="composer">
@@ -1626,6 +1641,7 @@ function renderPanel(root){
   root.querySelectorAll('[data-act]').forEach(b=>b.onclick=()=>act(b.dataset.act, it.id));
   const ch=root.querySelector('#closeHint'); if(ch) ch.onclick=()=>goWip('closeissue');
   bindPanelExtras(root, it);
+  bindChgBar(root, it);
   root.querySelector('#addCm').onclick=()=>{
     const v=root.querySelector('#cmt').value.trim(); if(!v) return;
     const lines=v.split('\n'); const head=lines[0].startsWith('#')?lines[0].replace(/^#\s*/,'# '):'# メモ';
@@ -1850,6 +1866,13 @@ function renderCustomer(cid){
       ${c.regi==='仮'?`<span class="warn-badge">仮登録${c.via?`（${c.via}）`:''}${c.reqSt==='差戻し'?' — 差戻し中: '+(c.backNote||''):' — 事務の本登録待ち'}</span>${['jimu','kanri','leader'].includes(state.role)&&c.reqSt!=='差戻し'?`<button type="button" class="bp" id="custRegi">本登録にする</button><button type="button" class="bd" id="custBack">差戻し（情報不足）</button>`:''}`:''}
       ${c.regi==='取消'?'<span class="warn-badge">取り下げ済み</span>':''}
       ${c.regiLog?`<span class="ref">${c.regiLog}</span>`:''}
+      ${c.pendingChg?`<span class="pend-badge">変更申請中: ${c.pendingLabel||''}</span>`:''}
+    </div>
+    <div class="chg-bar"><span>変更・訂正:</span>
+      <button type="button" class="sp-act" id="custEdit">編集</button>
+      <button type="button" class="sp-act" id="custChg">変更を申請</button>
+      ${['leader','kanri'].includes(state.role)?`<button type="button" class="sp-act" id="custCorr">訂正稟議を起票</button>`:''}
+      ${chgHistHtml(c)}
     </div>
     <div style="display:grid;grid-template-columns:1fr 1.3fr;gap:14px" class="cust-cols">
       <div>
@@ -1870,6 +1893,16 @@ function renderCustomer(cid){
       </div>
     </div></div>`;
   $('backCust').onclick=()=>{ state.customer=null; render(); };
+  const ce=$('custEdit'); if(ce) ce.onclick=()=>openEditModal({
+    title:`編集 — ${c.name}`, note:'連絡先など確認不要の項目。名義・住所・請求先は「変更を申請」を使います。',
+    fields:[{k:'contact',l:'連絡先',v:c.contact,full:true}],
+    onSave:vals=>{ if(vals.contact!==c.contact){ recordChg(c,'連絡先',c.contact,vals.contact); c.contact=vals.contact; c.last='9/25'; } return `${c.name} の連絡先を更新しました`; }
+  });
+  const cc=$('custChg'); if(cc) cc.onclick=()=>openChgReqModal({
+    label:c.name, confirmRole:'jimu', target:c, targetKind:'customer',
+    fields:[{k:'name',l:'名義',cur:c.name},{k:'addr',l:'住所',cur:c.addr}],
+  });
+  const ccorr=$('custCorr'); if(ccorr) ccorr.onclick=()=>openFormModal('ringi',{type:'顧客情報変更',amount:'',reason:`顧客 ${c.name}（${c.id}）の情報変更`}, {from:`顧客 ${c.name}`});
   const cb=$('custBack'); if(cb) cb.onclick=()=>{ c.reqSt='差戻し'; c.backNote='電話番号と住所の番地を確認してください'; inbox.jimu=inbox.jimu.filter(n=>n.cust!==cid); if(c.by) notify(c.by, `顧客の仮登録が差戻されました: ${c.name}`, null, {screen:'myreq'}); render(); };
   const cr=$('custRegi'); if(cr) cr.onclick=()=>{
     c.regi='本'; c.reqSt='完了'; c.regiLog=`9/25 ${meShort()} が本登録`;
@@ -1926,6 +1959,12 @@ function renderProperty(pid){
       <span class="orgcell">${p.domain}・${p.branch.replace('営業所','')}</span>
       ${p.regi==='仮'?`<span class="warn-badge">仮登録${p.reqSt==='差戻し'?' — 差戻し中: '+(p.backNote||''):p.by?' — 事務の本登録待ち':''}</span>${p.by&&['jimu','kanri','leader'].includes(state.role)&&p.reqSt!=='差戻し'?`<button type="button" class="bp" id="propRegi">本登録にする</button><button type="button" class="bd" id="propBack">差戻し（情報不足）</button>`:''}`:''}
       ${p.regi==='取消'?'<span class="warn-badge">取り下げ済み</span>':''}
+      ${p.pendingChg?`<span class="pend-badge">変更申請中: ${p.pendingLabel||''}</span>`:''}
+    </div>
+    <div class="chg-bar"><span>変更・訂正:</span>
+      <button type="button" class="sp-act" id="propEdit">編集</button>
+      <button type="button" class="sp-act" id="propChg">変更を申請</button>
+      ${chgHistHtml(p)}
     </div>
     <div style="display:grid;grid-template-columns:1fr 1.3fr;gap:14px" class="cust-cols">
       <div>
@@ -1948,6 +1987,18 @@ function renderProperty(pid){
       </div>
     </div></div>`;
   $('backProp').onclick=()=>{ state.property=null; render(); };
+  const pe=$('propEdit'); if(pe) pe.onclick=()=>openEditModal({
+    title:`編集 — ${p.name}`, note:'施工前の軽い修正。施工後の所在地・構造は「変更を申請」。',
+    fields:[{k:'use',l:'用途',v:p.use},{k:'water',l:'水道',v:p.water},{k:'units',l:'戸数',v:p.units}],
+    onSave:vals=>{
+      [['use','用途'],['water','水道'],['units','戸数']].forEach(([k,l])=>{ if(vals[k]!==p[k]){ recordChg(p,l,p[k],vals[k]); p[k]=vals[k]; } });
+      p.last='9/25'; return `${p.name} を更新しました`;
+    }
+  });
+  const pc=$('propChg'); if(pc) pc.onclick=()=>openChgReqModal({
+    label:p.name, confirmRole:'jimu', target:p, targetKind:'property',
+    fields:[{k:'addr',l:'所在地',cur:p.addr},{k:'structure',l:'構造',cur:p.structure}],
+  });
   const pr2=$('propRegi'); if(pr2) pr2.onclick=()=>{ p.regi='本'; p.reqSt='完了'; inbox.jimu=inbox.jimu.filter(n=>n.prop!==pid); if(p.by) notify(p.by, `物件が本登録されました: ${p.name}`, null, {prop:pid}); render(); };
   const pb2=$('propBack'); if(pb2) pb2.onclick=()=>{ p.reqSt='差戻し'; p.backNote='築年と構造を確認してください'; inbox.jimu=inbox.jimu.filter(n=>n.prop!==pid); if(p.by) notify(p.by, `物件の仮登録が差戻されました: ${p.name}`, null, {screen:'myreq'}); render(); };
   $('main').querySelectorAll('[data-goc]').forEach(b=>b.onclick=()=>{ state.property=null; state.customer=b.dataset.goc; state.crmAxis='customer'; render(); });
@@ -2145,6 +2196,196 @@ function nextId(){ SEQ.n++; return 'n'+SEQ.n; }
 function yen(n){ return '¥'+Number(n||0).toLocaleString(); }
 function meShort(){ return PEOPLE[state.role].replace(/（.*）/,''); }
 function mlog(r,text){ (r.log=r.log||[]).unshift(`9/25 ${meShort()}: ${text}`); }
+/* ---- 変更・訂正（チェック2）: 共通ヘルパー ---- */
+const CHANGE_REQS=[];
+function recordChg(target, field, from, to, via){
+  const text=`変更${via?`（${via}）`:''}: ${field} 「${from||'（空）'}」→「${to||'（空）'}」`;
+  if(target && target.tl) addEvent(target, ev('sys', meShort(), text));
+  else if(target) mlog(target, text);
+  (target.chg=target.chg||[]).unshift({at:nowHM(), who:meShort(), field, from, to, via:via||'編集'});
+  return text;
+}
+function rememberPrev(it){ if(it && it.status!=null) it._prev={status:it.status, at:nowHM()}; }
+function setStatus(it, next, via){
+  if(!it || it.status===next) return;
+  const from=it.status; rememberPrev(it); it.status=next;
+  recordChg(it, '状態', from, next, via||'状態変更');
+}
+function chgHistHtml(target){
+  const list=(target&&target.chg)||[];
+  if(!list.length) return '';
+  return `<ul class="chg-hist">${list.slice(0,8).map(c=>`<li>${c.at} ${c.who} · <b>${c.field}</b> 「${c.from||'（空）'}」→「${c.to||'（空）'}」${c.via&&c.via!=='編集'?` <span class="ref">（${c.via}）</span>`:''}</li>`).join('')}</ul>`;
+}
+function closeModal(){ const m=$('modal'), box=$('modalBox'); if(m) m.classList.remove('open'); if(box) box.innerHTML=''; }
+function openSimpleModal(title, bodyHtml, onMount){
+  ensureModal(); const box=$('modalBox');
+  box.innerHTML=`<div class="modal-h"><h3>${title}</h3><button class="x" type="button" data-mclose>×</button></div>${bodyHtml}`;
+  $('modal').classList.add('open');
+  const close=()=>{ closeModal(); render(); };
+  box.querySelector('[data-mclose]').onclick=close;
+  if(onMount) onMount(box, close);
+}
+function openEditModal(opts){
+  /* opts: {title, note, fields:[{k,l,v,t?}], onSave(vals)} */
+  const fields=opts.fields.map(f=>`<div class="${f.full?'full':''}"><label>${f.l}</label>${
+    f.t==='textarea'?`<textarea name="${f.k}">${f.v||''}</textarea>`:
+    f.t==='select'?`<select name="${f.k}">${(f.opts||[]).map(([v,l])=>`<option value="${v}"${String(v)===String(f.v)?' selected':''}>${l}</option>`).join('')}</select>`:
+    `<input name="${f.k}" value="${(f.v||'').toString().replace(/"/g,'&quot;')}">`
+  }</div>`).join('');
+  openSimpleModal(opts.title||'編集', `
+    ${opts.note?`<p class="quiet" style="margin:0 0 10px">${opts.note}</p>`:''}
+    <form class="form-grid" data-ed onsubmit="return false">${fields}</form>
+    <div class="actions" style="margin-top:12px"><button class="bp" type="button" data-ok>保存する</button><button class="bg" type="button" data-cx>キャンセル</button></div>`,
+  (box, close)=>{
+    box.querySelector('[data-cx]').onclick=close;
+    box.querySelector('[data-ok]').onclick=()=>{
+      const vals={}; box.querySelectorAll('[data-ed] [name]').forEach(el=>vals[el.name]=el.value);
+      const msg=opts.onSave(vals); closeModal();
+      if(msg){ /* toast via notify to self */ notify(state.role, msg); }
+      render();
+    };
+  });
+}
+function openChgReqModal(opts){
+  /* opts: {label, fields:[{k,l,cur}], confirmRole, target, targetKind, apply(from,to)} */
+  const rows=opts.fields.map(f=>`<div class="full"><label>${f.l}（いま: ${f.cur||'（空）'}）</label><input name="${f.k}" value="" placeholder="変更後の値"></div>`).join('');
+  openSimpleModal('変更を申請 — '+opts.label, `
+    <p class="quiet" style="margin:0 0 10px">契約・請求・発注に影響する項目です。確定するまで元の値のまま表示し、「変更申請中」を出します。確認者: <b>${PEOPLE[opts.confirmRole]}</b></p>
+    <form class="form-grid" data-cr onsubmit="return false">${rows}
+      <div class="full"><label>理由<span class="req">*</span></label><textarea name="reason" placeholder="なぜ変えるか"></textarea></div></form>
+    <div class="actions" style="margin-top:12px"><button class="bp" type="button" data-ok>申請する</button><button class="bg" type="button" data-cx>キャンセル</button></div>`,
+  (box, close)=>{
+    box.querySelector('[data-cx]').onclick=close;
+    box.querySelector('[data-ok]').onclick=()=>{
+      const vals={}; box.querySelectorAll('[data-cr] [name]').forEach(el=>vals[el.name]=el.value.trim());
+      if(!vals.reason){ box.querySelector('[name=reason]').focus(); return; }
+      const changes=opts.fields.filter(f=>vals[f.k] && vals[f.k]!==String(f.cur||'')).map(f=>({field:f.l, k:f.k, from:f.cur||'', to:vals[f.k]}));
+      if(!changes.length){ close(); return; }
+      const id='cr'+(CHANGE_REQS.length+1);
+      const rec={id, label:opts.label, targetKind:opts.targetKind, targetId:opts.target&&opts.target.id, by:state.role, confirm:opts.confirmRole,
+        status:'確認待ち', reason:vals.reason, changes, at:nowHM(), apply:opts.apply};
+      CHANGE_REQS.unshift(rec);
+      if(opts.target){ opts.target.pendingChg=rec.id; opts.target.pendingLabel=changes.map(c=>c.field).join('・'); }
+      notify(opts.confirmRole, `変更申請: ${opts.label}（${changes.map(c=>c.field).join('・')}）`, null, {screen:'mgmt', mgmt:'chgreq'});
+      if(opts.target && opts.target.tl) addEvent(opts.target, ev('sys', meShort(), `変更を申請: ${changes.map(c=>`${c.field} 「${c.from}」→「${c.to}」`).join('、')}（確認待ち）`));
+      else if(opts.target) mlog(opts.target, `変更を申請: ${changes.map(c=>c.field).join('・')}（確認待ち）`);
+      closeModal(); render();
+    };
+  });
+}
+function openUndoModal(it){
+  if(!it || !it._prev) return;
+  const prev=it._prev;
+  openSimpleModal('1つ前に戻す', `
+    <p class="quiet">いまの状態 <b>${it.status}</b> を、直前の <b>${prev.status}</b>（${prev.at}）に戻します。権限者のみ。理由必須。</p>
+    <form class="form-grid" onsubmit="return false"><div class="full"><label>理由<span class="req">*</span></label><textarea name="reason" placeholder="誤操作の内容など"></textarea></div></form>
+    <div class="actions" style="margin-top:12px"><button class="bp" type="button" data-ok>戻す</button><button class="bg" type="button" data-cx>キャンセル</button></div>`,
+  (box, close)=>{
+    box.querySelector('[data-cx]').onclick=close;
+    box.querySelector('[data-ok]').onclick=()=>{
+      const reason=box.querySelector('[name=reason]').value.trim(); if(!reason) return;
+      const from=it.status; it.status=prev.status; delete it._prev;
+      recordChg(it, '状態', from, prev.status, '1つ前に戻す');
+      addEvent(it, ev('cm', meShort(), '# 1つ前に戻す', reason));
+      notify(it.by||it.own, `${it.ref||it.id} の状態を戻しました（${from}→${prev.status}）`, it.id);
+      closeModal(); recalc(); render();
+    };
+  });
+}
+function openCorrectRingi(it, type){
+  const root=rootOf(it)||it;
+  openFormModal('ringi', {deal:root.kind==='deal'?root.id:(rootOf(it)?rootOf(it).id:''), type:type||'売上訂正', amount:'', reason:`${it.ref||''} ${it.title||''} の訂正`}, {from:`${it.ref||it.id} の訂正稟議`});
+}
+function confirmChgReq(rec, ok){
+  if(!rec || rec.status!=='確認待ち') return;
+  const target=rec.targetKind==='customer'?CUSTOMERS[rec.targetId]
+    :rec.targetKind==='property'?PROPERTIES[rec.targetId]
+    :rec.targetKind==='vendor'?(VENDORS||[]).find(v=>v.id===rec.targetId)
+    :rec.targetKind==='issue'?byId(rec.targetId):null;
+  if(ok){
+    rec.status='確定';
+    if(typeof rec.apply==='function') rec.apply(rec);
+    else if(target){
+      rec.changes.forEach(c=>{
+        const from=c.from;
+        if(rec.targetKind==='customer'){
+          if(c.k==='name') target.name=c.to; else if(c.k==='addr') target.addr=c.to; else if(c.k==='contact') target.contact=c.to;
+        } else if(rec.targetKind==='property'){
+          if(c.k==='addr') target.addr=c.to; else if(c.k==='structure') target.structure=c.to;
+        } else if(rec.targetKind==='vendor'){
+          if(c.k==='ins') target.ins=c.to; else if(c.k==='name') target.name=c.to;
+        }
+        recordChg(target, c.field, from, c.to, '変更申請の確定');
+      });
+    }
+    if(target){ delete target.pendingChg; delete target.pendingLabel; }
+    notify(rec.by, `変更が確定されました: ${rec.label}`, null, rec.targetKind==='customer'?{cust:rec.targetId}:rec.targetKind==='property'?{prop:rec.targetId}:{screen:'myreq'});
+  } else {
+    rec.status='差戻し';
+    if(target){ delete target.pendingChg; delete target.pendingLabel; }
+    if(target && target.tl) addEvent(target, ev('sys', meShort(), `変更申請が差戻し: ${rec.label}`));
+    notify(rec.by, `変更申請が差戻されました: ${rec.label}`, null, {screen:'myreq'});
+  }
+  mlog(rec, ok?'確定':'差戻し');
+}
+function chgBarForIssue(it){
+  if(!it || state.role==='koji') return '';
+  const btns=[];
+  const canUndo=['leader','kanri'].includes(state.role) && it._prev;
+  if(it.kind==='deal' && it.open){
+    btns.push(['editDeal','編集','bg'],['corrRingi','訂正稟議を起票','bg']);
+  }
+  if(it.kind==='lead' && it.open) btns.push(['editLead','編集','bg']);
+  if(it.kind==='ringi' && it.status==='Done') btns.push(['corrRingi','訂正稟議を起票','bg']);
+  if(it.kind==='buy' && it.status==='Done') btns.push(['chgBuy','変更を申請','bg']);
+  if(it.kind==='bill' && it.status==='Done') btns.push(['corrBill','訂正稟議を起票','bg']);
+  if(canUndo) btns.push(['undo','1つ前に戻す','bd']);
+  if(!btns.length && !(it.chg&&it.chg.length)) return '';
+  const pending=it.pendingChg?`<span class="pend-badge">変更申請中: ${it.pendingLabel||''}</span>`:'';
+  return `<div class="chg-bar"><span>変更・訂正:</span>${btns.map(([a,l,c])=>`<button type="button" class="sp-act${c==='bd'?'':''}" data-chg="${a}">${l}</button>`).join('')}${pending}${chgHistHtml(it)}</div>`;
+}
+function bindChgBar(root, it){
+  root.querySelectorAll('[data-chg]').forEach(b=>b.onclick=()=>{
+    const a=b.dataset.chg;
+    if(a==='editDeal'){
+      openEditModal({title:`編集 — ${it.ref}`, note:'共有データだが確認不要の項目。変更はタイムラインに「何を→何に」で残ります。',
+        fields:[
+          {k:'title', l:'案件名', v:it.title, full:true},
+          {k:'due', l:'予定日（訪問・見積提出など）', v:(it.body&&it.body['予定日'])||'', full:true},
+          {k:'memo', l:'メモ', v:(it.body&&it.body['メモ'])||'', t:'textarea', full:true},
+        ],
+        onSave:vals=>{
+          if(vals.title && vals.title!==it.title){ recordChg(it,'案件名',it.title,vals.title); it.title=vals.title; }
+          it.body=it.body||{};
+          if(vals.due!==(it.body['予定日']||'')){ recordChg(it,'予定日',it.body['予定日']||'',vals.due); it.body['予定日']=vals.due; }
+          if(vals.memo!==(it.body['メモ']||'')){ recordChg(it,'メモ',it.body['メモ']||'',vals.memo); it.body['メモ']=vals.memo; }
+          return `${it.ref} を更新しました`;
+        }});
+    } else if(a==='editLead'){
+      openEditModal({title:`編集 — ${it.ref}`, note:'聞き取りを足す。履歴に残ります。',
+        fields:[{k:'title',l:'件名',v:it.title,full:true},{k:'note',l:'内容',v:(it.body&&it.body['内容'])||'',t:'textarea',full:true}],
+        onSave:vals=>{
+          if(vals.title!==it.title){ recordChg(it,'件名',it.title,vals.title); it.title=vals.title; }
+          it.body=it.body||{};
+          if(vals.note!==(it.body['内容']||'')){ recordChg(it,'内容',it.body['内容']||'',vals.note); it.body['内容']=vals.note; }
+          return `${it.ref} を更新しました`;
+        }});
+    } else if(a==='corrRingi' || a==='corrBill'){
+      openCorrectRingi(it, a==='corrBill'?'売上訂正':'売上訂正');
+    } else if(a==='chgBuy'){
+      openChgReqModal({label:`${it.ref} ${it.title}`, confirmRole:'buy', target:it, targetKind:'issue',
+        fields:[{k:'qty',l:'数量',cur:(it.body&&it.body['数量'])||'1'},{k:'eta',l:'納期',cur:it.eta||''}],
+        apply:rec=>{
+          it.body=it.body||{};
+          rec.changes.forEach(c=>{
+            if(c.k==='qty'){ recordChg(it,'数量',c.from,c.to,'変更申請の確定'); it.body['数量']=c.to; }
+            if(c.k==='eta'){ recordChg(it,'納期',c.from,c.to,'変更申請の確定'); it.eta=c.to; }
+          });
+        }});
+    } else if(a==='undo') openUndoModal(it);
+  });
+}
+
 function mpill(s){
   const m={'対象':'wait','案内済':'wait','発行待ち':'wait','入金待ち':'wait','登録申請中':'wait','請求前':'block','一部入金':'wait',
     'アポ済':'prog','発行済':'prog','点検済':'done','送付済':'done','消込済':'done','未実施':'back','期日超過':'back','停止':'back'};
@@ -2395,9 +2636,17 @@ const MGMT={
     ],
     q:r=>r.name+r.type+r.trades+r.area+r.status,
     acts:r=>{
-      if(r.status==='登録申請中') return [{l:'承認して取引開始', c:'bp', f:()=>{ r.status='取引中'; mlog(r,'登録承認'); }}];
-      if(r.status==='取引中') return [{l:'取引停止', f:()=>{ r.status='停止'; mlog(r,'取引停止'); }}];
-      return [{l:'取引再開', f:()=>{ r.status='取引中'; mlog(r,'取引再開'); }}];
+      const a=[];
+      if(r.status==='登録申請中') a.push({l:'承認して取引開始', c:'bp', f:()=>{ r.status='取引中'; mlog(r,'登録承認'); }});
+      else if(r.status==='取引中') a.push({l:'取引停止', f:()=>{ r.status='停止'; mlog(r,'取引停止'); }});
+      else a.push({l:'取引再開', f:()=>{ r.status='取引中'; mlog(r,'取引再開'); }});
+      if(r.status==='取引中' || r.status==='停止') a.push({l:'変更を申請', f:()=>{
+        openChgReqModal({label:r.name, confirmRole:'kanri', target:r, targetKind:'vendor',
+          fields:[{k:'ins',l:'保険期限',cur:r.ins},{k:'name',l:'名称',cur:r.name}]});
+        return 'nav';
+      }});
+      if(r.pendingChg) a.unshift({l:`変更申請中を見る`, f:()=>{ go('mgmt',{mgmt:'chgreq'}); return 'nav'; }});
+      return a;
     },
     foot:()=>'外注への注文書発行・支払は施工／調達で同じ業者レコードを参照する（後続）。',
   },
@@ -3633,6 +3882,37 @@ MGMT.expenses={
   ]:[],
   foot:()=>'差戻すと申請者の「自分の申請 → 差戻し」に理由付きで載り、修正して再申請できる。',
 };
+/* 変更申請の確認キュー（顧客・物件・外注・発注後の購買） */
+MGMT.chgreq={
+  title:'変更申請の確認', asis:'顧客情報変更の稟議・マスタ修正の紙回付', why:'契約・請求・発注に影響する変更を、確認者が確定してから反映する',
+  stop:'口頭でのマスタ修正と、変更中の値で仕事を進めること', who:'地区事務・管理部・購買',
+  rows:()=>CHANGE_REQS,
+  tabs:[
+    {id:'wait', label:'確認待ち', f:r=>r.status==='確認待ち'},
+    {id:'done', label:'確定', f:r=>r.status==='確定'},
+    {id:'back', label:'差戻し', f:r=>r.status==='差戻し'},
+    {id:'all', label:'すべて', f:r=>true},
+  ],
+  cols:[
+    {h:'対象', v:r=>`<b>${r.label}</b>`},
+    {h:'変更内容', v:r=>(r.changes||[]).map(c=>`${c.field}: ${c.from}→${c.to}`).join(' / ')},
+    {h:'申請者', v:r=>PEOPLE[r.by]||r.by},
+    {h:'確認者', v:r=>PEOPLE[r.confirm]||r.confirm},
+    {h:'理由', v:r=>r.reason||'—'},
+    {h:'申請日時', v:r=>r.at},
+    {h:'状態', v:r=>`<span class="pill ${r.status==='確定'?'done':r.status==='差戻し'?'back':'wait'}">${r.status}</span>`},
+  ],
+  q:r=>r.label+r.reason+(r.changes||[]).map(c=>c.field+c.to).join('')+r.status,
+  acts:r=>{
+    if(r.status!=='確認待ち') return [];
+    if(state.role!==r.confirm && !['kanri','leader'].includes(state.role)) return [];
+    return [
+      {l:'確定して反映', c:'bp', f:()=>{ confirmChgReq(r, true); }},
+      {l:'差戻し', f:()=>{ confirmChgReq(r, false); }},
+    ];
+  },
+  foot:()=>'確定するまで元の値のまま表示されます。申請中は対象に「変更申請中」のバッジが出ます。',
+};
 /* 外注の登録申請: 管理部の承認／差戻し */
 MGMT.vendors.acts=(orig=>r=>{
   if(r.status==='登録申請中') return [
@@ -3657,6 +3937,8 @@ NEW_MENU.unshift(['deal','案件・問い合わせを起票']);
 NEW_MENU.push(['repair','修理を受け付ける']);
 CAPS.splice(CAPS.findIndex(c=>c.l.startsWith('案件一覧')), 0,
   {l:'案件・問い合わせの起票', t:'登録', asis:'紙・FAX・電話→メール報告→eSM登録→Excel3種へ転記（ES_001）', plan:'1行起票するだけ。転記しない', st:'ok', go:()=>openFormModal('deal',{},{from:'管理一覧'})});
+CAPS.splice(CAPS.findIndex(c=>c.l.startsWith('顧客新規'))+1, 0,
+  {l:'変更申請の確認（顧客・物件・外注など）', t:'管理', asis:'顧客情報変更の稟議・マスタ修正の紙回付', plan:'残す（確定まで元の値を表示）', st:'ok', go:()=>go('mgmt',{mgmt:'chgreq'})});
 CAPS.splice(CAPS.findIndex(c=>c.l.startsWith('外注注文書')), 0,
   {l:'経費の確認（経理）', t:'管理', asis:'紙の経費申請の目視確認', plan:'残す（差戻しは理由付きで申請者へ）', st:'ok', go:()=>go('mgmt',{mgmt:'expenses'})});
 const myCap=CAPS.find(c=>c.l.startsWith('自分の申請')); if(myCap) myCap.l='自分の申請・登録（下書き・申請中・差戻し）';
