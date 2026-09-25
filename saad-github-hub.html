@@ -915,6 +915,7 @@ function ev(t, who, a, b){ return t==='sys' ? {t:'sys', who, text:a} : {t:'cm', 
 
 let issues = [
   {id:'841', ref:'sfa#841', repo:'sfa', kind:'deal', depth:0, parent:null, customer:'c1', property:'p1', division:'ES', branch:'横浜営業所', title:'ES-2026-現地調査・建物調査（横浜支店ビル）', status:'In Progress', open:true, own:'sales',
+    needSubcon:true, actStatus:'見積提示済',
     body:{'顧客 / 物件':'サンプル社 / 横浜支店ビル','用途':'案件の識別。工程・ゲート・請求はすべてこの下の子Issue。'},
     tl:[ev('cm','星本','# 案件メモ','ES枠の調査依頼。見積合意まで完了。'), ev('sys','system','Project「地区・案件台帳」に追加 — 進捗: 対応中')]},
   {id:'841-p0', ref:'sfa#843', repo:'sfa', kind:'phase', depth:1, parent:'841', title:'引合・受付', status:'Done', open:true, own:'sales', body:{'用途':'工程まとまり'}, tl:[ev('sys','system','完了 — 受付確認・一次振り分け Done')]},
@@ -1053,7 +1054,7 @@ let inbox = {
   sales:[{text:'見積提示の期限 9/25', ref:'2103-t2'}],
   salesF:[], salesS:[], salesK:[], salesA:[], salesN:[],
   leader:[{text:'承認依頼: 値引起案（12%）', ref:'841-r1'},{text:'承認依頼: 施工着手承認', ref:'841-r2'}],
-  esadm:[{text:'調査依頼の登録待ち: 港商事 本社ビル', screen:'mgmt', opts:{mgmt:'intake'}},{text:'受注確認待ち: sfa#2103', screen:'mgmt', opts:{mgmt:'orderconfirm'}}],
+  esadm:[{text:'調査依頼の登録待ち: 港商事 本社ビル', screen:'mgmt', opts:{mgmt:'intake'}},{text:'見積の受付待ち: sfa#841', screen:'mgmt', opts:{mgmt:'quoteaccept'}},{text:'受注確認待ち: sfa#2103', screen:'mgmt', opts:{mgmt:'orderconfirm'}},{text:'お客様確認電話: sfa#841', screen:'mgmt', opts:{mgmt:'custcall'}}],
   kanri:[{text:'承認依頼: 高額資材の特例', ref:'841-r3'}],
   buy:[{text:'購買申請: 資材発注（調査キット）', ref:'841-b1'}],
   koji:[],
@@ -1920,8 +1921,10 @@ function renderPortal(){
     leader:[{tm:'10:00',t:'承認キューの確認', view:'approvals'},{tm:'16:00',t:'締め・進捗レビュー', view:'all'}],
     esadm:[
       {tm:'9:00',t:'調査依頼の登録・振分', screen:'mgmt', opts:{mgmt:'intake'}},
+      {tm:'10:00',t:'見積の受付・検品', screen:'mgmt', opts:{mgmt:'quoteaccept'}},
       {tm:'11:00',t:'受注報告の確認・確定', screen:'mgmt', opts:{mgmt:'orderconfirm'}},
-      {tm:'15:00',t:'契約書類キュー', screen:'mgmt', opts:{mgmt:'contracts'}},
+      {tm:'14:00',t:'お客様確認電話・石綿', screen:'mgmt', opts:{mgmt:'custcall'}},
+      {tm:'15:00',t:'下請WF・契約書類', screen:'mgmt', opts:{mgmt:'subcon'}},
     ],
     kanri:[{tm:'10:00',t:'高額稟議・請求キュー', view:'approvals'},{tm:'16:00',t:'請求Viewの確認', view:'billingv'}],
     buy:[{tm:'10:00',t:'購買申請キュー', view:'procurement'},{tm:'16:00',t:'発注進捗の確認', view:'procurement'}],
@@ -4003,7 +4006,7 @@ const SCHED=[
   {tech:0, day:3, t:'相模原 定期点検 3件'},
 ];
 const UNASSIGNED=[
-  {id:'u1', t:'横浜支店ビル 調査施工', ref:'koji#55', deal:'841', gate:true},
+  {id:'u1', t:'横浜支店ビル 調査施工', ref:'koji#55', deal:'841', gate:true, needSubcon:true},
   {id:'u2', t:'藤沢 戸建 シロアリ定期点検（佐藤様）', ref:'sfa#2103'},
   {id:'u3', t:'グリーンハイツ 1年目 保証点検', ref:''},
 ];
@@ -4019,6 +4022,20 @@ const ORDER_Q=[
   {id:'or1', status:'確認待ち', by:'sales', at:'9/26 07:50', dealId:'2103', dealRef:'sfa#2103',
     cust:'佐藤 一郎', amount:264000, docs:'工事申込書（署名画像・模擬）',
     memo:'税込26.4万円。署名捺印済。', log:['9/26 星本: LINE WORKS相当で受注報告']},
+];
+/* P2: 見積受付・お客様確認電話・下請 */
+const QUOTE_ACCEPT_Q=[
+  {id:'qa1', status:'受付待ち', by:'sales', at:'9/25 16:40', dealId:'841', dealRef:'sfa#841', quoteId:null,
+    tax:1452000, disc:5, margin:28, flags:['外注差益割れ'], memo:'外注費が高く差益28%。材料は技術確認済。', log:['9/25 星本: 見積申請']},
+];
+const CUSTCALL_Q=[
+  {id:'cc1', status:'電話待ち', dealId:'841', dealRef:'sfa#841', cust:'株式会社サンプル', amount:1452000,
+    reason:'税込100万円以上', asbestos:'未添付', note:'', log:[]},
+];
+const SUBCON_Q=[
+  {id:'sc1', status:'承認待ち', by:'sales', at:'9/26 08:10', dealId:'841', dealRef:'sfa#841',
+    vendor:'九州防水工業', work:'高圧洗浄・防水補助', amount:180000, needRingi:false,
+    approver:'leader', log:['9/26 星本: 下請WF起票']},
 ];
 function mlogQ(r, msg){ r.log=r.log||[]; r.log.unshift(`${todayShort()} ${meShort()}: ${msg}`); }
 
@@ -4130,6 +4147,140 @@ const MGMT={
       return a;
     },
     foot:()=>'Status更新だけでは受注確定しません。ES管理部の確認操作が必要です（転記は不要）。',
+  },
+  quoteaccept:{
+    title:'見積の受付・検品（ES管理部）',
+    asis:'NEXT見積申請→管理部が入力確認→差戻しまたは決裁者へ回付（ES_002）',
+    why:'見積の適正（値引・差益・外注保証）を管理部が検品してから承認ルートへ',
+    stop:'電話だけで内容確認し、システム上は申請のまま放置すること',
+    who:'ES管理部（受付）／営業（申請）',
+    rows:()=>QUOTE_ACCEPT_Q,
+    tabs:[
+      {id:'open', label:'受付待ち', f:r=>r.status==='受付待ち'},
+      {id:'done', label:'回付済・差戻し', f:r=>r.status!=='受付待ち'},
+      {id:'all', label:'すべて', f:r=>true},
+    ],
+    cols:[
+      {h:'申請', v:r=>`<span class="ref">${r.at}</span>`},
+      {h:'案件', v:r=>`<span class="ref">${r.dealRef}</span>`},
+      {h:'税込', v:r=>`<span class="num-r">${yen(r.tax||0)}</span>`},
+      {h:'差益', v:r=>r.margin!=null?`${r.margin}%`:'—'},
+      {h:'フラグ', v:r=>(r.flags||[]).map(f=>`<span class="warn-badge">${f}</span>`).join(' ')||'—'},
+      {h:'状態', v:r=>`<span class="pill ${r.status==='回付済'?'done':r.status==='差戻し'?'back':'wait'}">${r.status}</span>`},
+    ],
+    q:r=>(r.dealRef||'')+r.status+(r.memo||'')+(r.flags||[]).join(''),
+    acts:r=>{
+      const a=[];
+      if(r.status==='受付待ち'){
+        a.push({l:'検品OK・回付', c:'bp', f:()=>{
+          r.status='回付済'; mlogQ(r, '検品OK・決裁者へ回付');
+          if(r.quoteId){ const q=byId(r.quoteId); if(q){ q.status='In Progress'; addEvent(q, ev('sys', meShort(), 'ES管理部が見積を受付・回付')); } }
+          const d=r.dealId&&byId(r.dealId); if(d) addEvent(d, ev('sys', meShort(), `見積受付完了（${yen(r.tax)}）`));
+          notify(r.by, `見積が受付・回付されました: ${r.dealRef}`, r.dealId||null);
+          toast('見積を回付しました（関連稟議は承認キューへ）');
+        }});
+        a.push({l:'差戻し', f:()=>{
+          r.status='差戻し'; mlogQ(r, '差戻し（価格・入力不備）');
+          if(r.quoteId){ const q=byId(r.quoteId); if(q){ q.status='差戻し'; addEvent(q, ev('cm', meShort(), '# 見積差戻し', '価格または入力を見直してください')); } }
+          notify(r.by, `見積が差戻されました: ${r.dealRef}`, r.dealId||null, {screen:'myreq'});
+        }});
+      }
+      if(r.dealId) a.push({l:'案件を開く', f:()=>{ openIssue(r.dealId); return 'nav'; }});
+      return a;
+    },
+    foot:()=>'値引・外注差益割れ・外注保証の稟議は見積申請と同時に起票済み。ここは管理部の検品キュー。',
+  },
+  custcall:{
+    title:'お客様確認電話・石綿（ES_052）',
+    asis:'契約書作成依頼WFで高額／外注条件時にお客様確認電話。石綿帳票を添付（ES_052／053）',
+    why:'与信・法令（石綿）とお客様意向を契約確定前に残す',
+    stop:'電話記録を日報Excelだけに書くこと',
+    who:'ES管理部',
+    rows:()=>CUSTCALL_Q,
+    tabs:[
+      {id:'open', label:'対応待ち', f:r=>r.status==='電話待ち'||r.status==='石綿待ち'},
+      {id:'done', label:'完了', f:r=>r.status==='完了'},
+      {id:'all', label:'すべて', f:r=>true},
+    ],
+    cols:[
+      {h:'案件', v:r=>`<span class="ref">${r.dealRef}</span>`},
+      {h:'顧客', v:r=>`<b>${r.cust}</b>`},
+      {h:'金額', v:r=>`<span class="num-r">${yen(r.amount||0)}</span>`},
+      {h:'理由', v:r=>r.reason},
+      {h:'石綿', v:r=>r.asbestos==='添付済'?'<span class="pill done">添付済</span>':`<span class="warn-badge">${r.asbestos||'未'}</span>`},
+      {h:'状態', v:r=>`<span class="pill ${r.status==='完了'?'done':'wait'}">${r.status}</span>`},
+    ],
+    q:r=>(r.dealRef||'')+r.cust+r.status+(r.reason||''),
+    acts:r=>{
+      const a=[];
+      if(r.status==='電話待ち'){
+        a.push({l:'電話実施を記録', c:'bp', f:()=>{
+          r.note=(r.note?r.note+'／':'')+'本人確認・契約意思OK';
+          r.status=(r.amount>=300000 && r.asbestos!=='添付済')?'石綿待ち':'完了';
+          mlogQ(r, 'お客様確認電話を実施');
+          const d=r.dealId&&byId(r.dealId); if(d){ d.custCallOk=true; addEvent(d, ev('sys', meShort(), 'お客様確認電話完了（ES_052）')); }
+          if(r.status==='完了') toast('確認電話完了'); else toast('次に石綿帳票を添付してください');
+        }});
+      }
+      if(r.status==='石綿待ち'|| (r.status==='電話待ち' && r.asbestos!=='添付済')){
+        a.push({l:'石綿帳票を添付', f:()=>{
+          r.asbestos='添付済'; mlogQ(r, '石綿業務帳票を添付');
+          const d=r.dealId&&byId(r.dealId); if(d){ d.asbestosOk=true; addEvent(d, ev('sys', meShort(), '石綿帳票添付（ES_053）')); }
+          if(r.status==='石綿待ち'||r.custCallOk||r.note){ r.status='完了'; }
+          toast('石綿帳票を添付しました');
+        }});
+      }
+      if(r.dealId) a.push({l:'案件を開く', f:()=>{ openIssue(r.dealId); return 'nav'; }});
+      return a;
+    },
+    foot:()=>'税込100万円以上／外注または所属購入が大きい案件が対象（モックは高額契約をseed）。完了後に契約書類を進めやすくなります。',
+  },
+  subcon:{
+    title:'下請WF・外注手配（ES_042）',
+    asis:'内諾後〜着工前に下請WF。所属長→ES管理部→（稟議時）本部長等→注文書発行',
+    why:'着工前に外注条件を承認し、注文書と施工予定を接続する',
+    stop:'口頭発注のまま現場に入ること',
+    who:'営業・事務（起票）／拠点長・ES管理部（承認）／施工（予定）',
+    rows:()=>SUBCON_Q,
+    tools:[{l:'＋ 下請WFを起票', f:()=>openFormModal('subcon',{},{from:'下請キュー'})}],
+    tabs:[
+      {id:'open', label:'進行中', f:r=>r.status!=='注文書連携済'&&r.status!=='却下'},
+      {id:'done', label:'連携済', f:r=>r.status==='注文書連携済'},
+      {id:'all', label:'すべて', f:r=>true},
+    ],
+    cols:[
+      {h:'案件', v:r=>`<span class="ref">${r.dealRef}</span>`},
+      {h:'外注先', v:r=>`<b>${r.vendor}</b>`},
+      {h:'作業', v:r=>r.work},
+      {h:'金額', v:r=>`<span class="num-r">${yen(r.amount||0)}</span>`},
+      {h:'状態', v:r=>`<span class="pill ${r.status==='注文書連携済'?'done':r.status==='却下'?'back':'wait'}">${r.status}</span>`},
+    ],
+    q:r=>(r.dealRef||'')+r.vendor+r.work+r.status,
+    acts:r=>{
+      const a=[];
+      if(r.status==='承認待ち' && (state.role==='leader'||state.role==='esadm')){
+        a.push({l:'承認する', c:'bp', f:()=>{
+          r.status='承認済'; mlogQ(r, `${PEOPLE[state.role]} が承認`);
+          notify(r.by, `下請WFが承認されました: ${r.dealRef}`, r.dealId||null);
+        }});
+        a.push({l:'却下', f:()=>{ r.status='却下'; mlogQ(r, '却下'); notify(r.by, `下請WFが却下: ${r.dealRef}`, r.dealId||null); }});
+      }
+      if(r.status==='承認済'){
+        a.push({l:'注文書へ連携', c:'bp', f:()=>{
+          PORDERS.unshift({id:'po'+Date.now(), no:'', vendor:r.vendor, deal:r.dealRef, work:r.work, amount:r.amount, status:'作成中', by:state.role, log:[`${todayShort()} ${meShort()}: 下請WFから作成`]});
+          r.status='注文書連携済'; mlogQ(r, '外注注文書（作成中）へ連携');
+          const d=r.dealId&&byId(r.dealId);
+          if(d){ d.subconOk=true; addEvent(d, ev('sys', meShort(), `下請WF完了 → 注文書作成中（${r.vendor}）`));
+            notify('koji', `下請承認済・注文書連携: ${d.ref} — 施工予定を登録できます`, d.id, {screen:'mgmt', opts:{mgmt:'schedule'}});
+          }
+          toast('外注注文書キューに作成中で追加しました');
+        }});
+      }
+      if(r.dealId) a.push({l:'案件を開く', f:()=>{ openIssue(r.dealId); return 'nav'; }});
+      a.push({l:'注文書一覧', f:()=>{ go('mgmt',{mgmt:'porders'}); return 'nav'; }});
+      return a;
+    },
+    foot:()=>'承認後に注文書へ連携すると、施工予定の未割当で「下請未了」ロックが外れます（要下請フラグの案件）。',
   },
   inspect:{
     title:'定期点検リスト',
@@ -4414,6 +4565,9 @@ const CAPS=[
   {l:'見積作成', t:'登録', asis:'NEXT見積・Excel見積（税込30万円で契約書式が分岐）', plan:'残す（値引は稟議へ自動連携）', st:'ok', go:()=>go('form',{form:'quote'})},
   {l:'調査依頼の登録・振分（ES管理部）', t:'管理', asis:'営業メール報告→eSM登録→Excel転記→振分（ES_001）', plan:'転記はやめ、登録・振分キューは残す', st:'ok', go:()=>go('mgmt',{mgmt:'intake'})},
   {l:'調査依頼を管理部へ報告', t:'登録', asis:'営業が依頼書をメールでES管理部へ', plan:'残す（報告キュー）', st:'ok', go:()=>openFormModal('intakeReport',{},{from:'台帳・登録'})},
+  {l:'見積の受付・検品（ES管理部）', t:'管理', asis:'NEXT見積申請の管理部受付・差戻し・回付（ES_002）', plan:'残す', st:'ok', go:()=>go('mgmt',{mgmt:'quoteaccept'})},
+  {l:'お客様確認電話・石綿', t:'管理', asis:'高額契約の確認電話・石綿帳票（ES_052／053）', plan:'残す', st:'ok', go:()=>go('mgmt',{mgmt:'custcall'})},
+  {l:'下請WF・外注手配', t:'管理', asis:'着工前下請WF→注文書（ES_042）', plan:'残す（施工予定と接続）', st:'ok', go:()=>go('mgmt',{mgmt:'subcon'})},
   {l:'受注報告の確認・確定（ES管理部）', t:'管理', asis:'LINE WORKS報告→集計→17:00転記→eSM（ES_091）', plan:'転記はやめ、確認キューは残す', st:'ok', go:()=>go('mgmt',{mgmt:'orderconfirm'})},
   {l:'受注を管理部へ報告', t:'登録', asis:'営業がLINE WORKSで書類画像を報告', plan:'残す（受注確認キュー）', st:'ok', go:()=>openFormModal('orderReport',{},{from:'台帳・登録'})},
   {l:'稟議一覧・承認', t:'一覧', asis:'NEXT ワークフロー', plan:'残す', st:'ok', go:()=>{ state.view='approvals'; go('board'); }},
@@ -4462,13 +4616,16 @@ function renderSchedule(){
     return `<td class="sch-cell">${cs.map(s=>`<span class="sch-chip${ti===2?' ext':''}${s.fresh?' new':''}">${s.t}</span>`).join('')}</td>`;
   }).join('')}</tr>`).join('');
   const un=UNASSIGNED.map(u=>{
-    const locked=u.gate && !gateDone();
+    const deal=u.deal?byId(u.deal):null;
+    const subLock=!!(u.needSubcon||(deal&&deal.needSubcon)) && !(deal&&deal.subconOk);
+    const locked=(u.gate && !gateDone()) || subLock;
+    const lockTitle=subLock?'下請WF完了・注文書連携後に割当できます':(u.gate?'稟議・購買が Done になると割当できます':'');
     return `<tr>
-      <td><b>${u.t}</b> ${u.ref?`<span class="ref">${u.ref}</span>`:''}</td>
-      <td>${locked?'<span class="pill block">ゲート未開通</span>':'<span class="pill">着手可</span>'}</td>
+      <td><b>${u.t}</b> ${u.ref?`<span class="ref">${u.ref}</span>`:''}${subLock?' <span class="warn-badge">下請未了</span>':''}</td>
+      <td>${locked?'<span class="pill block">着手条件未達</span>':'<span class="pill">着手可</span>'}</td>
       <td><select class="sch-sel" id="ut-${u.id}">${TECHS.map((t,i)=>`<option value="${i}">${t}</option>`).join('')}</select></td>
       <td><select class="sch-sel" id="ud-${u.id}">${DAYS.map((d,i)=>`<option value="${i}">${d}</option>`).join('')}</select></td>
-      <td><button type="button" class="sp-act pri" data-asg="${u.id}" ${locked?'disabled title="稟議・購買が Done になると割当できます"':''}>割り当てる</button></td>
+      <td><button type="button" class="sp-act pri" data-asg="${u.id}" ${locked?`disabled title="${lockTitle}"`:''}>割り当てる</button></td>
     </tr>`;
   }).join('');
   $('main').innerHTML=`<div class="pad">
@@ -4520,8 +4677,15 @@ function parentForQuote(dealId){
   return ph ? ph.id : dealId;
 }
 function ringiRoute(type, amount, disc){
-  if(type==='契約書作成依頼') return 'leader'; /* ES_091: 所属長。値引・着手とは別WF */
-  if(type==='契約稟議') return 'kanri'; /* ES_055 仮: 管理部／経理（P2で法務分岐） */
+  if(type==='契約書作成依頼') return 'leader';
+  if(type==='外注差益割れ'||type==='外注保証') return amount>=1000000?'kanri':'leader';
+  if(type==='下請') return 'leader';
+  /* ES_055 契約稟議: 先方契約・高額は経理/法務相当→kanri、それ以外も一次は拠点長〜管理部 */
+  if(/^契約稟議/.test(type)){
+    if(/先方契約|法務/.test(type) || amount>=3000000) return 'kanri';
+    if(/紹介手数料|規定外|経理/.test(type) || amount>=1000000) return 'kanri';
+    return 'leader';
+  }
   if(disc>12 || amount>=1000000 || ['売上訂正','解約','顧客情報変更'].includes(type)) return 'kanri';
   return 'leader';
 }
@@ -4607,55 +4771,84 @@ const FORMS={
     },
   },
   quote:{
-    title:'見積作成', submitLabel:'見積を登録する',
-    asis:'NEXT見積・Excel見積を作成し、値引は別途稟議。税込30万円未満は契約書作成依頼WF、以上は工事申込書（ES_091）',
-    why:'提示金額と値引の根拠を案件に残し、承認と契約書式を決める', stop:'見積Excelと稟議書への金額の二重記入', who:'営業',
+    title:'見積作成', submitLabel:'見積を申請する（管理部受付へ）',
+    asis:'NEXT見積：材料・外注選定、予算・値引・差益、見積申請→管理部受付→稟議（ES_002）',
+    why:'提示金額と原価・値引・外注条件の根拠を残し、管理部検品と承認につなぐ', stop:'見積Excelと稟議書への金額の二重記入', who:'営業（＋技術の材料確認）',
     fields:[
       {k:'deal', l:'案件', t:'select', opts:dealOpts, full:true},
       {k:'l1', l:'明細1（品目・数量・単価）', t:'line', def:['調査・点検作業','1','120000']},
       {k:'l2', l:'明細2', t:'line', def:['防除・施工作業','1','280000']},
       {k:'l3', l:'明細3', t:'line', def:['','','']},
+      {k:'mat', l:'材料費（円・所属購入含む）', t:'number', def:'80000'},
+      {k:'out', l:'外注費（円）', t:'number', def:'200000'},
+      {k:'tech', l:'材料選定（技術確認）', t:'select', opts:()=>[['不要','不要'],['依頼済','技術へ依頼済'],['回答済','技術回答済']]},
       {k:'disc', l:'値引率（%）', t:'number', def:'5'},
+      {k:'warranty', l:'外注保証を付ける', t:'select', opts:()=>[['無','無'],['有','有（稟議対象）']]},
+      {k:'wreason', l:'外注保証・差益の理由', t:'textarea', full:true},
       {k:'memo', l:'メモ', full:true},
     ],
     calc:v=>{
       const sub=['l1','l2','l3'].reduce((s,k)=>s+(Number(v[k+'q'])||0)*(Number(v[k+'p'])||0),0);
       const disc=Math.max(0,Number(v.disc)||0), off=Math.round(sub*disc/100), net=sub-off, tax=Math.round(net*1.1);
-      return {sub, disc, off, net, tax};
+      const mat=Math.max(0,Number(v.mat)||0), out=Math.max(0,Number(v.out)||0);
+      const cost=mat+out;
+      const margin=net>0?Math.round((net-cost)/net*1000)/10:0;
+      const marginBreak=out>0 && margin<35;
+      const flags=[];
+      if(disc>0) flags.push('値引');
+      if(marginBreak) flags.push('外注差益割れ');
+      if(v.warranty==='有') flags.push('外注保証');
+      if(v.tech==='依頼済') flags.push('材料選定中');
+      return {sub, disc, off, net, tax, mat, out, margin, marginBreak, flags};
     },
     preview:v=>{
       const c=FORMS.quote.calc(v);
       const route=c.disc>12?'管理部（二次承認・12%超）':c.disc>0?'拠点長':'承認不要';
       return `<dl class="idb">
-        <dt>小計</dt><dd>${yen(c.sub)}</dd><dt>値引</dt><dd>${c.disc}%（−${yen(c.off)}）</dd>
+        <dt>小計</dt><dd>${yen(c.sub)}</dd><dt>材料／外注</dt><dd>${yen(c.mat)}／${yen(c.out)}</dd>
+        <dt>差益</dt><dd><b>${c.margin}%</b>${c.marginBreak?' <span class="warn-badge">35%未満→稟議</span>':''}</dd>
+        <dt>値引</dt><dd>${c.disc}%（−${yen(c.off)}）→ ${route}</dd>
         <dt>合計（税込）</dt><dd><b>${yen(c.tax)}</b></dd>
-        <dt>値引の承認</dt><dd>${route}${c.disc>0?' — 登録と同時に稟議を起票':''}</dd>
-        <dt>契約書式（ASIS ES_091の分岐）</dt><dd>${c.tax>=300000?'工事申込書（税込30万円以上）':'契約書作成依頼WF（税込30万円未満）'}</dd></dl>`;
+        <dt>申請後</dt><dd>ES管理部の<strong>見積受付キュー</strong>へ（検品後に回付）</dd>
+        <dt>契約書式</dt><dd>${c.tax>=300000?'工事申込書（≥30万）':'契約書作成依頼WF（＜30万）'}</dd></dl>`;
     },
     submit:v=>{
       if(!v.deal) return {err:'案件を選んでください'};
       const c=FORMS.quote.calc(v); if(!c.sub) return {err:'明細を入れてください'};
+      if(c.marginBreak && !(v.wreason||'').trim()) return {err:'外注差益割れです。理由を入力してください（ES_002）'};
+      if(v.warranty==='有' && !(v.wreason||'').trim()) return {err:'外注保証の理由・添付メモを入力してください'};
       const id=nextId(), lines=['l1','l2','l3'].filter(k=>v[k+'n']).map(k=>`${v[k+'n']} ×${v[k+'q']} @${yen(v[k+'p'])}`).join(' ／ ');
-      insertIssue({id, ref:nextRef('sfa'), repo:'sfa', kind:'task', parent:parentForQuote(v.deal), title:`見積 ${yen(c.tax)}（値引${c.disc}%）`, status:'In Progress', open:true, own:'sales', by:state.role, formKey:'quote', formVals:v,
-        body:{'明細':lines,'合計（税込）':yen(c.tax),'契約書式':c.tax>=300000?'工事申込書':'契約書作成依頼WF','メモ':v.memo||'—'},
-        tl:[ev('sys','system',`見積作成フォームから登録 — ${yen(c.tax)}`)]});
-      let extra='';
+      insertIssue({id, ref:nextRef('sfa'), repo:'sfa', kind:'task', parent:parentForQuote(v.deal), title:`見積 ${yen(c.tax)}（値引${c.disc}%）`, status:'受付待ち', open:true, own:'esadm', by:state.role, formKey:'quote', formVals:v,
+        body:{'明細':lines,'材料費':yen(c.mat),'外注費':yen(c.out),'差益':`${c.margin}%`,'合計（税込）':yen(c.tax),'契約書式':c.tax>=300000?'工事申込書':'契約書作成依頼WF','フラグ':(c.flags.join('・')||'—'),'メモ':v.memo||'—'},
+        tl:[ev('sys','system',`見積申請 — ES管理部受付へ（${yen(c.tax)}・差益${c.margin}%）`)]});
+      QUOTE_ACCEPT_Q.unshift({id:'qa'+Date.now(), status:'受付待ち', by:state.role, at:`${todayShort()} ${new Date().getHours()}:${String(new Date().getMinutes()).padStart(2,'0')}`,
+        dealId:v.deal, dealRef:byId(v.deal).ref, quoteId:id, tax:c.tax, disc:c.disc, margin:c.margin, flags:c.flags.slice(), memo:v.memo||v.wreason||'', log:[`${todayShort()} ${meShort()}: 見積申請`]});
+      notify('esadm', `見積の受付待ち: ${byId(v.deal).ref}（${yen(c.tax)}）`, v.deal, {screen:'mgmt', opts:{mgmt:'quoteaccept'}});
+      let extra=`ES管理部の見積受付キューへ送りました。`;
       if(c.disc>0){
         const r=addRingi(v.deal,'値引',c.off,`見積 ${yen(c.tax)} に対し ${c.disc}% 値引。${v.memo||''}`, c.disc);
-        extra=`値引の稟議 ${r.ref} を ${PEOPLE[r.own]} へ起票しました。`;
+        extra+=` 値引稟議 ${r.ref}。`;
       }
-      /* P1-2: 税込30万未満は契約書作成依頼WFを値引とは別に起票（ES_091） */
+      if(c.marginBreak){
+        const r=addRingi(v.deal,'外注差益割れ',c.out,`差益${c.margin}%（外注${yen(c.out)}）。${v.wreason||''}`, 0);
+        extra+=` 差益割れ稟議 ${r.ref}。`;
+      }
+      if(v.warranty==='有'){
+        const r=addRingi(v.deal,'外注保証',c.out,`外注保証あり。${v.wreason||''}`, 0);
+        extra+=` 外注保証稟議 ${r.ref}。`;
+      }
       if(c.tax>0 && c.tax<300000){
         const deal=byId(v.deal);
         if(deal && !deal.contractWfOk){
-          const cw=addRingi(v.deal,'契約書作成依頼',c.tax,`見積 ${yen(c.tax)}（税込30万円未満）のため、商談前に契約書作成依頼WFを申請。`, 0);
-          if(deal) deal.contractWfId=cw.id;
-          extra+=(extra?' ':'')+`契約書作成依頼 ${cw.ref} を ${PEOPLE[cw.own]} へ起票（値引稟議とは別）。`;
+          const cw=addRingi(v.deal,'契約書作成依頼',c.tax,`見積 ${yen(c.tax)}（税込30万円未満）のため商談前に契約書作成依頼WF。`, 0);
+          deal.contractWfId=cw.id;
+          extra+=` 契約書作成依頼 ${cw.ref}。`;
         }
       } else if(c.tax>=300000){
-        extra+=(extra?' ':'')+'税込30万円以上 → 工事申込書ルート（契約書作成依頼WFは署名後・ES_052）。';
+        extra+=' ≥30万→工事申込書ルート。';
       }
-      return {msg:`見積を登録しました（${yen(c.tax)}）。${extra}`, openLabel:'案件台帳で見る', open:()=>openIssue(id)};
+      if(v.tech==='依頼済') notify('koji', `材料選定の依頼（見積）: ${byId(v.deal).ref}`, v.deal);
+      return {msg:`見積を申請しました（${yen(c.tax)}）。${extra}`, openLabel:'見積受付キュー（ES管理部）', open:()=>go('mgmt',{mgmt:'quoteaccept'})};
     },
   },
   ringi:{
@@ -4665,7 +4858,7 @@ const FORMS={
     fields:[
       {k:'deal', l:'案件', t:'select', opts:dealOpts, full:true},
       {k:'applicant', l:'申請者（誰の申請か）', t:'select', opts:applicantOpts, full:true},
-      {k:'type', l:'種類', t:'select', opts:()=>['値引','契約書作成依頼','施工着手','高額資材','契約稟議','売上訂正','解約','顧客情報変更','クレーム・トラブル','販売先紹介'].map(x=>[x,x])},
+      {k:'type', l:'種類', t:'select', opts:()=>['値引','契約書作成依頼','外注差益割れ','外注保証','契約稟議（規定外支払）','契約稟議（先方契約書・法務）','契約稟議（紹介手数料・経理）','施工着手','高額資材','下請','売上訂正','解約','顧客情報変更','クレーム・トラブル','販売先紹介'].map(x=>[x,x])},
       {k:'amount', l:'金額（円）', t:'number', def:'0'},
       {k:'reason', l:'理由', t:'textarea', full:true},
     ],
@@ -5180,9 +5373,37 @@ Object.assign(FORMS, {
       return {msg:`受注をES管理部へ報告しました。確認・確定を待ちます。`, openLabel:'受注確認キューへ', open:()=>go('mgmt',{mgmt:'orderconfirm'})};
     },
   },
+  subcon:{
+    title:'下請WFを起票', submitLabel:'下請WFを申請する',
+    asis:'内諾後〜着工前の下請WF。所属長→ES管理部→注文書（ES_042）',
+    why:'着工前に外注条件を承認し、注文書と施工予定を接続する',
+    stop:'口頭発注のまま現場入場',
+    who:'営業・事務',
+    fields:[
+      {k:'deal', l:'案件', t:'select', opts:dealOpts, full:true, req:true},
+      {k:'vendor', l:'外注先', req:true, full:true, def:'九州防水工業'},
+      {k:'work', l:'作業内容', req:true, full:true},
+      {k:'amount', l:'金額（円）', t:'number', def:'180000'},
+      {k:'memo', l:'メモ', t:'textarea', full:true},
+    ],
+    preview:v=>`<div class="note">承認後に<strong>外注注文書</strong>へ連携し、施工予定の「下請未了」ロックを解除します。承認者: 拠点長 → 必要に応じ ES管理部。</div>`,
+    submit:v=>{
+      if(!v.deal||!(v.vendor||'').trim()||!(v.work||'').trim()) return {err:'案件・外注先・作業は必須です'};
+      const d=byId(v.deal); const amt=Number(v.amount)||0;
+      SUBCON_Q.unshift({id:'sc'+Date.now(), status:'承認待ち', by:state.role, at:`${todayShort()} ${new Date().getHours()}:${String(new Date().getMinutes()).padStart(2,'0')}`,
+        dealId:d.id, dealRef:d.ref, vendor:v.vendor.trim(), work:v.work.trim(), amount:amt, needRingi:amt>=500000, approver:'leader',
+        log:[`${todayShort()} ${meShort()}: 下請WF起票`]});
+      d.needSubcon=true;
+      addEvent(d, ev('sys', meShort(), `下請WF起票 — ${v.vendor.trim()} / ${yen(amt)}`));
+      notify('leader', `下請WF承認依頼: ${d.ref}（${v.vendor.trim()}）`, d.id, {screen:'mgmt', opts:{mgmt:'subcon'}});
+      notify('esadm', `下請WF（参考）: ${d.ref}`, d.id, {screen:'mgmt', opts:{mgmt:'subcon'}});
+      if(amt>=500000) addRingi(d.id,'下請',amt,`高額下請のため稟議も起票。${v.memo||''}`,0);
+      return {msg:`下請WFを起票しました。拠点長の承認待ちです。`, openLabel:'下請キューを開く', open:()=>go('mgmt',{mgmt:'subcon'})};
+    },
+  },
 });
 /* ---- ヘッダ「＋ 新規」 ---- */
-const NEW_MENU=[['deal','活動予定を立てる'],['intakeReport','調査依頼を管理部へ報告'],['orderReport','受注を管理部へ報告'],['ringi','稟議を起票'],['buy','購買申請（資材）'],['quote','見積を作成'],['cust','顧客を登録（仮）'],['prop','物件を登録'],['announce','通達・お知らせを作成'],['expense','経費を申請'],['safety','ヒヤリハット・事故を報告'],['vendor','外注・仕入先の登録申請']];
+const NEW_MENU=[['deal','活動予定を立てる'],['intakeReport','調査依頼を管理部へ報告'],['orderReport','受注を管理部へ報告'],['quote','見積を作成'],['subcon','下請WFを起票'],['ringi','稟議を起票'],['buy','購買申請（資材）'],['cust','顧客を登録（仮）'],['prop','物件を登録'],['announce','通達・お知らせを作成'],['expense','経費を申請'],['safety','ヒヤリハット・事故を報告'],['vendor','外注・仕入先の登録申請']];
 function renderNewMenu(){
   $('newMenu').innerHTML='<h4>新しく始める（ポップアップ）</h4>'+NEW_MENU.filter(([k])=>FORMS[k]).map(([k,l])=>`<button type="button" class="n" data-nf="${k}">${l}<small>${FORMS[k].why?FORMS[k].why.slice(0,36):FORMS[k].asis.slice(0,34)}…</small></button>`).join('')
     +`<button type="button" class="n" data-nmy="1"><b>自分の申請を見る</b></button><button type="button" class="n" data-ndraft="1"><b>下書きを見る</b></button>`;
@@ -5207,9 +5428,11 @@ function panelExtras(it){
       <button type="button" class="sp-act" data-cact="actsave">反映</button>
       ${wf}${ord}</div>`;
     const btns=[
-      ['quote','見積を作成'],
+      ['quote','見積を申請'],
       ['report','調査報告を作成'],
       ['contractwf','契約書作成依頼WF'],
+      ['contractringi','契約稟議'],
+      ['subcon','下請WF'],
       ['ringi','稟議を起票'],
       ['buy','購買申請'],
       ['orderrep','受注を管理部へ報告'],
@@ -5221,7 +5444,10 @@ function panelExtras(it){
   if(root && (root.kind==='deal'||root.kind==='lead') && root.open && state.role==='esadm'){
     h+=`<div class="ctx-new"><span>ES管理部:</span>
       <button type="button" class="sp-act" data-cact="intake">依頼登録・振分</button>
-      <button type="button" class="sp-act" data-cact="orderq">受注確認</button></div>`;
+      <button type="button" class="sp-act" data-cact="quoteq">見積受付</button>
+      <button type="button" class="sp-act" data-cact="orderq">受注確認</button>
+      <button type="button" class="sp-act" data-cact="custcall">確認電話・石綿</button>
+      <button type="button" class="sp-act" data-cact="subconq">下請WF</button></div>`;
   }
   if(root && root.kind==='deal' && root.open && state.role==='koji'){
     h+=`<div class="ctx-new"><span>施工（${root.ref}）:</span>
@@ -5256,13 +5482,14 @@ function bindPanelExtras(root, it){
       }
       if(k==='quote'||k==='ringi'||k==='buy'){ openFormModal(k, {deal:r.id}, {from:`${r.ref} の詳細パネル`}); return; }
       if(k==='contractwf'){ openFormModal('ringi', {deal:r.id, type:'契約書作成依頼', amount:'', reason:'税込30万円未満の商談前・契約書作成依頼（ES_091）'}, {from:`${r.ref} 契約書WF`}); return; }
+      if(k==='contractringi'){ openFormModal('ringi', {deal:r.id, type:'契約稟議（規定外支払）', amount:'', reason:'契約稟議（ES_055）'}, {from:`${r.ref} 契約稟議`}); return; }
+      if(k==='subcon'){ openFormModal('subcon', {deal:r.id}, {from:`${r.ref} 下請`}); return; }
       if(k==='orderrep'){ openFormModal('orderReport', {deal:r.id}, {from:`${r.ref} 受注報告`}); return; }
       if(k==='report'){ createSurveyReport(r); return; }
       if(k==='contract'){
         if(r && !r.contractWfOk){
           const qTask=issues.find(i=>rootOf(i)===r && i.formKey==='quote');
           const taxStr=qTask&&qTask.body&&qTask.body['合計（税込）'];
-          /* 工事申込書ルート（≥30万）はWF不要で契約書類へ。未見積は警告のみ */
           const amt=Number(String(taxStr||'').replace(/[^\d]/g,''))||0;
           if(amt>0 && amt<300000){ toast('契約書作成依頼WFの承認後に契約書類へ進めます（税込30万円未満）'); return; }
         }
@@ -5272,6 +5499,9 @@ function bindPanelExtras(root, it){
       if(k==='kojiv'){ state.view='kojiv'; go('board'); return; }
       if(k==='intake'){ go('mgmt',{mgmt:'intake'}); return; }
       if(k==='orderq'){ go('mgmt',{mgmt:'orderconfirm'}); return; }
+      if(k==='quoteq'){ go('mgmt',{mgmt:'quoteaccept'}); return; }
+      if(k==='custcall'){ go('mgmt',{mgmt:'custcall'}); return; }
+      if(k==='subconq'){ go('mgmt',{mgmt:'subcon'}); return; }
     };
   });
   const docs=docsOf(it);
@@ -5610,15 +5840,27 @@ Object.assign(MGMT, {
     acts:r=>{
       const a=[];
       if(r.status!=='作成待ち') a.push({l:'注文請書を開く', f:()=>{ openDoc({name:`注文請書 ${r.deal}`, kind:'ack', amount:r.amount, cust:r.cust}, null); return 'nav'; }});
+      if(r.amount>=1000000) a.push({l:'お客様確認・石綿', f:()=>{ go('mgmt',{mgmt:'custcall'}); return 'nav'; }});
+      if(r.amount>=1000000) a.push({l:'契約稟議を起票', f:()=>{ openFormModal('ringi',{deal:r.dealId||'841', type:'契約稟議（規定外支払）', amount:String(r.amount), reason:'高額契約の契約稟議（ES_055）'},{from:'契約書類'}); return 'nav'; }});
       const n=nextOf(CT_FLOW,r.status); if(!n) return a;
       const label={'署名待ち':'契約書を作成','受注登録待ち':'署名を確認','完了':'受注登録'}[n];
-      a.push({l:label, c:'bp', f:()=>{ r.status=n; mlog(r,label);
+      a.push({l:label, c:'bp', f:()=>{
+        const d=r.dealId?byId(r.dealId):null;
+        if(n==='署名待ち' && r.amount>=1000000){
+          if(!CUSTCALL_Q.some(c=>c.dealId===r.dealId && c.status!=='完了')){
+            CUSTCALL_Q.unshift({id:'cc'+Date.now(), status:'電話待ち', dealId:r.dealId, dealRef:r.deal, cust:r.cust, amount:r.amount,
+              reason:'税込100万円以上', asbestos:'未添付', note:'', log:[`${todayShort()} ${meShort()}: 契約書作成に伴い確認電話キューへ`]});
+            notify('esadm', `お客様確認電話が必要: ${r.deal}`, r.dealId, {screen:'mgmt', opts:{mgmt:'custcall'}});
+          }
+          if(d && !d.custCallOk){ toast('税込100万円以上です。先にお客様確認電話（と石綿）を完了してください'); go('mgmt',{mgmt:'custcall'}); return 'nav'; }
+        }
+        r.status=n; mlog(r,label);
         if(n==='完了'){
           if(r.dealId==='841'){ const j=byId('841-j1'); if(j && j.status!=='Done'){ j.status='Done'; addEvent(j, ev('sys', meShort(), '契約書類整備・受注登録 完了')); } }
-          const deal=r.dealId?byId(r.dealId):null;
+          const deal=d;
           const title=(deal&&deal.title)||(`${r.cust} 施工`);
           if(!UNASSIGNED.some(u=>u.deal===String(r.dealId||'') || u.t===title)){
-            UNASSIGNED.push({id:'u'+Date.now(), t:title.replace(/^ES-\d+-/,'').slice(0,40), ref:r.deal, deal:String(r.dealId||''), gate:true});
+            UNASSIGNED.push({id:'u'+Date.now(), t:title.replace(/^ES-\d+-/,'').slice(0,40), ref:r.deal, deal:String(r.dealId||''), gate:true, needSubcon:!!(deal&&deal.needSubcon)});
           }
           notify('koji', `受注登録完了 → 施工予定の未割当へ: ${r.deal}`, r.dealId||null);
           toast('受注登録完了。施工予定・人員アサインの未割当に追加しました');
@@ -5626,7 +5868,7 @@ Object.assign(MGMT, {
       }});
       return a;
     },
-    foot:()=>'sfa#841 は受注登録まで進めると、案件台帳の「契約書類整備（jimu#41）」が Done になる。注文請書は署名待ち以降から開ける。',
+    foot:()=>'税込100万円以上はお客様確認電話・石綿（ES_052）が契約進行の前提。sfa#841 は受注登録で事務タスクも Done。',
   },
 });
 CAPS.splice(CAPS.findIndex(c=>c.l.startsWith('経営BI')), 0,
