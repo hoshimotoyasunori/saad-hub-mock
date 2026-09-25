@@ -606,11 +606,11 @@ function applicantOpts(){
 }
 const ROLES = {
   sales:{label:'一般営業', short:'営', view:'mine', scope:'scope:self（担当の案件）', hint:'<strong>営業（PC台帳）</strong> — 既定Viewは「担当の案件」。全件は「全体」。現場の報告・訪問は画面下の「スマホ」切替（または入口で幅820px未満）のジョブ型UI。承認結果は Inbox に届きます。'},
-  leader:{label:'拠点長', short:'長', view:'approvals', scope:'scope:branch（横浜営業所）', hint:'<strong>拠点長</strong> — 既定Viewは稟議キュー。パネルで承認すると進みが「完了」になり、起票者へ通知が飛び、ゲート進捗が動く。'},
+  leader:{label:'拠点長', short:'長', view:'approvals', scope:'scope:branch（横浜営業所）', hint:'<strong>拠点長</strong> — 既定Viewは稟議キュー。パネルで承認すると進捗が「完了」になり、起票者へ通知が飛び、ゲート進捗が動く。'},
   kanri:{label:'管理部（経理）', short:'管', view:'approvals', scope:'scope:division（事業本部全体・拠点横断）', hint:'<strong>管理部</strong> — 高額稟議の二次承認と、施工完了後の請求発行。<b>部門/拠点</b>列で どの拠点の案件かを見て判断する。'},
   buy:{label:'購買物流', short:'購', view:'procurement', scope:'scope:all（全社・物流）', hint:'<strong>購買</strong> — <code>type:[購買申請]</code> だけ見る。発注済にすると納期がフィールドに入り、施工解除の条件が1つ埋まる。'},
   koji:{label:'施工リーダー', short:'施', view:'kojiv', scope:'scope:branch（自拠点の現場）', hint:'<strong>施工（PC台帳）</strong> — ゲート・現場の一覧はこちら。入場・完了報告は「スマホ」切替のジョブ型UI。金額は非表示。'},
-  jimu:{label:'地区事務', short:'事', view:'mine', scope:'scope:region（担当地区）', hint:'<strong>地区事務</strong> — 担当の案件Viewでは自分が Assignees の案件・リード。事務作業行は稟議/請求や親案件の子から辿ります。'},
+  jimu:{label:'地区事務', short:'事', view:'mine', scope:'scope:region（担当地区）', hint:'<strong>地区事務</strong> — 担当の案件Viewでは自分が担当の案件・リード。事務作業行は稟議/請求や親案件の子から辿ります。'},
 };
 /* アプリ＝リポ。裏のマスタ・案件は共有。P2/P3は入口のみ（深い画面は後続） */
 const REPOS = {
@@ -859,10 +859,10 @@ function ev(t, who, a, b){ return t==='sys' ? {t:'sys', who, text:a} : {t:'cm', 
 let issues = [
   {id:'841', ref:'sfa#841', repo:'sfa', kind:'deal', depth:0, parent:null, customer:'c1', property:'p1', division:'ES', branch:'横浜営業所', title:'ES-2026-0841 調査依頼（物件A）', status:'In Progress', open:true, own:'sales',
     body:{'顧客 / 物件':'サンプル社 / 横浜支店ビル','用途':'案件の識別。工程・ゲート・請求はすべてこの下の子Issue。'},
-    tl:[ev('cm','星本','# 案件メモ','ES枠の調査依頼。見積合意まで完了。'), ev('sys','system','Project「地区・案件台帳」に追加 — 進み: 対応中')]},
+    tl:[ev('cm','星本','# 案件メモ','ES枠の調査依頼。見積合意まで完了。'), ev('sys','system','Project「地区・案件台帳」に追加 — 進捗: 対応中')]},
   {id:'841-p0', ref:'sfa#843', repo:'sfa', kind:'phase', depth:1, parent:'841', title:'引合・受付', status:'Done', open:true, own:'sales', body:{'用途':'工程まとまり'}, tl:[ev('sys','system','完了 — 受付確認・一次振り分け Done')]},
   {id:'841-p0-t1', ref:'sfa#843a', repo:'sfa', kind:'task', depth:2, parent:'841-p0', title:'受付確認・仮登録', status:'Done', open:true, own:'sales', body:{'用途':'リード〜案件化の入口確認'}, tl:[ev('sys','system','受付確認完了')]},
-  {id:'841-p0-t2', ref:'sfa#843b', repo:'sfa', kind:'task', depth:2, parent:'841-p0', title:'一次振り分け', status:'Done', open:true, own:'sales', body:{'用途':'Assignees を営業へ'}, tl:[ev('sys','system','Assignees: 星本')]},
+  {id:'841-p0-t2', ref:'sfa#843b', repo:'sfa', kind:'task', depth:2, parent:'841-p0', title:'一次振り分け', status:'Done', open:true, own:'sales', body:{'用途':'担当を営業へ'}, tl:[ev('sys','system','担当: 星本')]},
   {id:'841-p1', ref:'sfa#845', repo:'sfa', kind:'phase', depth:1, parent:'841', title:'商談・見積', status:'Done', open:true, own:'sales', body:{'用途':'工程まとまり'}, tl:[ev('sys','system','完了 — 子2件 Done')]},
   {id:'841-t1', ref:'sfa#846', repo:'sfa', kind:'task', depth:2, parent:'841-p1', title:'現地調査の日程調整', status:'Done', open:true, own:'sales', body:{'メモ':'木曜14:00で確定'}, tl:[ev('cm','星本','# 現地調整','顧客は火・木午後のみ。技術の空きと合わせ木14:00。')]},
   {id:'841-t2', ref:'sfa#847', repo:'sfa', kind:'task', depth:2, parent:'841-p1', title:'見積ドラフト作成', status:'Done', open:true, own:'sales', body:{'見積':'¥1,500,000（12%値引前提）','関連':'ringi#12 値引起案'}, tl:[ev('sys','system','値引 12% は ringi#12 の承認待ち')]},
@@ -871,22 +871,22 @@ let issues = [
     tl:[ev('sys','system','子Issue 4件（稟議3・購買1）を接続')]},
   {id:'841-r1', ref:'ringi#12', repo:'ringi', kind:'ringi', depth:2, parent:'841-gate', title:'値引起案（12%）', status:'承認待ち', open:true, own:'leader', amount:'¥180,000',
     body:{'案件':'sfa#841 物件A','金額':'¥180,000','関連':'sfa#847 見積ドラフト','用途':'決裁の識別。判断理由はタイムラインへ。'},
-    tl:[ev('cm','星本','# 起票','見積合意。競合対抗のため12%値引の決裁をお願いします。'), ev('sys','system','拠点長キューへ — Assignees: 田中')]},
+    tl:[ev('cm','星本','# 起票','見積合意。競合対抗のため12%値引の決裁をお願いします。'), ev('sys','system','拠点長キューへ — 担当: 田中')]},
   {id:'841-r2', ref:'ringi#13', repo:'ringi', kind:'ringi', depth:2, parent:'841-gate', title:'施工着手承認（標準）', status:'承認待ち', open:true, own:'leader',
     body:{'案件':'sfa#841 物件A','用途':'着手前の標準決裁。'},
-    tl:[ev('cm','星本','# 起票','標準の着手承認です。'), ev('sys','system','拠点長キューへ — Assignees: 田中')]},
+    tl:[ev('cm','星本','# 起票','標準の着手承認です。'), ev('sys','system','拠点長キューへ — 担当: 田中')]},
   {id:'841-r3', ref:'ringi#14', repo:'ringi', kind:'ringi', depth:2, parent:'841-gate', title:'高額資材の特例承認', status:'承認待ち', open:true, own:'kanri', amount:'¥1,200,000',
     body:{'案件':'sfa#841 物件A','金額':'¥1,200,000','用途':'高額のため管理部の二次承認。'},
-    tl:[ev('cm','星本','# 起票','特殊調査キットが高額のため特例承認をお願いします。'), ev('sys','system','管理部キューへ — Assignees: 佐藤')]},
+    tl:[ev('cm','星本','# 起票','特殊調査キットが高額のため特例承認をお願いします。'), ev('sys','system','管理部キューへ — 担当: 佐藤')]},
   {id:'841-b1', ref:'buy#31', repo:'buy', kind:'buy', depth:2, parent:'841-gate', title:'資材発注（調査キット一式）', status:'Todo', open:true, own:'buy', eta:'希望 9/28',
     body:{'案件':'sfa#841 物件A','希望納期':'9/28','関連':'倉庫在庫 あと3（安全在庫割れ）','用途':'購買申請の識別。納期・発注番号はフィールドとタイムラインへ。'},
-    tl:[ev('cm','星本','# 起票','調査キット一式。現場入場までに必要です。'), ev('sys','system','購買キューへ — Assignees: 鈴木')]},
+    tl:[ev('cm','星本','# 起票','調査キット一式。現場入場までに必要です。'), ev('sys','system','購買キューへ — 担当: 鈴木')]},
   {id:'841-p2', ref:'koji#55', repo:'koji', kind:'phase', depth:1, parent:'841', title:'施工', status:'Blocked', open:true, own:'koji', blocked:true,
     body:{'用途':'施工工程。ゲート開通まで着手不可。'}, tl:[ev('sys','system','施工前ゲート sfa#850 未完了のため Blocked')]},
   {id:'841-k1', ref:'koji#56', repo:'koji', kind:'task', depth:2, parent:'841-p2', title:'当日入場・安全確認', status:'Blocked', open:true, own:'koji', blocked:true, body:{'用途':'現場チェック'}, tl:[]},
   {id:'841-k2', ref:'koji#57', repo:'koji', kind:'task', depth:2, parent:'841-p2', title:'作業報告・写真', status:'Blocked', open:true, own:'koji', blocked:true, body:{'用途':'現場報告'}, tl:[]},
   {id:'841-p3', ref:'sfa#852', repo:'sfa', kind:'phase', depth:1, parent:'841', title:'完工・請求', status:'Todo', open:true, own:'kanri', body:{'用途':'完工後の締め'}, tl:[]},
-  {id:'841-j1', ref:'jimu#41', repo:'jimu', kind:'task', depth:2, parent:'841-p3', title:'契約書類整備', status:'Todo', open:true, own:'jimu', body:{'用途':'契約書PDF・受注データ'}, tl:[ev('sys','system','受注事務キューへ — Assignees: 高橋')]},
+  {id:'841-j1', ref:'jimu#41', repo:'jimu', kind:'task', depth:2, parent:'841-p3', title:'契約書類整備', status:'Todo', open:true, own:'jimu', body:{'用途':'契約書PDF・受注データ'}, tl:[ev('sys','system','受注事務キューへ — 担当: 高橋')]},
   {id:'841-bill1', ref:'billing#77', repo:'billing', kind:'bill', depth:2, parent:'841-p3', title:'請求書発行', status:'Blocked', open:true, own:'kanri', blocked:true, amount:'¥1,320,000',
     body:{'案件':'sfa#841 物件A','金額':'¥1,320,000（値引後）','用途':'施工完了後に発行。入金消込まで。'},
     tl:[ev('sys','system','施工 koji#55 完了までブロック')]},
@@ -905,7 +905,7 @@ let issues = [
   /* ===== CRM系の行（リード・対応履歴）— 同じ台帳に載る ===== */
   {id:'L1', ref:'sfa#2201', repo:'sfa', kind:'lead', depth:0, parent:null, customer:'c1', property:'p2', division:'ES', branch:'横浜営業所', title:'外壁調査の問い合わせ（Webフォーム）', status:'Todo', open:true, own:'sales',
     body:{'顧客':'株式会社サンプル（既存）','経路':'Webフォーム 9/20','用途':'未案件化のリード。対応後に [案件] へ昇格して子工程を作る。'},
-    tl:[ev('sys','system','Webフォームから自動起票 — Assignees: 星本'), ev('cm','星本','# 一次確認','川崎倉庫の外壁。来週訪問の候補日を打診中。')]},
+    tl:[ev('sys','system','Webフォームから自動起票 — 担当: 星本'), ev('cm','星本','# 一次確認','川崎倉庫の外壁。来週訪問の候補日を打診中。')]},
   {id:'L2', ref:'sfa#2202', repo:'sfa', kind:'lead', depth:0, parent:null, customer:'c2', property:'p3', division:'HSE', branch:'藤沢営業所', title:'保証更新の再アプローチ（定期点検 2026-10 期限）', status:'Todo', open:true, own:'sales',
     body:{'顧客':'佐藤 一郎（HS）','トリガ':'シロアリ保証 2026-10 期限（自動検知）','用途':'再施工サイクルの入口。Workflows相当の自動起票を想定。'},
     tl:[ev('sys','system','保証期限 30日前 — 自動でリード起票（Workflows相当）')]},
@@ -1066,7 +1066,7 @@ function normalizeIssueGraph(){
     it.depth=walk.length;
   });
 }
-/* 進み（Status）の画面表記 — 内部キーは英語のまま／表示は現場向け日本語 */
+/* 進捗（Status）の画面表記 — 内部キーは英語のまま／表示は現場向け日本語 */
 const STATUS_JA={
   'Todo':'未着手',
   'In Progress':'対応中',
@@ -1108,7 +1108,7 @@ function waitingOf(it){
   if(it.status==='In Progress') return {t:`${PEOPLE[it.own]} が対応中`, cls:'prog'};
   return {t:statusLabel(it.status), cls:''};
 }
-/* 放置日数・自動催促（チェック5）: モックでは起票からの仮想日数 */
+/* 経過日数・自動催促（チェック5）: モックでは起票からの仮想日数 */
 const REMIND={
   ringi:{idle:3, esc:5, escTo:it=>(it.nominalApprover||it.own)==='leader'?'kanri':'leader'},
   buy:{idle:2, esc:4, escTo:()=>'kanri'},
@@ -1116,7 +1116,7 @@ const REMIND={
 };
 function idleDays(it){
   if(it.idle!=null) return it.idle;
-  /* デモ用の既定: 稟議の一部を放置扱いに */
+  /* デモ用の既定: 稟議の一部を経過扱いに */
   if(it.id==='841-r3') return 6;
   if(it.id==='841-r1') return 4;
   if(it.id==='841-b1') return 3;
@@ -1125,8 +1125,8 @@ function idleDays(it){
 }
 function idleBadge(it){
   const d=idleDays(it);
-  if(d>=5) return ` <span class="warn-badge">放置 ${d}日・エスカレ対象</span>`;
-  if(d>=3) return ` <span class="warn-badge">放置 ${d}日</span>`;
+  if(d>=5) return ` <span class="warn-badge">経過 ${d}日・エスカレ対象</span>`;
+  if(d>=3) return ` <span class="warn-badge">経過 ${d}日</span>`;
   return d>1?`（${d}日）`:'';
 }
 function runAutoRemind(){
@@ -1140,18 +1140,18 @@ function runAutoRemind(){
       it.reminded=true;
       const to=it.status==='差戻し'?(it.by||'sales'):it.own;
       notify(to, `自動リマインド（${d}日）: ${it.title}（${it.ref}）`, it.id);
-      addEvent(it, ev('sys','system',`自動リマインド — 放置 ${d}日`));
+      addEvent(it, ev('sys','system',`自動リマインド — 経過 ${d}日`));
       n++;
     }
     if(d>=rule.esc && !it.escalated){
       it.escalated=true;
       const up=rule.escTo(it);
       notify(up, `エスカレ（${d}日）: ${it.title}（${it.ref}）— ${PEOPLE[it.own]} が未処理`, it.id);
-      addEvent(it, ev('sys','system',`エスカレ — ${PEOPLE[up]} へ（放置 ${d}日）`));
+      addEvent(it, ev('sys','system',`エスカレ — ${PEOPLE[up]} へ（経過 ${d}日）`));
       e++;
     }
   });
-  /* 下書き放置 */
+  /* 下書きの経過 */
   (typeof DRAFTS!=='undefined'?DRAFTS:[]).forEach(d=>{
     if(!d.age) d.age=10;
     if(d.age>=7 && !d.oldMark){ d.oldMark=true; d.title=(d.title||'')+(d.title&&d.title.includes('古い')?'':'（古い下書き）'); n++; }
@@ -1216,7 +1216,7 @@ function act(kindA, id){
     if(!canApprove(it)){ notify(state.role, 'この稟議は承認できません（自己承認禁止、または権限外）'); render(); return; }
     const wasProxy=it.own!==state.role || (it.nominalApprover && it.nominalApprover!==state.role);
     rememberPrev(it); it.status='Done';
-    addEvent(it, ev('sys', me, `${me} が${wasProxy?'代理で':''}承認 — 進み: 承認待ち → 完了${wasProxy?`（名義: ${PEOPLE[it.nominalApprover||it.approver]}）`:''}（行は Open のまま）`));
+    addEvent(it, ev('sys', me, `${me} が${wasProxy?'代理で':''}承認 — 進捗: 承認待ち → 完了${wasProxy?`（名義: ${PEOPLE[it.nominalApprover||it.approver]}）`:''}（行は Open のまま）`));
     recordChg(it, '状態', '承認待ち', 'Done', wasProxy?'代理承認':'承認');
     const ap=applicantOf(it)||'sales';
     notify(ap, `${it.ref}（${it.title}）が承認されました${wasProxy?'（代理承認）':''}`, it.id);
@@ -1244,12 +1244,12 @@ function act(kindA, id){
   }
   if(kindA==='taskDone'){
     rememberPrev(it); it.status='Done';
-    addEvent(it, ev('sys', me, '完了 — 進みを完了に更新'));
+    addEvent(it, ev('sys', me, '完了 — 進捗を完了に更新'));
     recordChg(it,'状態',it._prev.status,'Done','完了');
   }
   if(kindA==='billDone'){
     rememberPrev(it); it.status='Done';
-    addEvent(it, ev('sys', me, '請求書発行 — 進みを完了に更新'));
+    addEvent(it, ev('sys', me, '請求書発行 — 進捗を完了に更新'));
     recordChg(it,'状態',it._prev.status,'Done','請求発行');
     notify('sales', 'billing#77 請求書を発行しました', it.id);
   }
@@ -1520,7 +1520,7 @@ const WIP = {
     title:'Close issue', kind:'意図的に非アクティブ',
     target:'案件パネル',
     url:'—',
-    note:'日々の完了は進みを「完了」にする。Close は案件クローズ時のみ使う設計のため、作業ボタンとしては出しません。',
+    note:'日々の完了は進捗を「完了」にする。Close は案件クローズ時のみ使う設計のため、作業ボタンとしては出しません。',
   },
   items:{
     title:'商品・資材マスタ', kind:'後続フェーズ（物流）',
@@ -2142,13 +2142,13 @@ function ledgerTable(rowObjs, treeMode, opts){
       <td>${pill(it.status)}</td>
       <td class="col-own">${PEOPLE[it.own]||'—'}</td>
       <td class="ref">${['承認待ち','Todo','差戻し'].includes(it.status)?idleDays(it)+'日':'—'}</td>
-      <td><button type="button" class="linkbtn" data-repo="${it.repo}">${it.repo}</button></td>
+      <td><button type="button" class="linkbtn" data-repo="${it.repo}" title="${it.repo}">${REPOS[it.repo]?REPOS[it.repo].label:it.repo}</button></td>
       <td>${pr?`${pr[0]}/${pr[1]}`:'—'}</td>
       <td>${money}</td>
     </tr>`;
   }).join('');
   return `<div class="table-wrap"><table class="ledger"><thead><tr>
-    ${canPick?'<th class="pickcell" title="複数選択（担当替え・一括承認）"></th>':''}<th style="width:30%">Title</th><th>部門/拠点</th><th>進み</th><th class="col-own">Assignees</th><th>放置</th><th>Repository</th><th>Sub</th><th>金額/納期</th>
+    ${canPick?'<th class="pickcell" title="複数選択（担当替え・一括承認）"></th>':''}<th style="width:30%">Title</th><th>部門/拠点</th><th>進捗</th><th class="col-own">担当</th><th title="止まってからの経過日数">経過</th><th title="どの業務アプリの行か">系統</th><th title="直下の子タスク完了数/総数">タスク</th><th>金額/納期</th>
   </tr></thead><tbody>${body}</tbody></table>
   <button type="button" class="add-row-btn" id="addItem">＋ add an item — 新しい仕事＝表に行を足す（稟議・購買はゲートの子として）</button></div>`;
 }
@@ -2254,10 +2254,10 @@ function renderBoard(){
           <label class="quiet" style="margin:0">スコープ <select id="scScope"><option value="role">役割の既定</option><option value="self" ${state.scope==='self'?'selected':''}>自分</option><option value="branch" ${state.scope==='branch'?'selected':''}>拠点</option><option value="all" ${state.scope==='all'?'selected':''}>全社</option></select></label>
           <label class="quiet" style="margin:0">期間 <select id="scPeriod"><option value="all">すべて</option><option value="month" ${state.period==='month'?'selected':''}>今月相当</option><option value="last" ${state.period==='last'?'selected':''}>直近</option></select></label>
           <label class="quiet" style="margin:0">並び <select id="scSort">
-            <option value="upd" ${state.sortKey==='upd'?'selected':''}>更新・放置</option>
-            <option value="idle" ${state.sortKey==='idle'?'selected':''}>放置日数</option>
+            <option value="upd" ${state.sortKey==='upd'?'selected':''}>更新・経過</option>
+            <option value="idle" ${state.sortKey==='idle'?'selected':''}>経過日数</option>
             <option value="title" ${state.sortKey==='title'?'selected':''}>タイトル</option>
-            <option value="status" ${state.sortKey==='status'?'selected':''}>進み</option>
+            <option value="status" ${state.sortKey==='status'?'selected':''}>進捗</option>
             <option value="own" ${state.sortKey==='own'?'selected':''}>担当</option>
           </select></label>
           <button type="button" class="sp-act" id="scDir">${state.sortDir==='asc'?'昇順':'降順'}</button>
@@ -2544,14 +2544,14 @@ function renderPanel(root){
     <div class="dside">
       <div class="field"><label>顧客</label>${custBtn}</div>
       <div class="field"><label>物件</label>${propBtn}</div>
-      <div class="field"><label>Assignees</label><input value="${PEOPLE[it.own]||'—'}" readonly></div>
-      <div class="field"><label>進み</label>${pill(it.status)}</div>
+      <div class="field"><label>担当</label><input value="${PEOPLE[it.own]||'—'}" readonly></div>
+      <div class="field"><label>進捗</label>${pill(it.status)}</div>
       <div class="field"><label>いま誰待ちか</label><span class="waitline ${waitingOf(it).cls}">⏳ ${waitingOf(it).t}</span></div>
       <div class="field"><label>部門 / 拠点</label><input value="${orgLabel(it)}" readonly></div>
-      <div class="field"><label>Repository（実体）</label><button type="button" class="linkbtn" data-repo="${it.repo}">${it.repo} — ${REPOS[it.repo].label}</button></div>
-      ${pr?`<div class="field"><label>Sub-issues</label><div>${pr[0]} / ${pr[1]}</div></div>`:''}
+      <div class="field"><label>系統</label><button type="button" class="linkbtn" data-repo="${it.repo}">${REPOS[it.repo]?REPOS[it.repo].label:it.repo}</button></div>
+      ${pr?`<div class="field"><label>子タスク</label><div>${pr[0]} / ${pr[1]} <span class="ref">完了/総数</span></div></div>`:''}
       ${kids(it.id).length?`<div class="field"><label>子Issue</label>${kids(it.id).map(k=>`<div><button type="button" class="linkbtn" data-open="${k.id}">${k.ref} ${k.title}</button> ${pill(k.status)}</div>`).join('')}</div>`:''}
-      <div class="note">顧客・物件名はマスタ詳細へ。緑の Open は「まだ生きている」だけ。Close は案件の最後だけ。</div>
+      <div class="note">顧客・物件名はマスタ詳細へ。系統＝どの業務アプリの行か。タスク＝直下の子の完了数。緑の Open は「生きている」だけ。</div>
     </div>`;
   root.querySelector('#xp').onclick=()=>{ state.sel=null; render(); };
   root.querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>openIssue(b.dataset.open));
@@ -2576,19 +2576,19 @@ function renderCov(){ /* デモ説明帯は廃止（モック画面のみ） */ 
 
 /* ================= manual（ASIS準拠の使い方） ================= */
 const MANUAL_STEPS = [
-  {n:1, scene:'依頼受付', asis:'管理会社→紙/FAX/電話→営業→メールでES管理部→eSM登録＋Excel3種（進捗表/販路日報/日次管理表）転記→振り分け（ES_001）', saad:'[リード] 行が1本立つだけ。転記ゼロ。振り分け＝Assignees', who:'営業', where:'スマホ: ホーム', wait:'営業の対応待ち'},
+  {n:1, scene:'依頼受付', asis:'管理会社→紙/FAX/電話→営業→メールでES管理部→eSM登録＋Excel3種（進捗表/販路日報/日次管理表）転記→振り分け（ES_001）', saad:'[リード] 行が1本立つだけ。転記ゼロ。振り分け＝担当', who:'営業', where:'スマホ: ホーム', wait:'営業の対応待ち'},
   {n:2, scene:'案件化', asis:'eSMで案件登録（ES管理部）', saad:'リードを [案件] へ昇格（行を足す）', who:'営業', where:'台帳', wait:'営業の日程調整待ち'},
-  {n:3, scene:'調査・見積', asis:'電話でアポ→eSMスケジュール登録→現地で内視鏡調査・写真→Excel調査報告書→eSM活動登録「調査済み」→報告アポ→提示（ES_010）', saad:'[作業] にやることが並ぶ。アポ・調査結果は Comment、写真は添付。活動登録＝進みの更新', who:'営業（＋技術）', where:'Issue詳細', wait:'拠点長の承認待ちへ'},
+  {n:3, scene:'調査・見積', asis:'電話でアポ→eSMスケジュール登録→現地で内視鏡調査・写真→Excel調査報告書→eSM活動登録「調査済み」→報告アポ→提示（ES_010）', saad:'[作業] にやることが並ぶ。アポ・調査結果は Comment、写真は添付。活動登録＝進捗の更新', who:'営業（＋技術）', where:'Issue詳細', wait:'拠点長の承認待ちへ'},
   {n:4, scene:'決裁', asis:'税込30万円未満＝契約書作成依頼WF（NEXT・所属長承認）→iReporterで契約書印刷／30万円以上＝工事申込書（ES_091）', saad:'[稟議] をゲートの子として起票→金額で承認キューが自動で決まる', who:'営業→拠点長', where:'PC: 稟議View', wait:'高額なら管理部待ち'},
   {n:5, scene:'高額特例', asis:'本部へFAX・電話伺い', saad:'同じ稟議行が管理部キューに出る（二次承認）', who:'管理部', where:'PC: 稟議View', wait:'購買の手配待ち'},
   {n:6, scene:'資材手配', asis:'電話/FAX発注、納期は口頭', saad:'[購買申請] を処理。納期がフィールドに残る', who:'購買物流', where:'PC: 購買View', wait:'ゲート開通（施工解除）'},
   {n:7, scene:'施工', asis:'紙の作業報告書・写真は後日', saad:'開通で「準備中」→「未着手」。Inboxに解除通知→現場で完了報告', who:'施工リーダー', where:'スマホ: Inbox/ホーム', wait:'管理部の請求待ちへ'},
-  {n:8, scene:'受注報告・請求', asis:'受注をLINE WORKSでES管理部へ→受注集計スプシ→毎日17:00に日報Excelへ転記→eSM受注登録（ES_091）。請求も手作業', saad:'受注＝進みを変えるだけで台帳に即反映（17:00転記が消える）。[請求] は施工完了で解除→発行＝完了', who:'管理部', where:'PC: 請求View', wait:'入金待ち'},
+  {n:8, scene:'受注報告・請求', asis:'受注をLINE WORKSでES管理部へ→受注集計スプシ→毎日17:00に日報Excelへ転記→eSM受注登録（ES_091）。請求も手作業', saad:'受注＝進捗を変えるだけで台帳に即反映（17:00転記が消える）。[請求] は施工完了で解除→発行＝完了', who:'管理部', where:'PC: 請求View', wait:'入金待ち'},
   {n:9, scene:'完了', asis:'Excel進捗表から行を消す（履歴が散逸）', saad:'案件パネルで Close（紫）。履歴は全部残る', who:'管理部/拠点長', where:'案件パネル', wait:'—'},
 ];
 const MANUAL_WORDS = [
   ['仕事は全部「行」','案件・稟議・購買・請求もぜんぶ台帳の1行。新しい仕事＝行を足す'],
-  ['Open ≠ 進み','緑のOpenは「生きている」だけ。進みは 未着手／対応中／完了／準備中'],
+  ['Open ≠ 進捗','緑のOpenは「生きている」だけ。進捗は 未着手／対応中／完了／準備中'],
   ['▶ は遷移ではない','行の中身（子）を開くだけ。案件→工程→作業'],
   ['記録はタイムライン','訪問メモ・判断はCommentへ。本文は識別だけ'],
   ['台帳は窓','実体はリポ（sfa/ringi/buy…）。どの窓からでも同じ行'],
@@ -2608,7 +2608,7 @@ function renderManual(){
     <h3 class="man-sec">2. 案件はこう流れる（ES調査依頼の9ステップ）</h3>
     ${manualTable()}
     <h3 class="man-sec">3. 「いま誰待ちか」の読み方</h3>
-    <p class="quiet" style="max-width:70ch">各行・パネルの <span class="waitline">⏳ ○○の承認待ち</span> が待ち先。催促は口頭ではなく該当行に <b>Comment</b>（相手のInboxに通知が飛び、履歴に残る）。承認しても行は消えない — 作業の区切りは進みの「完了」、Closeは案件の最後だけ。</p>
+    <p class="quiet" style="max-width:70ch">各行・パネルの <span class="waitline">⏳ ○○の承認待ち</span> が待ち先。催促は口頭ではなく該当行に <b>Comment</b>（相手のInboxに通知が飛び、履歴に残る）。承認しても行は消えない — 作業の区切りは進捗の「完了」、Closeは案件の最後だけ。</p>
     <div class="actions"><button class="bp" type="button" id="tryDemo">台帳でこの流れを試す →</button></div>
   </div>`;
   $('tryDemo').onclick=()=>go('board',{view:'all'});
@@ -2945,7 +2945,7 @@ function fillCustomerDetail(root, cid){
         <h4 class="m-h">この顧客の活動 <span class="ftoken">customer:${cid}</span></h4>
         <div class="note" style="margin:0 0 8px">物件が未紐づけでも、この顧客への活動予定を立てられます。物件はあとから足せます。</div>
         <div class="table-wrap" style="border:1px solid var(--line);border-radius:10px">
-          <table class="ledger"><thead><tr><th>Title</th><th>進み</th><th>いま誰待ち</th></tr></thead><tbody>${rel||'<tr><td colspan="3" class="quiet">まだありません — 上の「活動予定を立てる」から始められます</td></tr>'}</tbody></table>
+          <table class="ledger"><thead><tr><th>Title</th><th>進捗</th><th>いま誰待ち</th></tr></thead><tbody>${rel||'<tr><td colspan="3" class="quiet">まだありません — 上の「活動予定を立てる」から始められます</td></tr>'}</tbody></table>
         </div>
         <h4 class="m-h">これまでの動き（活動の履歴）</h4>
         <ul class="tl">${tl||'<li class="sys"><div>履歴なし</div></li>'}</ul>
@@ -3092,7 +3092,7 @@ function fillPropertyDetail(root, pid){
         <h4 class="m-h">この物件の活動 <span class="ftoken">property:${pid}</span></h4>
         <div class="note" style="margin:0 0 8px">契約顧客が未紐づけでも、この物件での活動予定を立てられます。顧客はあとから選べます。</div>
         <div class="table-wrap" style="border:1px solid var(--line);border-radius:10px">
-          <table class="ledger"><thead><tr><th>Title</th><th>進み</th><th>いま誰待ち</th></tr></thead><tbody>${rel||'<tr><td colspan="3" class="quiet">まだありません — 上の「活動予定を立てる」から始められます</td></tr>'}</tbody></table>
+          <table class="ledger"><thead><tr><th>Title</th><th>進捗</th><th>いま誰待ち</th></tr></thead><tbody>${rel||'<tr><td colspan="3" class="quiet">まだありません — 上の「活動予定を立てる」から始められます</td></tr>'}</tbody></table>
         </div>
         <h4 class="m-h">これまでの動き（物件の履歴）</h4>
         <ul class="tl">${tl||'<li class="sys"><div>履歴なし</div></li>'}</ul>
@@ -3135,7 +3135,7 @@ function mCard(i){
   return `<button type="button" class="m-card${urgent?' urgent':''}${i.status==='Blocked'?' blocked':''}" data-open="${i.id}">
     <div class="m-top"><span class="kind ${KC[i.kind]}">${KIND[i.kind]}</span><span class="ref">${i.ref}</span>${pill(i.status)}</div>
     <div class="m-title">${i.title}</div>
-    <div class="m-sub">${i.depth===0?`${orgLabel(i,true)} · `:''}⏳ ${waitingOf(i).t}${pr?` · Sub ${pr[0]}/${pr[1]}`:''}</div>
+    <div class="m-sub">${i.depth===0?`${orgLabel(i,true)} · `:''}⏳ ${waitingOf(i).t}${pr?` · タスク ${pr[0]}/${pr[1]}`:''}</div>
   </button>`;
 }
 function isDesc(x, rootId){
@@ -3152,10 +3152,10 @@ function mHomeHtml(){
     ? `<h4 class="m-h">現場のゲート</h4><button type="button" class="m-card${gateDone()?'':' urgent'}" data-open="841-gate">
         <div class="m-top"><span class="kind k-gate">[ゲート]</span><span class="ref">${gate.ref}</span>${pill(gate.status)}</div>
         <div class="m-title">${gateDone()?'開通 — 入場できます':'未開通 — 稟議・購買の完了待ち'}</div>
-        <div class="m-sub">Sub-issues ${progressOf(gate)[0]}/${progressOf(gate)[1]}</div>
+        <div class="m-sub">子タスク ${progressOf(gate)[0]}/${progressOf(gate)[1]}</div>
       </button>` : '';
   return `<div class="m-hero"><h3>SAAD</h3><p>${PEOPLE[state.role]}さん — ${
-    state.role==='sales' ? '今日は訪問と見積。申請の進みは Inbox に届きます。' : 'ゲートが開いたら現場報告。金額は出ません。'
+    state.role==='sales' ? '今日は訪問と見積。申請の進捗は Inbox に届きます。' : 'ゲートが開いたら現場報告。金額は出ません。'
   }</p></div>
   <button type="button" class="m-card" data-m="mman" style="margin-bottom:10px"><div class="m-title">📖 はじめての方へ — 使い方（3分）</div><div class="m-sub">いままでの仕事がこのアプリでどう流れるか</div></button>
   ${gateCard}
@@ -3262,12 +3262,12 @@ function mIssueHtml(it){
     <div class="m-meta">
       <div class="row"><span>顧客</span><b>${custBtn}</b></div>
       <div class="row"><span>物件</span><b>${propBtn}</b></div>
-      <div class="row"><span>Assignees</span><b>${PEOPLE[it.own]||'—'}</b></div>
-      <div class="row"><span>進み</span>${pill(it.status)}</div>
+      <div class="row"><span>担当</span><b>${PEOPLE[it.own]||'—'}</b></div>
+      <div class="row"><span>進捗</span>${pill(it.status)}</div>
       <div class="row"><span>いま誰待ち</span><span class="waitline ${waitingOf(it).cls}">⏳ ${waitingOf(it).t}</span></div>
       <div class="row"><span>部門 / 拠点</span><b>${orgLabel(it,true)}</b></div>
-      <div class="row"><span>Repository（実体）</span><b>${it.repo}</b></div>
-      ${pr?`<div class="row"><span>Sub-issues</span><b>${pr[0]} / ${pr[1]}</b></div>`:''}
+      <div class="row"><span>系統</span><b>${REPOS[it.repo]?REPOS[it.repo].label:it.repo}</b></div>
+      ${pr?`<div class="row"><span>子タスク</span><b>${pr[0]} / ${pr[1]}</b></div>`:''}
     </div>
     <div class="note" style="margin-top:10px">PCの台帳と同じIssue。ここでの操作は台帳・Inboxにそのまま反映される。</div>`;
 }
@@ -3588,7 +3588,7 @@ function openCancelDeal(it){
       insertIssue({id, ref:nextRef('ringi'), repo:'ringi', kind:'ringi', parent:root.id, title:'解約の稟議', status:'承認待ち', open:true, own:'kanri', by:state.role, approver:'kanri',
         formKey:'ringi', formVals:{type:'解約', deal:root.id, amount:'', reason}, cancelRoot:root.id, cancelImpact:impactList,
         body:{'種類':'解約','案件':root.ref,'波及':impactList.join('、')||'なし','理由':reason},
-        tl:[ev('cm', meShort(), '# 起票', `解約理由: ${reason}\n承認後に止まるもの: ${impactList.join('、')||'なし'}`), ev('sys','system','管理部キューへ — Assignees: 佐藤')]});
+        tl:[ev('cm', meShort(), '# 起票', `解約理由: ${reason}\n承認後に止まるもの: ${impactList.join('、')||'なし'}`), ev('sys','system','管理部キューへ — 担当: 佐藤')]});
       notify('kanri', `解約の稟議: ${root.title}（${root.ref}）`, id);
       closeModal(); openIssue(id);
     };
@@ -3644,7 +3644,7 @@ function newLeadFrom(src, title, trigger){
   const it={id, ref:nextRef('sfa'), repo:'sfa', kind:'lead', depth:0, parent:null, customer:src.cid||null, division:src.domain, branch:src.branch,
     title, status:'Todo', open:true, own:'sales',
     body:{'顧客':src.cust,'トリガ':trigger,'用途':'再アプローチの入口。対応後に [案件] へ昇格。'},
-    tl:[ev('sys','system',`${trigger} — リードを起票（Assignees: 星本）`)]};
+    tl:[ev('sys','system',`${trigger} — リードを起票（担当: 星本）`)]};
   insertIssue(it);
   notify('sales', `リード起票: ${title}`, id);
   return it;
@@ -3972,7 +3972,7 @@ const MGMT={
         insertIssue({id, ref:nextRef('buy'), repo:'buy', kind:'buy', depth:0, parent:null, division:dv, branch:br,
           title:`在庫補充: ${it.name} ×${qty}`, status:'Todo', open:true, own:'buy', eta:'希望 10/2', amount:yen(it.price*qty),
           body:{'倉庫':r.wh,'品目':`${it.name}（${r.sku}）`,'数量':`${qty} ${it.unit}`,'用途':'安全在庫割れからの補充申請'},
-          tl:[ev('sys','system',`在庫一覧から補充申請（在庫 ${r.qty} / 安全在庫 ${r.safety}）— Assignees: 鈴木`)]});
+          tl:[ev('sys','system',`在庫一覧から補充申請（在庫 ${r.qty} / 安全在庫 ${r.safety}）— 担当: 鈴木`)]});
         notify('buy', `補充申請: ${it.name}（${r.wh}）`, id);
         r.req=id; mlog(r,'補充を申請');
       }});
@@ -4357,7 +4357,7 @@ const FORMS={
         const o={id, ref:nextRef('buy'), repo:'buy', kind:'buy', parent:v.deal||null, depth:0, title:`資材発注: ${l.it.name} ×${l.qty}`, status:'Todo', open:true, own:'buy', by:state.role, approver:'buy', formKey:'buy', formVals:Object.assign({},v,{sku:l.it.sku,qty:String(l.qty)}),
           eta:`希望 ${v.eta||'—'}`, amount:yen(total),
           body:{'案件':deal?`${deal.ref} ${deal.title}`:'（在庫補充）','品目':`${l.it.name}（${l.it.sku}）`,'数量':`${l.qty} ${l.it.unit}`,'希望納期':v.eta||'—','メモ':v.memo||'—'},
-          tl:[ev('sys','system','購買申請フォームから起票 — Assignees: 鈴木')]};
+          tl:[ev('sys','system','購買申請フォームから起票 — 担当: 鈴木')]};
         if(!deal){ o.division='HSE'; o.branch='藤沢営業所'; }
         insertIssue(o); ids.push(id); notify('buy', `購買申請: ${l.it.name} ×${l.qty}`, id);
         rememberFavSku(l.it.sku);
@@ -4485,7 +4485,7 @@ function renderSearch(){
     <p class="quiet">ヘッダの検索と同じです。<b>顧客名・物件名・案件番号・案件タイトル</b>をまとめて探します（進行中・完了・過去案件・マスタ）。例: 「サンプル」「グリーンハイツ」「sfa#841」。</p>
     <input class="mg-q" id="sQ" value="${state.searchQ||''}" placeholder="顧客名・物件名・案件番号（例: サンプル / グリーンハイツ / sfa#841）" style="max-width:560px;width:100%;margin-bottom:12px">
     ${q?`<h3 class="m-h">台帳（進行中・Close済） <span class="ref">${live.length}</span></h3>
-    <div class="table-wrap"><table class="ledger"><thead><tr><th>行</th><th>顧客</th><th>進み</th><th>状態</th></tr></thead><tbody>${liveRows||'<tr><td colspan="4" class="quiet">該当なし</td></tr>'}</tbody></table></div>`:''}
+    <div class="table-wrap"><table class="ledger"><thead><tr><th>行</th><th>顧客</th><th>進捗</th><th>状態</th></tr></thead><tbody>${liveRows||'<tr><td colspan="4" class="quiet">該当なし</td></tr>'}</tbody></table></div>`:''}
     <h3 class="m-h" style="margin-top:14px">過去案件（移行データ） <span class="ref">${past.length}</span></h3>
     <div class="table-wrap"><table class="ledger"><thead><tr><th>案件</th><th>顧客</th><th>物件</th><th>完了</th><th>金額</th><th>書類</th><th>移行元</th></tr></thead><tbody>${pastRows||'<tr><td colspan="7" class="quiet">該当なし</td></tr>'}</tbody></table></div>
     ${q?`<h3 class="m-h" style="margin-top:14px">マスタ <span class="ref">顧客 ${custs.length} ／ 物件 ${props.length}</span></h3>
@@ -5009,11 +5009,11 @@ Object.assign(MGMT, {
     foot:()=>'案件を起票するとき取引形態を選ぶと、請求先・書類・手数料・保証送付先がこの表から決まる（案件の属性）。',
   },
   energy:{
-    title:'PPA・FIT・電力申請', asis:'FIT申請・名義変更、電力申請、PPA仮申込〜本申込〜完工報告（SE）', why:'制度手続きの期限と進みを案件と並べて追う',
+    title:'PPA・FIT・電力申請', asis:'FIT申請・名義変更、電力申請、PPA仮申込〜本申込〜完工報告（SE）', why:'制度手続きの期限と進捗を案件と並べて追う',
     stop:'申請ごとの進捗Excel', who:'SE営業・SE事務',
     rows:()=>ENERGY,
     tabs:[{id:'open', label:'進行中', f:r=>r.step<ENERGY_STEPS[r.kind].length-1},{id:'done', label:'完了', f:r=>r.step>=ENERGY_STEPS[r.kind].length-1},{id:'all', label:'すべて', f:r=>true}],
-    cols:[{h:'顧客', v:r=>`<b>${r.cust}</b>`},{h:'手続き', v:r=>r.kind},{h:'進み', v:r=>ENERGY_STEPS[r.kind].map((s,i)=>`<span class="rs ${i<r.step?'done':i===r.step?'cur':''}">${s}</span>`).join(' ')}],
+    cols:[{h:'顧客', v:r=>`<b>${r.cust}</b>`},{h:'手続き', v:r=>r.kind},{h:'進捗', v:r=>ENERGY_STEPS[r.kind].map((s,i)=>`<span class="rs ${i<r.step?'done':i===r.step?'cur':''}">${s}</span>`).join(' ')}],
     q:r=>r.cust+r.kind,
     acts:r=>{ const st=ENERGY_STEPS[r.kind]; if(r.step>=st.length-1) return [];
       return [{l:`次へ（${st[r.step+1]}）`, c:'bp', f:()=>{ r.step++; mlog(r,`${st[r.step]} に進めた`); }}]; },
@@ -5154,7 +5154,7 @@ const SAFETY_SEED=[
   {id:'sf2', by:'koji', kind:'作業事故', title:'作業事故: 屋根で工具落下（けが人なし）', place:'グリーンハイツ', date:'9/12', status:'確認中', log:[]},
 ];
 CAPS.splice(CAPS.findIndex(c=>c.l.startsWith('経費精算')), 3,
-  {l:'経費申請', t:'登録', asis:'紙＋NEXT', plan:'残す（自分の申請で進みを確認）', st:'ok', go:()=>openFormModal('expense',{},{from:'管理一覧'})},
+  {l:'経費申請', t:'登録', asis:'紙＋NEXT', plan:'残す（自分の申請で進捗を確認）', st:'ok', go:()=>openFormModal('expense',{},{from:'管理一覧'})},
   {l:'安全衛生（ヒヤリハット・事故）', t:'管理', asis:'紙の報告書・安全会議資料', plan:'残す', st:'ok', go:()=>go('mgmt',{mgmt:'safety'})},
   {l:'車両予約', t:'管理', asis:'車両持ち帰り申請書（紙）', plan:'残す', st:'ok', go:()=>go('mgmt',{mgmt:'cars'})},
   {l:'カレンダー（今週）', t:'一覧', asis:'eSMスケジュール・技術行動予定', plan:'Googleカレンダーと同期する前提で残す', st:'ok', go:()=>go('mgmt',{mgmt:'calendar'})},
@@ -5289,7 +5289,7 @@ FORMS.deal={
     insertIssue({id, ref:nextRef('sfa'), repo:'sfa', kind:'lead', depth:0, parent:null, customer:v.cust||null, property:v.prop||null,
       division, branch, title:v.title.trim(), status:'Todo', open:true, own:'sales', by:state.role, dealType:dt.name, formKey:'deal', formVals:v,
       body:{'顧客':custLabel,'物件':propLabel,'きっかけ':`${v.via} 9/25`,'取引形態':dt.name||'—','内容':v.memo||'—','用途':'活動予定（営業）。管理台帳では案件行として扱う。顧客・物件は後から紐づけ可。'},
-      tl:[ev('sys','system',`活動予定を登録（${v.via}${c?' · 顧客あり':''}${p?' · 物件あり':''}${!c&&!p?' · マスタ未定':''}）— Assignees: 星本`)]});
+      tl:[ev('sys','system',`活動予定を登録（${v.via}${c?' · 顧客あり':''}${p?' · 物件あり':''}${!c&&!p?' · マスタ未定':''}）— 担当: 星本`)]});
     return {msg:`「${v.title.trim()}」の活動予定を登録しました。`, openLabel:'活動を開く', open:()=>openIssue(id)};
   },
 };
