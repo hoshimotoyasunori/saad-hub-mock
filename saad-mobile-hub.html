@@ -702,7 +702,8 @@ function menuView(){
   ${mItem('🔍','顧客をさがす','data-sub="cust"','約12,000件 — 検索が入口')}
   ${mItem('🗂','過去の案件をさがす','data-sub="past"','完了・Close済みも')}
   <div class="sec">申請する</div>
-  ${mItem('📋','自分の申請（下書き・結果）','data-sub="myreq"','どこから出した申請もここに')}
+  ${mItem('📋','自分の申請・登録（下書き・結果）','data-sub="myreq"','どこから出した申請もここに')}
+  ${mItem('📞','問い合わせを登録','data-sub="leadForm"')}
   ${mItem('🧾','稟議（値引き・特価・着手）','data-sub="ringiForm"')}
   ${mItem('📦','資材・購買','data-sub="buyForm"')}
   ${mItem('👤','顧客を登録（仮）','data-sub="custreg"','30秒で仮登録')}
@@ -810,6 +811,19 @@ function custDupHtml(){
   return hit.length?`<div class="wait" style="margin-top:6px">⚠ 似たお客さまがいます: ${hit.map(c=>c.name).join('、')}（重複登録に注意）</div>`
     :`<div class="wait ok" style="margin-top:6px">✓ 重複なし</div>`;
 }
+function leadFormView(){
+  const ok=mfv('name').trim()&&mfv('what');
+  return `<div class="dethead"><button class="backbtn" data-back="1">‹ 戻る</button><h2>問い合わせを登録</h2>
+  <div class="sub">受けたその場で1件登録。メールでの報告や転記はいりません</div></div>
+  <div class="slabel">① お客さま（会社名）</div><input class="fin" data-mfi="name" value="${mfv('name')}" placeholder="例: 株式会社サンプル">
+  <div id="dupBox">${custDupHtml()}</div>
+  <div class="slabel">② 電話番号</div><input class="fin" data-mfi="tel" value="${mfv('tel')}" placeholder="092-">
+  <div class="slabel">③ 何のご依頼？</div>${mchips('what',['シロアリ','排水管・洗浄','貯水槽','防水・塗装','太陽光・蓄電池','その他'])}
+  <div class="slabel">④ どこから？</div>${mchips('via',['電話','管理会社から','紹介','Webフォーム','飛込み'])}
+  <textarea class="fin" data-mfi="memo" placeholder="補足（任意）">${mfv('memo')}</textarea>
+  <button class="abtn p" style="margin-top:12px;${ok?'':'opacity:.4'}" data-msend="lead">登録する</button>${mDraftBtn('leadForm')}
+  <div class="note">登録するとPC版の案件台帳に [リード] が1行立ち、あなたの担当になります。新しいお客さまは事務が本登録します。</div>`;
+}
 function custRegView(){
   const ok=mfv('name').trim()&&mfv('kind');
   return `<div class="dethead"><button class="backbtn" data-back="1">‹ 戻る</button><h2>顧客を登録（仮）</h2>
@@ -865,10 +879,16 @@ function doMSend(kind){
   const addHist=(deal,t)=>{ state._extra=state._extra||{}; (state._extra[deal]=state._extra[deal]||[]).unshift({d:nowD(),who,t}); };
   if(kind==='custreg'){
     const name=mfv('name').trim(); if(!name||!mfv('kind')){ toast('お名前と種別を選んでください'); return; }
-    addReq('custreg', `顧客の仮登録: ${name}`, {st:'受理'});
+    addReq('custreg', `顧客の仮登録: ${name}（事務の本登録待ち）`, {st:'確認待ち'});
     CUSTS.push({name, kind:`${mfv('kind')} / 仮登録`, deal:null, info:`${mfv('via')||'受付'} · ${mfv('tel')||'電話未入力'} · 事務の本登録待ち`});
     state.mf={}; state.sub='cust'; state.custQ=name;
     toast('✓ 仮登録しました — 事務の本登録待ちに届きました'); render(); return;
+  }
+  if(kind==='lead'){
+    const name=mfv('name').trim(); if(!name||!mfv('what')){ toast('お客さまと依頼内容を選んでください'); return; }
+    addReq('leadForm', `問い合わせ: ${name}（${mfv('what')}）`, {st:'進行中'});
+    if(!CUSTS.some(c=>c.name===name)) CUSTS.push({name, kind:'仮登録', deal:null, info:`${mfv('via')||'受付'} · ${mfv('tel')||'電話未入力'} · 事務の本登録待ち`});
+    state.mf={}; state.sub=null; toast('✓ 問い合わせを登録しました — 案件台帳に1行'); render(); return;
   }
   if(kind==='ringi'){
     if(!mfv('deal')||!mfv('type')){ toast('案件と種類を選んでください'); return; }
@@ -895,7 +915,7 @@ function doMSend(kind){
 /* ================= 下書き・自分の申請・残りの道具（スマホ） ================= */
 const M_DRAFTS=[], M_REQS=[];
 state.mf=state.mf||{};
-const M_FORM_TITLE={custreg:'顧客の仮登録', ringiForm:'稟議', buyForm:'資材の申請', quote:'見積', keihi:'経費', anzen:'安全の報告', photo:'写真の報告'};
+const M_FORM_TITLE={leadForm:'問い合わせ', custreg:'顧客の仮登録', ringiForm:'稟議', buyForm:'資材の申請', quote:'見積', keihi:'経費', anzen:'安全の報告', photo:'写真の報告'};
 function mDraftBtn(kind){ return `<button class="abtn g" style="margin-top:8px" data-mdraft="${kind}">下書きに保存</button>`; }
 function saveMDraft(kind){
   const mf=Object.assign({},state.mf||{});
@@ -913,16 +933,16 @@ function myReqView(){
   const r1=me==='sales'?[{id:'r1', title:'値引き申請（佐藤さま −8%）', st:state.ringi==='ok'?'承認済':state.ringi==='back'?'差戻し':'申請中', when:'9/23', r1:true}]:[];
   const rows=r1.concat(M_REQS.filter(r=>r.role===me));
   const drafts=M_DRAFTS.filter(d=>d.role===me);
-  const tag=s=>s==='差戻し'?'<span class="tagNG">差戻し</span>':s==='承認済'||s==='受理'?'<span class="tagOK">'+s+'</span>':'<span class="tagP">'+s+'</span>';
-  return `<div class="dethead"><button class="backbtn" data-back="1">‹ 戻る</button><h2>自分の申請</h2>
-  <div class="sub">どこから出した申請も、ここで「いまどこか」が分かります</div></div>
+  const tag=s=>s==='取り下げ'?'<span class="tagDom">取り下げ</span>':s==='差戻し'?'<span class="tagNG">差戻し</span>':s==='承認済'||s==='受理'?'<span class="tagOK">'+s+'</span>':'<span class="tagP">'+s+'</span>';
+  return `<div class="dethead"><button class="backbtn" data-back="1">‹ 戻る</button><h2>自分の申請・登録</h2>
+  <div class="sub">どこから出した申請・登録も、ここで「いまどこか」が分かります</div></div>
   <div class="sec">下書き <span class="cnt">${drafts.length}</span></div>
   ${drafts.length?drafts.map(d=>`<div class="card"><div class="k">💾 下書き · ${d.saved}</div><div class="t">${d.title}</div>
     <div class="btnrow"><button class="abtn p" data-mresume="${d.id}">再開する</button><button class="abtn g" data-mdel="${d.id}">削除</button></div></div>`).join(''):'<p class="quiet">下書きはありません。申請の途中で「下書きに保存」すると、ここに残ります。</p>'}
   <div class="sec">出した申請 <span class="cnt">${rows.length}</span></div>
   ${rows.length?rows.map(r=>`<div class="card"><div class="k">${tag(r.st)} · ${r.when}</div><div class="t">${r.title}</div>
     ${r.st==='差戻し'&&r.r1?`<div class="s">田中拠点長: −5%なら即決します</div><div class="btnrow"><button class="abtn p" data-mfix="r1">修正して再申請</button></div>`:''}
-    ${r.st==='申請中'&&!r.r1?`<div class="btnrow"><button class="abtn g" data-mwd="${r.id}">取り下げ</button></div>`:''}</div>`).join(''):'<p class="quiet">まだ申請はありません。</p>'}
+    ${['申請中','確認待ち'].includes(r.st)&&!r.r1?`<div class="btnrow"><button class="abtn g" data-mwd="${r.id}">取り下げ</button></div>`:''}${r.st==='進行中'?`<div class="btnrow"><button class="abtn g" data-mwd="${r.id}">見送り</button></div>`:''}</div>`).join(''):'<p class="quiet">まだ申請はありません。</p>'}
   <div class="note">PC版の「自分の申請」と同じ内容です。</div>`;
 }
 const Q_LINES=[['調査・点検',30000],['防除作業（1階）',180000],['床下換気扇 設置',72000],['高圧洗浄',120000]];
@@ -1042,7 +1062,7 @@ function renderSheet(){
       ? [['📍','入場を報告','現場に着いたらワンタップ','enter'],['📷','写真・完了を報告','作業前後の写真とチェック','done'],['📦','資材を注文','現場からワンタップ発注','sub:buyForm'],['⚠️','ヒヤリハット報告','安全衛生へ共有','wip:anzen'],['🧑‍💼','休暇・勤怠','打刻・休暇申請','wip:jinji']]
       : state.role==='boss'
       ? [['✅','承認する','待ちキューを開く','goboss'],['📊','拠点の数字を見る','売上・成約・訪問','wip:bi'],['✏️','訪問を報告','自分の同行分','report'],['🚗','経費を申請','出張・車両','wip:keihi']]
-      : [['✏️','訪問を報告','結果チップで3タップ','report'],['📷','写真を報告','調査・現場の写真','wip:photo'],['🧾','稟議を申請','値引き・特価・着手','sub:ringiForm'],['🧮','見積を作る','標準単価から自動計算','wip:quote'],['📦','資材を注文','施工前の手配','sub:buyForm'],['👤','顧客を登録','その場で仮登録（30秒）','sub:custreg'],['🚗','経費を申請','出張・立替','wip:keihi']];
+      : [['📞','問い合わせを登録','受けたその場で1件','sub:leadForm'],['✏️','訪問を報告','結果チップで3タップ','report'],['📷','写真を報告','調査・現場の写真','wip:photo'],['🧾','稟議を申請','値引き・特価・着手','sub:ringiForm'],['🧮','見積を作る','標準単価から自動計算','wip:quote'],['📦','資材を注文','施工前の手配','sub:buyForm'],['👤','顧客を登録','その場で仮登録（30秒）','sub:custreg'],['🚗','経費を申請','出張・立替','wip:keihi']];
     body=items.map(([ic,tt,ss,act])=>`<button class="launch" data-launch="${act}"><span class="ic">${ic}</span><span><div class="tt">${tt}</div><div class="ss">${ss}</div></span></button>`).join('')
       +`<p class="note" style="margin-top:4px">🚧 マークのない項目は今すぐ使えます。準備中の項目は「今後実装予定」の画面が開きます。</p>`;
   }
@@ -1127,7 +1147,8 @@ function openDrawer(){
       ${dItem('🔍','顧客をさがす','sub:cust')}
       ${dItem('🗂','過去の案件をさがす','sub:past')}
       <div class="d-sec">申請する</div>
-      ${dItem('📋','自分の申請（下書き・結果）','sub:myreq')}
+      ${dItem('📋','自分の申請・登録','sub:myreq')}
+      ${dItem('📞','問い合わせを登録','sub:leadForm')}
       ${dItem('🧾','稟議（値引き・特価・着手）','sub:ringiForm')}
       ${dItem('📦','資材・購買','sub:buyForm')}
       ${dItem('👤','顧客を登録（仮）','sub:custreg')}
@@ -1201,7 +1222,7 @@ function render(){
   if(state.sub){
     const s=state.sub;
     html = s.wip?(IMPL_WIPS[s.wip]?IMPL_WIPS[s.wip]():wipView(s.wip)) : s==='myreq'?myReqView() : s==='help'?helpView() : s==='ann'?annView() : s==='cust'?custView() : s==='pcinfo'?pcInfoView()
-      : s==='custreg'?custRegView() : s==='ringiForm'?ringiFormView() : s==='buyForm'?buyFormView() : s==='past'?pastView() : '';
+      : s==='custreg'?custRegView() : s==='leadForm'?leadFormView() : s==='ringiForm'?ringiFormView() : s==='buyForm'?buyFormView() : s==='past'?pastView() : '';
   }
   else if(state.approving) html=approveView(state.approving);
   else if(state.deal) html=dealDetail(state.deal);

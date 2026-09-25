@@ -729,6 +729,7 @@ function orgLabel(it, short=false){
 function waitingOf(it){
   if(!it) return null;
   if(it.status==='取り下げ') return {t:'取り下げ済み（履歴として残る）', cls:'done'};
+  if(it.status==='見送り') return {t:'見送り（履歴として残る）', cls:'done'};
   if(!it.open) return {t:'Close済（完了・履歴）', cls:'done'};
   if(it.kind==='gate' && it.status!=='Done'){ const k=kids(it.id); return {t:`稟議・購買の完了待ち（残り ${k.filter(x=>x.status!=='Done').length}件）`, cls:''}; }
   if(it.status==='Done') return {t:'この行は完了。親の残り待ち', cls:'done'};
@@ -738,7 +739,7 @@ function waitingOf(it){
   if(it.status==='In Progress') return {t:`${PEOPLE[it.own]} が対応中`, cls:'prog'};
   return {t:`${PEOPLE[it.own]} の着手待ち`, cls:''};
 }
-function notify(to, text, ref){ inbox[to].unshift({text, ref}); }
+function notify(to, text, ref, extra){ inbox[to].unshift(Object.assign({text, ref}, extra||{})); }
 function addEvent(it, e){ it.tl.push(e); }
 
 function recalc(){
@@ -760,6 +761,12 @@ function recalc(){
 function act(kindA, id){
   const it=byId(id); const me=PEOPLE[state.role];
   if(kindA==='resubmitEdit'){ openResubmit(it); return; }
+  if(kindA==='buyBack'){ it.status='差戻し'; it.own=it.by; addEvent(it, ev('cm', me, '# 差戻し', '横浜倉庫の在庫で対応できます。数量を見直してください。')); notify(it.by, `購買申請が差戻されました: ${it.title}`, it.id); render(); return; }
+  if(kindA==='promote'){ it.kind='deal'; it.fromLead=true; it.title=it.title.replace(/^/, ''); it.status='In Progress';
+    addEvent(it, ev('sys', me, '[リード] → [案件] に昇格。工程「商談・見積」を作成'));
+    insertIssue({id:nextId(), ref:nextRef('sfa'), repo:'sfa', kind:'phase', parent:it.id, title:'商談・見積', status:'In Progress', open:true, own:'sales', body:{'用途':'工程'}, tl:[]});
+    render(); return; }
+  if(kindA==='dropLead'){ it.status='見送り'; it.open=false; addEvent(it, ev('sys', me, '問い合わせを見送り（履歴は残る）')); render(); return; }
   if(kindA==='withdraw'){
     it.status='取り下げ'; it.open=false; it.blocked=false;
     addEvent(it, ev('sys', me, `${me} が取り下げ — 行は消さず履歴に残す`));
@@ -826,7 +833,8 @@ function actionsFor(it){
   if(it.kind==='ringi' && it.status==='承認待ち' && it.own===r) return [['approve','承認して Status=Done','bp'],['reject','差戻し','bd']];
   if(['ringi','buy'].includes(it.kind) && it.status==='差戻し' && it.by===r) return [['resubmitEdit','修正して再申請','bp'],['withdraw','取り下げ','bg']];
   if(['ringi','buy'].includes(it.kind) && ['承認待ち','Todo'].includes(it.status) && it.by===r && it.own!==r) return [['nudge','催促する','bg'],['withdraw','取り下げ','bg']];
-  if(it.kind==='buy' && r==='buy' && it.status!=='Done') return [['buyProg','手配中','bg'],['buyDone','発注済にする','bp']];
+  if(it.kind==='buy' && r==='buy' && !['Done','差戻し','取り下げ'].includes(it.status)) return [['buyProg','手配中','bg'],['buyDone','発注済にする','bp']].concat(it.status==='Todo'&&it.by&&it.by!=='buy'?[['buyBack','差戻し（在庫で対応）','bd']]:[]);
+  if(it.kind==='lead' && it.open && it.own===r) return [['promote','案件に昇格','bp'],['dropLead','見送り','bg']];
   if(it.repo==='koji' && it.kind==='task' && r==='koji' && it.status==='Todo') return [['taskDone','完了にする','bp']];
   if(it.kind==='bill' && r==='kanri' && it.status==='Todo') return [['billDone','請求書発行 → Done','bp']];
   if(it.kind==='deal' && it.id==='841' && (r==='kanri'||r==='leader') && it.open && allKidsDone('841')) return [['closeDeal','案件を完了（Close）','bp']];
@@ -965,6 +973,8 @@ function renderInbox(){
     const n=inbox[state.role][Number(b.dataset.i)];
     inbox[state.role].splice(Number(b.dataset.i),1);
     if(n.cust){ state.customer=n.cust; state.property=null; state.crmAxis='customer'; go('crm'); return; }
+    if(n.prop){ state.property=n.prop; state.customer=null; state.crmAxis='property'; go('crm'); return; }
+    if(n.screen){ if(n.screen==='myreq') state.myTab=/差戻|追記/.test(n.text)?'back':'all'; go(n.screen, n.opts||{}); return; }
     openIssue(n.ref);
   });
 }
@@ -1231,9 +1241,9 @@ function renderPortal(){
       <div class="sc-list">${scRows}</div>
     </aside>
     <div class="db-main">
-      <div class="sec-h"><h3>自分の申請</h3><button type="button" class="more" id="goMy">すべて →</button></div>
+      <div class="sec-h"><h3>自分の申請・登録</h3><button type="button" class="more" id="goMy">すべて →</button></div>
       <div class="my-sum">${(()=>{ const rs=myReqRows(); const n=s=>rs.filter(r=>r.st===s).length;
-        return [['draft','下書き',n('下書き')],['wait','申請中',n('申請中')],['back','差戻し',n('差戻し')],['done','承認済・完了',n('承認済・完了')]]
+        return [['draft','下書き',n('下書き')],['wait','申請中・確認待ち',n('申請中')+n('確認待ち')+n('進行中')],['back','差戻し',n('差戻し')],['done','承認済・完了',n('承認済・完了')]]
           .map(([k,l,c])=>`<button type="button" data-myg="${k}" class="${k==='back'&&c?'hot':''}">${l} <b>${c}</b></button>`).join('')
           +'<button type="button" id="portalNew">＋ 新規（稟議・購買・見積…）</button>'; })()}</div>
       <div class="db-sec">
@@ -1837,7 +1847,8 @@ function renderCustomer(cid){
       <h2>${c.name}</h2>
       <span class="cust-kind ${c.domain==='HSE'?'hs':c.domain==='PCS'?'pcs':''}">${c.kind} / ${c.domain}</span>
       <span class="orgcell">${c.domain}・${c.branch.replace('営業所','')}</span>
-      ${c.regi==='仮'?`<span class="warn-badge">仮登録${c.via?`（${c.via}）`:''} — 受注時に本登録</span><button type="button" class="bp" id="custRegi">本登録にする</button>`:''}
+      ${c.regi==='仮'?`<span class="warn-badge">仮登録${c.via?`（${c.via}）`:''}${c.reqSt==='差戻し'?' — 差戻し中: '+(c.backNote||''):' — 事務の本登録待ち'}</span>${['jimu','kanri','leader'].includes(state.role)&&c.reqSt!=='差戻し'?`<button type="button" class="bp" id="custRegi">本登録にする</button><button type="button" class="bd" id="custBack">差戻し（情報不足）</button>`:''}`:''}
+      ${c.regi==='取消'?'<span class="warn-badge">取り下げ済み</span>':''}
       ${c.regiLog?`<span class="ref">${c.regiLog}</span>`:''}
     </div>
     <div style="display:grid;grid-template-columns:1fr 1.3fr;gap:14px" class="cust-cols">
@@ -1859,8 +1870,10 @@ function renderCustomer(cid){
       </div>
     </div></div>`;
   $('backCust').onclick=()=>{ state.customer=null; render(); };
+  const cb=$('custBack'); if(cb) cb.onclick=()=>{ c.reqSt='差戻し'; c.backNote='電話番号と住所の番地を確認してください'; inbox.jimu=inbox.jimu.filter(n=>n.cust!==cid); if(c.by) notify(c.by, `顧客の仮登録が差戻されました: ${c.name}`, null, {screen:'myreq'}); render(); };
   const cr=$('custRegi'); if(cr) cr.onclick=()=>{
-    c.regi='本'; c.regiLog=`9/25 ${meShort()} が本登録`;
+    c.regi='本'; c.reqSt='完了'; c.regiLog=`9/25 ${meShort()} が本登録`;
+    if(c.by) notify(c.by, `本登録されました: ${c.name}`, null, {cust:cid});
     inbox.jimu=inbox.jimu.filter(n=>n.cust!==cid);
     render();
   };
@@ -1911,7 +1924,8 @@ function renderProperty(pid){
       <h2>${p.name}</h2>
       <span class="cust-kind ${p.domain==='HSE'?'hs':p.domain==='PCS'?'pcs':''}">物件 / ${p.domain}</span>
       <span class="orgcell">${p.domain}・${p.branch.replace('営業所','')}</span>
-      ${p.regi==='仮'?'<span class="warn-badge">仮登録</span>':''}
+      ${p.regi==='仮'?`<span class="warn-badge">仮登録${p.reqSt==='差戻し'?' — 差戻し中: '+(p.backNote||''):p.by?' — 事務の本登録待ち':''}</span>${p.by&&['jimu','kanri','leader'].includes(state.role)&&p.reqSt!=='差戻し'?`<button type="button" class="bp" id="propRegi">本登録にする</button><button type="button" class="bd" id="propBack">差戻し（情報不足）</button>`:''}`:''}
+      ${p.regi==='取消'?'<span class="warn-badge">取り下げ済み</span>':''}
     </div>
     <div style="display:grid;grid-template-columns:1fr 1.3fr;gap:14px" class="cust-cols">
       <div>
@@ -1934,6 +1948,8 @@ function renderProperty(pid){
       </div>
     </div></div>`;
   $('backProp').onclick=()=>{ state.property=null; render(); };
+  const pr2=$('propRegi'); if(pr2) pr2.onclick=()=>{ p.regi='本'; p.reqSt='完了'; inbox.jimu=inbox.jimu.filter(n=>n.prop!==pid); if(p.by) notify(p.by, `物件が本登録されました: ${p.name}`, null, {prop:pid}); render(); };
+  const pb2=$('propBack'); if(pb2) pb2.onclick=()=>{ p.reqSt='差戻し'; p.backNote='築年と構造を確認してください'; inbox.jimu=inbox.jimu.filter(n=>n.prop!==pid); if(p.by) notify(p.by, `物件の仮登録が差戻されました: ${p.name}`, null, {screen:'myreq'}); render(); };
   $('main').querySelectorAll('[data-goc]').forEach(b=>b.onclick=()=>{ state.property=null; state.customer=b.dataset.goc; state.crmAxis='customer'; render(); });
   $('main').querySelectorAll('[data-openb]').forEach(b=>b.onclick=()=>{ state.property=null; openIssue(b.dataset.openb); });
 }
@@ -2648,7 +2664,7 @@ const FORMS={
     submit:v=>{
       const name=(v.name||'').trim(); if(!name) return {err:'顧客名は必須です'};
       const id='c'+(Object.keys(CUSTOMERS).length+1)+'x'+SEQ.n++;
-      CUSTOMERS[id]={id, name, kind:v.kind, domain:v.domain, branch:v.branch, addr:v.addr||'—', since:'2026年〜', contact:v.tel||'—', last:'9/25', regi:'仮', via:v.via,
+      CUSTOMERS[id]={id, name, kind:v.kind, domain:v.domain, branch:v.branch, addr:v.addr||'—', since:'2026年〜', contact:v.tel||'—', last:'9/25', regi:'仮', via:v.via, by:state.role, formKey:'cust', formVals:v, reqSt:'確認待ち',
         propertyIds:[], contracts:[{name:'（契約前）', until:'—', warn:false}]};
       inbox.jimu.unshift({text:`本登録待ち: ${name}（${v.via}・仮登録）`, cust:id});
       return {msg:`${name} を仮登録しました。事務（高橋）の「本登録待ち」に届いています。`, openLabel:'顧客レコードを開く',
@@ -2679,7 +2695,8 @@ const FORMS={
       if(!(v.name||'').trim()||!(v.addr||'').trim()) return {err:'物件名と住所は必須です'};
       const id='p'+(Object.keys(PROPERTIES).length+1)+'x'+SEQ.n++;
       PROPERTIES[id]={id, name:v.name.trim(), structure:v.structure, addr:v.addr.trim(), domain:v.domain, branch:v.branch, use:v.use, built:v.built||'—', units:'—', water:'—',
-        customers:[{id:v.cid, role:'契約顧客'}], last:'9/25', regi:'仮', contracts:[]};
+        customers:[{id:v.cid, role:'契約顧客'}], last:'9/25', regi:'仮', contracts:[], by:state.role, formKey:'prop', formVals:v, reqSt:'確認待ち'};
+      inbox.jimu.unshift({text:`本登録待ち（物件）: ${v.name.trim()}`, prop:id});
       if(CUSTOMERS[v.cid]) CUSTOMERS[v.cid].propertyIds.push(id);
       return {msg:`物件「${v.name.trim()}」を登録しました（仮）。`, openLabel:'物件レコードを開く',
         open:()=>{ state.property=id; state.customer=null; state.crmAxis='property'; go('crm'); }};
@@ -2774,8 +2791,12 @@ const FORMS={
       return `<dl class="idb"><dt>金額</dt><dd>${yen(total)}</dd><dt>倉庫在庫</dt><dd>${st}</dd>
         <dt>承認</dt><dd>${total>=50000?'5万円以上のため拠点長の稟議を同時に起票':'承認不要枠（5万円未満）'}</dd></dl>`;
     },
-    submit:v=>{
+    submit:(v,ctx)=>{
       const it=itemOf(v.sku), qty=Number(v.qty)||0; if(!qty) return {err:'数量を入れてください'};
+      if(ctx&&ctx.editId){ const b=byId(ctx.editId); b.status='Todo'; b.own='buy'; b.formVals=v; b.title=`資材発注: ${it.name} ×${qty}`; b.amount=yen(it.price*qty);
+        b.body=Object.assign({},b.body,{'品目':`${it.name}（${it.sku}）`,'数量':`${qty} ${it.unit}`,'希望納期':v.eta||'—'});
+        addEvent(b, ev('cm', meShort(), '# 修正して再申請', `${it.name} ×${qty}。${v.memo||''}`)); notify('buy', `再申請: ${b.title}`, b.id);
+        return {msg:`${b.ref} を修正して再申請しました（購買 鈴木へ）。`, openLabel:'申請を開く', open:()=>openIssue(b.id)}; }
       const total=it.price*qty, id=nextId(), deal=v.deal?byId(v.deal):null;
       const o={id, ref:nextRef('buy'), repo:'buy', kind:'buy', parent:v.deal||null, depth:0, title:`資材発注: ${it.name} ×${qty}`, status:'Todo', open:true, own:'buy', by:state.role, approver:'buy', formKey:'buy', formVals:v,
         eta:`希望 ${v.eta||'—'}`, amount:yen(total),
@@ -2803,7 +2824,8 @@ const FORMS={
     preview:()=>'<div class="note">申請すると外注・仕入先マスタに「登録申請中」で載り、承認後に発注先として選べるようになります。</div>',
     submit:v=>{
       if(!(v.name||'').trim()) return {err:'名称は必須です'};
-      VENDORS.unshift({id:nextId(), name:v.name.trim(), type:v.type, trades:v.trades||'—', area:v.area||'—', ins:v.ins||'—', status:'登録申請中', log:[`9/25 ${meShort()}: 新規登録申請`]});
+      VENDORS.unshift({id:nextId(), name:v.name.trim(), type:v.type, trades:v.trades||'—', area:v.area||'—', ins:v.ins||'—', status:'登録申請中', by:state.role, formKey:'vendor', formVals:v, log:[`9/25 ${meShort()}: 新規登録申請`]});
+      notify('kanri', `外注・仕入先の登録申請: ${v.name.trim()}`, null, {screen:'mgmt', opts:{mgmt:'vendors'}});
       return {msg:`${v.name.trim()} の登録を申請しました。`, openLabel:'外注・仕入先マスタを開く',
         open:()=>{ state.mgmtTab=state.mgmtTab||{}; state.mgmtTab.vendors='req'; go('mgmt',{mgmt:'vendors'}); }};
     },
@@ -2939,7 +2961,7 @@ function bindForm(root, key, ctx, hooks){
   const fm=root.querySelector('[data-fm]');
   fm.addEventListener('input',upd); fm.addEventListener('change',upd); upd();
   root.querySelector('[data-fsubmit]').onclick=()=>{
-    const v=vals(); const res=f.submit(v, ctx||{});
+    const v=vals(); const res=(ctx&&ctx.editRec&&f.resubmit)?f.resubmit(v, ctx.editRec):f.submit(v, ctx||{});
     if(res.err){ root.querySelector('[data-fprev]').innerHTML=`<div class="note warn">${res.err}</div>`; return; }
     if(ctx&&ctx.draftId){ const i=DRAFTS.findIndex(d=>d.id===ctx.draftId); if(i>=0) DRAFTS.splice(i,1); }
     if(v.__files) res.msg+=` 添付: ${v.__files}`;
@@ -3108,7 +3130,7 @@ function openDoc(d, it){
 
 /* ---- 自分の申請 ---- */
 const EXPENSES=[], SAFETY_REPORTS=[];
-function myReqRows(){
+function myReqRowsLegacy(){
   const me=state.role, rows=[];
   DRAFTS.filter(d=>d.by===me).forEach(d=>rows.push({id:d.id, type:FORMS[d.form].title.replace(/（.*）/,''), title:d.title, st:'下書き', who:'—', upd:d.saved, draft:d}));
   issues.filter(i=>i.by===me && ['ringi','buy','task'].includes(i.kind) && (i.kind!=='task'||i.title.startsWith('見積 '))).forEach(i=>{
@@ -3121,11 +3143,11 @@ function myReqRows(){
 }
 function renderMyReq(){
   const all=myReqRows();
-  const tabs=[['all','すべて',r=>true],['draft','下書き',r=>r.st==='下書き'],['wait','申請中',r=>r.st==='申請中'||r.st==='確認中'],['back','差戻し',r=>r.st==='差戻し'],['done','承認済・完了',r=>r.st==='承認済・完了'||r.st==='受理'],['wd','取り下げ',r=>r.st==='取り下げ']];
+  const tabs=[['all','すべて',r=>true],['draft','下書き',r=>r.st==='下書き'],['wait','申請中・確認待ち・進行中',r=>['申請中','確認待ち','進行中'].includes(r.st)],['back','差戻し',r=>r.st==='差戻し'],['done','承認済・完了',r=>r.st==='承認済・完了'],['wd','取り下げ・取消',r=>r.st==='取り下げ']];
   const cur=tabs.find(t=>t[0]===state.myTab)||tabs[0];
   const q=(state.myQ||'').trim();
   const rows=all.filter(cur[2]).filter(r=>!q||(r.type+r.title).includes(q));
-  const stp=s=>`<span class="pill ${s==='下書き'?'block':s==='差戻し'?'back':s==='申請中'||s==='確認中'?'wait':s==='取り下げ'?'block':'done'}">${s}</span>`;
+  const stp=s=>`<span class="pill ${s==='下書き'?'block':s==='差戻し'?'back':['申請中','確認待ち','進行中'].includes(s)?'wait':s==='取り下げ'?'block':'done'}">${s}</span>`;
   const act=r=>{
     if(r.draft) return `<button class="sp-act pri" data-dr="${r.id}">再開</button><button class="sp-act" data-dd="${r.id}">削除</button>`;
     if(r.issue){
@@ -3134,15 +3156,22 @@ function renderMyReq(){
       if(r.st==='申請中' && i.own!==state.role && ['ringi','buy'].includes(i.kind)) b.push(`<button class="sp-act" data-nu="${i.id}">催促</button>`,`<button class="sp-act" data-wd="${i.id}">取り下げ</button>`);
       return b.join('');
     }
+    if(r.rk){
+      const K=REQ_KINDS[r.rk], b=[];
+      if(r.st==='差戻し' && K.resubmit!==false) b.push(`<button class="sp-act pri" data-rrs="${r.rk}:${r.id}">修正して再提出</button>`);
+      if(K.open) b.push(`<button class="sp-act" data-ro="${r.rk}:${r.id}">開く</button>`);
+      if(K.canWd && K.canWd(r.rec)) b.push(`<button class="sp-act" data-rwd="${r.rk}:${r.id}">${K.wdLabel||'取り下げ'}</button>`);
+      return b.join('')||'—';
+    }
     return '—';
   };
   $('main').innerHTML=`<div class="mg-page">
-    <div class="mg-top"><h2>自分の申請 — ${PEOPLE[state.role]}</h2><button type="button" class="bp" id="myNew">＋ 新規</button></div>
+    <div class="mg-top"><h2>自分の申請・登録 — ${PEOPLE[state.role]}</h2><button type="button" class="bp" id="myNew">＋ 新規</button></div>
     <div class="mg-why"><div><b>ここで分かること</b>出した申請が今どこにあるか（誰待ちか）</div><div><b>下書き</b>途中で保存したもの。再開・削除できる</div><div><b>差戻し</b>「修正して再申請」で前回の内容から直す（同じ行を更新）</div><div><b>取り下げ</b>承認前なら取り下げ可。行は履歴に残る</div></div>
     <div class="filterbar"><div class="seg" role="tablist">${tabs.map(t=>`<button type="button" role="tab" data-myt="${t[0]}" aria-selected="${t[0]===cur[0]}">${t[1]} <span class="ref">${all.filter(t[2]).length}</span></button>`).join('')}</div>
       <input class="mg-q" id="myQ" value="${state.myQ||''}" placeholder="件名・種類で検索"><span class="count">${rows.length} 件</span></div>
-    <div class="table-wrap"><table class="ledger"><thead><tr><th>種類</th><th style="width:34%">件名</th><th>状態</th><th>いま誰の手元</th><th>金額</th><th>更新</th><th>操作</th></tr></thead>
-    <tbody>${rows.map(r=>`<tr><td>${r.type}</td><td><b>${r.title}</b></td><td>${stp(r.st)}</td><td>${r.st==='申請中'?r.who:'—'}</td><td class="num-r">${state.role==='koji'&&r.amount?'（非表示）':(r.amount||'—')}</td><td>${r.upd}</td><td><div style="display:flex;gap:4px;flex-wrap:wrap">${act(r)}</div></td></tr>`).join('')||'<tr><td colspan="7" class="quiet">該当なし</td></tr>'}</tbody></table></div>
+    <div class="table-wrap"><table class="ledger"><thead><tr><th>種類</th><th style="width:34%">件名</th><th>状態</th><th>いま誰の手元／差戻し理由</th><th>金額</th><th>更新</th><th>操作</th></tr></thead>
+    <tbody>${rows.map(r=>`<tr><td>${r.type}</td><td><b>${r.title}</b></td><td>${stp(r.st)}</td><td>${r.st==='差戻し'&&r.note?`<span class="warn-badge">${r.note}</span>`:['申請中','確認待ち','進行中'].includes(r.st)?r.who:'—'}</td><td class="num-r">${state.role==='koji'&&r.amount?'（非表示）':(r.amount||'—')}</td><td>${r.upd}</td><td><div style="display:flex;gap:4px;flex-wrap:wrap">${act(r)}</div></td></tr>`).join('')||'<tr><td colspan="7" class="quiet">該当なし</td></tr>'}</tbody></table></div>
     <div class="add-row">入口: ヘッダ「＋ 新規」／案件の詳細パネル「この案件で: ＋稟議を起票」／管理 → 登録。どこから出しても、ここに集まる。</div></div>`;
   $('myNew').onclick=()=>{ renderNewMenu(); $('newMenu').classList.add('open'); };
   $('main').querySelectorAll('[data-myt]').forEach(b=>b.onclick=()=>{ state.myTab=b.dataset.myt; render(); });
@@ -3152,6 +3181,10 @@ function renderMyReq(){
   $('main').querySelectorAll('[data-rs]').forEach(b=>b.onclick=()=>openResubmit(byId(b.dataset.rs)));
   $('main').querySelectorAll('[data-nu]').forEach(b=>b.onclick=()=>act('nudge', b.dataset.nu));
   $('main').querySelectorAll('[data-wd]').forEach(b=>b.onclick=()=>act('withdraw', b.dataset.wd));
+  const recOf=v=>{ const [k,id]=v.split(':'); return [REQ_KINDS[k], REQ_KINDS[k].list().find(x=>String(x.id)===id)]; };
+  $('main').querySelectorAll('[data-rrs]').forEach(b=>b.onclick=()=>{ const [K,r]=recOf(b.dataset.rrs); openFormModal(r.formKey, r.formVals||{}, {editRec:r, from:'差戻し（'+K.type+'）'}); });
+  $('main').querySelectorAll('[data-ro]').forEach(b=>b.onclick=()=>{ const [K,r]=recOf(b.dataset.ro); K.open(r); });
+  $('main').querySelectorAll('[data-rwd]').forEach(b=>b.onclick=()=>{ const [K,r]=recOf(b.dataset.rwd); K.wd(r); render(); });
   $('myQ').addEventListener('input',e=>{ state.myQ=e.target.value; render(); const el=$('myQ'); el.focus(); el.setSelectionRange(el.value.length,el.value.length); });
 }
 function myPendingCount(){ return myReqRows().filter(r=>['下書き','差戻し'].includes(r.st)).length; }
@@ -3356,7 +3389,7 @@ Object.assign(FORMS, {
     ],
     preview:v=>`<div class="note">${(Number(v.amount)||0)>=30000?'3万円以上のため拠点長の確認が入ります。':'経理の確認のみ。'} 領収書は添付欄に写真を付けます。今月の締切: 9/30 17:00。</div>`,
     submit:(v)=>{ const amt=Number(v.amount)||0; if(!amt) return {err:'金額を入れてください'};
-      EXPENSES.unshift({id:nextId(), by:state.role, title:`${v.cat} ${v.memo||''}`.trim(), amount:amt, date:'9/25', status:'申請中'});
+      EXPENSES.unshift({id:nextId(), by:state.role, formKey:'expense', formVals:v, cat:v.cat, title:`${v.cat} ${v.memo||''}`.trim(), amount:amt, date:'9/25', status:'申請中', log:[]});
       return {msg:`経費 ${yen(amt)} を申請しました（${amt>=30000?'拠点長 → ':''}経理へ）。`}; },
   },
   safety:{
@@ -3371,7 +3404,7 @@ Object.assign(FORMS, {
     ],
     preview:v=>`<div class="note ${v.kind!=='ヒヤリハット'?'warn':''}">${v.kind==='ヒヤリハット'?'安全衛生課と拠点長に共有されます。':'事故のため拠点長・安全衛生課に即時通知。保険請求の要否を確認します。'}</div>`,
     submit:(v)=>{ if(!(v.what||'').trim()) return {err:'何があったかを書いてください'};
-      SAFETY_REPORTS.unshift({id:nextId(), by:state.role, kind:v.kind, title:`${v.kind}: ${v.what.slice(0,24)}`, place:v.place, anon:v.anon==='はい', date:'9/25', status:'確認中', log:[]});
+      SAFETY_REPORTS.unshift({id:nextId(), by:state.role, formKey:'safety', formVals:v, kind:v.kind, title:`${v.kind}: ${v.what.slice(0,24)}`, place:v.place, anon:v.anon==='はい', date:'9/25', status:'確認中', log:[]});
       if(v.kind!=='ヒヤリハット') notify('leader', `${v.kind}の報告: ${v.what.slice(0,20)}`, '841');
       return {msg:`${v.kind}を報告しました（安全衛生課${v.kind!=='ヒヤリハット'?'・拠点長に即時通知':''}）。`, openLabel:'安全衛生の一覧を開く', open:()=>go('mgmt',{mgmt:'safety'})}; },
   },
@@ -3387,7 +3420,7 @@ Object.assign(FORMS, {
     preview:()=>'<div class="note">受け付けると修理・メーカー依頼の一覧に「受付」で載ります。</div>',
     submit:v=>{ if(!(v.symptom||'').trim()) return {err:'症状を入れてください'};
       const it=ITEMS.find(x=>x.name===v.item)||{supplier:'—'};
-      REPAIRS.unshift({id:nextId(), cust:v.cust, item:v.item, maker:it.supplier, symptom:v.symptom, warranty:v.warranty, status:'受付', log:[`9/25 ${meShort()}: 受付`]});
+      REPAIRS.unshift({id:nextId(), by:state.role, formKey:'repair', formVals:v, cust:v.cust, item:v.item, maker:it.supplier, symptom:v.symptom, warranty:v.warranty, status:'受付', log:[`9/25 ${meShort()}: 受付`]});
       return {msg:`${v.cust} の修理を受け付けました。`, openLabel:'修理一覧を開く', open:()=>go('mgmt',{mgmt:'repair'})}; },
   },
 });
@@ -3469,6 +3502,164 @@ function renderBI(){
     <div class="note" style="max-width:960px">この画面の数字は、案件台帳・入金・売上計上・点検・在庫の台帳からその場で集計している（転記していない）。歩合・報奨の計算ルールは要件確定後に追加。</div>
   </div>`;
 }
+
+/* ================= チェック1: 新規作成の共通化（申請型・確認型・報告型・登録型） ================= */
+const EXPENSE_SEED=[
+  {id:'ex1', by:'koji', cat:'車両（燃料・駐車）', title:'車両（燃料・駐車） 相模原現場', amount:3200, date:'9/22', status:'申請中', log:[]},
+  {id:'ex2', by:'sales', formKey:'expense', formVals:{cat:'出張', date:'9/19', amount:'28600', deal:'', memo:'福岡 研修'}, cat:'出張', title:'出張 福岡 研修', amount:28600, date:'9/19', status:'差戻し', note:'領収書の写真が不鮮明です', log:['9/24 佐藤: 差戻し（領収書の写真が不鮮明）']},
+];
+EXPENSES.push(...EXPENSE_SEED);
+const REQ_KINDS={
+  cust:{type:'顧客（仮登録）', list:()=>Object.values(CUSTOMERS),
+    st:r=>r.regi==='本'?'承認済・完了':r.reqSt==='取り下げ'?'取り下げ':r.reqSt==='差戻し'?'差戻し':'確認待ち',
+    title:r=>r.name, who:()=>PEOPLE.jimu, note:r=>r.backNote,
+    open:r=>{ state.customer=r.id; state.property=null; state.crmAxis='customer'; go('crm'); },
+    canWd:r=>r.regi==='仮' && r.reqSt!=='取り下げ', wd:r=>{ r.reqSt='取り下げ'; r.regi='取消'; inbox.jimu=inbox.jimu.filter(n=>n.cust!==r.id); }},
+  prop:{type:'物件（仮登録）', list:()=>Object.values(PROPERTIES),
+    st:r=>r.regi==='本'?'承認済・完了':r.reqSt==='取り下げ'?'取り下げ':r.reqSt==='差戻し'?'差戻し':'確認待ち',
+    title:r=>r.name, who:()=>PEOPLE.jimu, note:r=>r.backNote,
+    open:r=>{ state.property=r.id; state.customer=null; state.crmAxis='property'; go('crm'); },
+    canWd:r=>r.regi==='仮' && r.reqSt!=='取り下げ', wd:r=>{ r.reqSt='取り下げ'; r.regi='取消'; inbox.jimu=inbox.jimu.filter(n=>n.prop!==r.id); }},
+  vendor:{type:'外注・仕入先の登録申請', list:()=>VENDORS,
+    st:r=>({'登録申請中':'確認待ち','差戻し':'差戻し','取引中':'承認済・完了','取り下げ':'取り下げ','停止':'承認済・完了'})[r.status]||'確認待ち',
+    title:r=>r.name, who:()=>PEOPLE.kanri, note:r=>r.backNote,
+    open:r=>{ go('mgmt',{mgmt:'vendors'}); },
+    canWd:r=>['登録申請中','差戻し'].includes(r.status), wd:r=>{ r.status='取り下げ'; mlog(r,'申請を取り下げ'); }},
+  expense:{type:'経費', list:()=>EXPENSES,
+    st:r=>({'申請中':'申請中','差戻し':'差戻し','承認済':'承認済・完了','取り下げ':'取り下げ'})[r.status]||'申請中',
+    title:r=>`${r.title}（${yen(r.amount)}）`, who:r=>r.amount>=30000?`${PEOPLE.leader} → 経理`:'経理', note:r=>r.note,
+    open:r=>{ go('mgmt',{mgmt:'expenses'}); },
+    canWd:r=>['申請中','差戻し'].includes(r.status), wd:r=>{ r.status='取り下げ'; mlog(r,'取り下げ'); }},
+  safety:{type:'安全報告', list:()=>SAFETY_REPORTS.concat(SAFETY_SEED),
+    st:r=>({'確認中':'確認待ち','追記依頼':'差戻し','対策済':'承認済・完了'})[r.status]||'確認待ち',
+    title:r=>r.title, who:()=>'安全衛生課', note:r=>r.note,
+    open:r=>{ go('mgmt',{mgmt:'safety'}); }},
+  repair:{type:'修理の受付', list:()=>REPAIRS, resubmit:false,
+    st:r=>r.status==='取消'?'取り下げ':r.status==='修理完了'?'承認済・完了':'進行中',
+    title:r=>`${r.cust} ${r.item}（${r.status}）`, who:()=>'自分（メーカー対応）',
+    open:r=>{ go('mgmt',{mgmt:'repair'}); },
+    canWd:r=>r.status==='受付', wdLabel:'受付を取消', wd:r=>{ r.status='取消'; mlog(r,'受付を取消'); }},
+  lead:{type:'案件・問い合わせ', list:()=>issues.filter(i=>i.kind==='lead'||(i.kind==='deal'&&i.fromLead)), resubmit:false,
+    st:r=>r.status==='見送り'?'取り下げ':r.kind==='deal'?'承認済・完了':'進行中',
+    title:r=>`${r.title} ${r.ref}`, who:r=>PEOPLE[r.own],
+    open:r=>openIssue(r.id),
+    canWd:r=>r.kind==='lead' && r.open, wdLabel:'見送り', wd:r=>{ r.status='見送り'; r.open=false; addEvent(r, ev('sys', meShort(), '問い合わせを見送り（履歴は残る）')); }},
+};
+function myReqRows(){
+  const me=state.role, rows=[];
+  DRAFTS.filter(d=>d.by===me).forEach(d=>rows.push({id:d.id, type:FORMS[d.form].title.replace(/（.*）/,''), title:d.title, st:'下書き', who:'—', upd:d.saved, draft:d}));
+  issues.filter(i=>i.by===me && ['ringi','buy','task'].includes(i.kind) && (i.kind!=='task'||i.title.startsWith('見積 '))).forEach(i=>{
+    const st=i.status==='取り下げ'?'取り下げ':i.status==='差戻し'?'差戻し':i.status==='Done'?'承認済・完了':'申請中';
+    rows.push({id:i.id, type:i.kind==='ringi'?'稟議':i.kind==='buy'?'購買申請':'見積', title:`${i.title} ${i.ref}`, st, who:PEOPLE[i.own], upd:'9/25', amount:i.amount, issue:i,
+      note:i.status==='差戻し'?((i.tl.filter(e=>e.t==='cm'&&e.head.includes('差戻')).pop()||{}).body||''):''});
+  });
+  Object.entries(REQ_KINDS).forEach(([k,K])=>K.list().filter(r=>r.by===me).forEach(r=>{
+    rows.push({id:r.id, rk:k, rec:r, type:K.type, title:K.title(r), st:K.st(r), who:typeof K.who==='function'?K.who(r):K.who, upd:r.date||'9/25', amount:r.amount?yen(r.amount):'', note:K.note?K.note(r):''});
+  }));
+  return rows;
+}
+
+/* 差戻し後の修正して再提出（同じレコードを更新） */
+FORMS.cust.resubmit=(v,r)=>{ Object.assign(r,{name:(v.name||r.name).trim(), kind:v.kind, domain:v.domain, branch:v.branch, addr:v.addr||r.addr, contact:v.tel||r.contact, via:v.via, formVals:v, reqSt:'確認待ち', backNote:''});
+  inbox.jimu.unshift({text:`再提出（本登録待ち）: ${r.name}`, cust:r.id}); return {msg:`${r.name} を修正して再提出しました（事務の本登録待ち）。`, openLabel:'顧客レコードを開く', open:()=>REQ_KINDS.cust.open(r)}; };
+FORMS.prop.resubmit=(v,r)=>{ Object.assign(r,{name:(v.name||r.name).trim(), addr:(v.addr||r.addr).trim(), structure:v.structure, use:v.use, built:v.built, formVals:v, reqSt:'確認待ち', backNote:''});
+  inbox.jimu.unshift({text:`再提出（物件の本登録待ち）: ${r.name}`, prop:r.id}); return {msg:`物件「${r.name}」を修正して再提出しました。`, openLabel:'物件レコードを開く', open:()=>REQ_KINDS.prop.open(r)}; };
+FORMS.vendor.resubmit=(v,r)=>{ Object.assign(r,{name:(v.name||r.name).trim(), type:v.type, trades:v.trades, area:v.area, ins:v.ins, formVals:v, status:'登録申請中', backNote:''}); mlog(r,'修正して再申請');
+  notify('kanri', `再申請（外注・仕入先）: ${r.name}`, null, {screen:'mgmt', opts:{mgmt:'vendors'}}); return {msg:`${r.name} を修正して再申請しました（管理部の承認待ち）。`}; };
+FORMS.expense.resubmit=(v,r)=>{ const amt=Number(v.amount)||r.amount; Object.assign(r,{cat:v.cat, title:`${v.cat} ${v.memo||''}`.trim(), amount:amt, formVals:v, status:'申請中', note:''}); mlog(r,'修正して再申請');
+  return {msg:`経費 ${yen(amt)} を修正して再申請しました。`}; };
+FORMS.safety.resubmit=(v,r)=>{ r.title=`${v.kind}: ${(v.what||'').slice(0,24)}`; r.formVals=v; r.status='確認中'; r.note=''; mlog(r,'追記して再提出'); return {msg:'追記して再提出しました（安全衛生課へ）。'}; };
+
+/* 案件・問い合わせの起票（登録型） */
+FORMS.deal={
+  title:'案件・問い合わせの起票', submitLabel:'起票する',
+  asis:'依頼（紙・FAX・電話・Web）を受けて営業からES管理部へメール→eSMに登録→Excel3種へ転記→振り分け（ES_001）', why:'依頼を1件も取りこぼさず、誰が対応するかを決める',
+  stop:'メールでの報告とExcel3種への転記', who:'営業・受付・事務',
+  fields:[
+    {k:'dtype', l:'取引形態', t:'select', opts:()=>DEALTYPES.map(d=>[d.id,d.name])},
+    {k:'cust', l:'顧客（未登録なら先に仮登録）', t:'select', opts:()=>Object.values(CUSTOMERS).filter(c=>c.regi!=='取消').map(c=>[c.id, `${c.name}${c.regi==='仮'?'（仮）':''}`])},
+    {k:'prop', l:'物件', t:'select', opts:()=>[['','（未定）']].concat(Object.values(PROPERTIES).filter(p=>p.regi!=='取消').map(p=>[p.id,p.name]))},
+    {k:'via', l:'受付経路', t:'select', opts:()=>['電話','Webフォーム','管理会社から','紹介','FAX','飛込み'].map(x=>[x,x])},
+    {k:'title', l:'件名', req:true, full:true, def:'（例）外壁の調査依頼'},
+    {k:'memo', l:'内容', t:'textarea', full:true},
+  ],
+  preview:v=>{
+    const dt=DEALTYPES.find(d=>d.id===v.dtype)||{}, c=CUSTOMERS[v.cust];
+    const dup=v.prop?issues.filter(i=>i.depth===0 && i.open && ['lead','deal'].includes(i.kind) && i.property===v.prop):[];
+    return `<dl class="idb"><dt>部門・拠点</dt><dd>${c?`${c.domain}・${c.branch}`:'—'}（顧客から自動）</dd><dt>請求先・書類（取引形態から）</dt><dd>${dt.billTo||'—'} ／ ${dt.docs||'—'}</dd><dt>手数料</dt><dd>${dt.fee||'—'}</dd></dl>`
+      +(dup.length?`<div class="note warn">この物件に進行中の案件・問い合わせがあります: ${dup.map(d=>`${d.ref} ${d.title}`).join('、')}</div>`:'')
+      +'<div class="note">起票すると案件台帳に [リード] が1行立ち、自分の宿題に入ります。対応が進んだら「案件に昇格」。</div>';
+  },
+  submit:v=>{
+    if(!(v.title||'').trim()||v.title.startsWith('（例）')) return {err:'件名を入れてください'};
+    const c=CUSTOMERS[v.cust], dt=DEALTYPES.find(d=>d.id===v.dtype)||{}, id=nextId();
+    insertIssue({id, ref:nextRef('sfa'), repo:'sfa', kind:'lead', depth:0, parent:null, customer:v.cust, property:v.prop||null,
+      division:c?c.domain:'ES', branch:c?c.branch:'横浜営業所', title:v.title.trim(), status:'Todo', open:true, own:'sales', by:state.role, dealType:dt.name, formKey:'deal', formVals:v,
+      body:{'顧客':c?c.name:'—','経路':`${v.via} 9/25`,'取引形態':dt.name||'—','内容':v.memo||'—','用途':'未案件化のリード。対応後に [案件] へ昇格。'},
+      tl:[ev('sys','system',`起票フォームから登録（${v.via}）— Assignees: 星本`)]});
+    return {msg:`問い合わせ「${v.title.trim()}」を起票しました（案件台帳に1行）。`, openLabel:'台帳で開く', open:()=>openIssue(id)};
+  },
+};
+/* 外注注文書の作成（登録型・作成中＝下書き） */
+FORMS.porder={
+  title:'外注注文書の作成', submitLabel:'作成中で保存',
+  asis:'協力業者依頼・注文書を紙で作成（外注処理 着工前）', why:'外注に頼む内容と金額を残し、発行・完了・支払を追う',
+  stop:'手書きの注文書と外注実績表への転記', who:'施工リーダー・購買',
+  fields:[
+    {k:'vendor', l:'外注先（取引中のみ）', t:'select', opts:()=>VENDORS.filter(x=>x.type==='外注'&&x.status==='取引中').map(x=>[x.name,x.name])},
+    {k:'deal', l:'案件', t:'select', opts:dealOpts},
+    {k:'work', l:'作業内容', req:true, full:true},
+    {k:'amount', l:'金額（円）', t:'number', def:'0'},
+  ],
+  preview:v=>{ const x=VENDORS.find(y=>y.name===v.vendor); return `<div class="note ${x&&x.ins!=='—'&&x.ins<='2026-11'?'warn':''}">${x?`保険期限 ${x.ins}${x.ins!=='—'&&x.ins<='2026-11'?'（更新確認が必要）':''}`:''}。保存すると「作成中」で一覧に載り、発行は一覧の「注文書を発行」から。</div>`; },
+  submit:v=>{ if(!(v.work||'').trim()) return {err:'作業内容を入れてください'};
+    const d=byId(v.deal); PORDERS.unshift({id:nextId(), no:'', vendor:v.vendor, deal:d?d.ref:'—', work:v.work.trim(), amount:Number(v.amount)||0, status:'作成中', by:state.role, log:[`9/25 ${meShort()}: 作成`]});
+    return {msg:'注文書を「作成中」で保存しました。', openLabel:'注文書一覧を開く', open:()=>go('mgmt',{mgmt:'porders'})}; },
+};
+MGMT.porders.tools=[{l:'＋ 注文書を作成', f:()=>openFormModal('porder',{},{from:'外注注文書・支払'})}];
+MGMT.porders.acts=(orig=>r=>{ const a=orig(r); if(r.status==='作成中') a.push({l:'取消', f:()=>{ PORDERS.splice(PORDERS.indexOf(r),1); }}); return a; })(MGMT.porders.acts);
+
+/* 経費の確認（経理） */
+MGMT.expenses={
+  title:'経費の確認', asis:'紙の経費申請と領収書を経理が目視で確認', why:'立替を正しく精算し、不備は申請者に戻す',
+  stop:'紙の回付と差戻しの電話', who:'経理（3万円以上は拠点長も）',
+  rows:()=>EXPENSES,
+  tabs:[{id:'wait', label:'確認待ち', f:r=>r.status==='申請中'},{id:'back', label:'差戻し中', f:r=>r.status==='差戻し'},{id:'done', label:'承認済', f:r=>r.status==='承認済'},{id:'all', label:'すべて', f:r=>true}],
+  cols:[{h:'申請者', v:r=>`<b>${PEOPLE[r.by]||r.by}</b>`},{h:'区分', v:r=>r.cat||'—'},{h:'内容', v:r=>r.title},{h:'金額', v:r=>`<span class="num-r">${yen(r.amount)}</span>`},{h:'日付', v:r=>r.date},{h:'状態', v:r=>`<span class="pill ${r.status==='承認済'?'done':r.status==='差戻し'?'back':r.status==='取り下げ'?'block':'wait'}">${r.status}</span>`}],
+  q:r=>(PEOPLE[r.by]||'')+r.title+r.status,
+  acts:r=>r.status==='申請中'?[
+    {l:'承認', c:'bp', f:()=>{ r.status='承認済'; mlog(r,'承認'); notify(r.by, `経費が承認されました: ${r.title}`, null, {screen:'myreq'}); }},
+    {l:'差戻し（領収書不備）', f:()=>{ r.status='差戻し'; r.note='領収書の写真が不鮮明です'; mlog(r,'差戻し（領収書不備）'); notify(r.by, `経費が差戻されました: ${r.title}`, null, {screen:'myreq'}); }},
+  ]:[],
+  foot:()=>'差戻すと申請者の「自分の申請 → 差戻し」に理由付きで載り、修正して再申請できる。',
+};
+/* 外注の登録申請: 管理部の承認／差戻し */
+MGMT.vendors.acts=(orig=>r=>{
+  if(r.status==='登録申請中') return [
+    {l:'承認して取引開始', c:'bp', f:()=>{ r.status='取引中'; mlog(r,'登録承認'); if(r.by) notify(r.by, `外注登録が承認されました: ${r.name}`, null, {screen:'myreq'}); }},
+    {l:'差戻し（保険証書不足）', f:()=>{ r.status='差戻し'; r.backNote='保険証書の写しを添付してください'; mlog(r,'差戻し（保険証書不足）'); if(r.by) notify(r.by, `外注登録が差戻されました: ${r.name}`, null, {screen:'myreq'}); }},
+  ];
+  if(['差戻し','取り下げ'].includes(r.status)) return [];
+  return orig(r);
+})(MGMT.vendors.acts);
+MGMT.vendors.tabs.splice(2,1,{id:'req', label:'申請中・差戻し', f:r=>['登録申請中','差戻し'].includes(r.status)});
+/* 安全報告: 追記依頼 */
+MGMT.safety.acts=r=>r.status==='確認中'?[
+  {l:'対策を記録して完了', c:'bp', f:()=>{ r.status='対策済'; mlog(r,'対策: 2人体制・声かけを徹底'); }},
+  {l:'追記を依頼', f:()=>{ r.status='追記依頼'; r.note='発生時刻と周囲の状況を追記してください'; mlog(r,'追記を依頼'); if(r.by) notify(r.by, `安全報告に追記依頼: ${r.title}`, null, {screen:'myreq'}); }},
+]:[];
+MGMT.safety.tabs.splice(1,0,{id:'more', label:'追記依頼中', f:r=>r.status==='追記依頼'});
+/* 車両予約: 自分の予約を取消 */
+MGMT.cars.acts=(orig=>r=>{ const mine=CAR_RES.filter(c=>c.car===r.i && c.who===meShort());
+  return orig(r).concat(mine.map(m=>({l:`${DAYS[m.day]} の予約を取消`, f:()=>{ CAR_RES.splice(CAR_RES.indexOf(m),1); mlog(r,`${DAYS[m.day]} の予約を取消`); }}))); })(MGMT.cars.acts);
+
+NEW_MENU.unshift(['deal','案件・問い合わせを起票']);
+NEW_MENU.push(['repair','修理を受け付ける']);
+CAPS.splice(CAPS.findIndex(c=>c.l.startsWith('案件一覧')), 0,
+  {l:'案件・問い合わせの起票', t:'登録', asis:'紙・FAX・電話→メール報告→eSM登録→Excel3種へ転記（ES_001）', plan:'1行起票するだけ。転記しない', st:'ok', go:()=>openFormModal('deal',{},{from:'管理一覧'})});
+CAPS.splice(CAPS.findIndex(c=>c.l.startsWith('外注注文書')), 0,
+  {l:'経費の確認（経理）', t:'管理', asis:'紙の経費申請の目視確認', plan:'残す（差戻しは理由付きで申請者へ）', st:'ok', go:()=>go('mgmt',{mgmt:'expenses'})});
+const myCap=CAPS.find(c=>c.l.startsWith('自分の申請')); if(myCap) myCap.l='自分の申請・登録（下書き・申請中・差戻し）';
 
 /* ================= boot ================= */
 Object.entries(ROLES).forEach(([id,r])=>{
