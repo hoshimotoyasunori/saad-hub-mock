@@ -1082,21 +1082,31 @@ function menuView(){
   ${mItem('📚','社内ナレッジ（手順書・FAQ）','data-subwip="knowledge"')}
   ${mItem('⚠️','安全衛生・ヒヤリハット','data-subwip="anzen"')}
   <div class="sec">ヘルプ・設定</div>
-  ${mItem('📖','このアプリの使い方（3分）','data-sub="help"')}
+  ${mItem('📖','マニュアル（PDF）','data-sub="help"')}
   ${mItem('💻','PC版でできること','data-sub="pcinfo"')}
   ${mItem('⚙️','設定','data-subwip="settings"')}
   <div class="note">「›」の先が準備中の機能は<b>今後実装予定</b>の画面が開き、できるようになること・提供段階・それまでの代替が見られます（PC版と同じ方針）。</div>`;
 }
 function helpView(){
-  return `<div class="dethead"><button class="backbtn" data-back="1">‹ 戻る</button><h2>使い方（3分）</h2></div>
-  ${[['🏠 ホーム＝今日やること','開いた瞬間に「次の一手」が出ます。迷ったらホームに戻る'],
-     ['📍 活動は到着から','顧客・物件の予定はタップ → 現場到着 → 活動報告の順。期限タスクは報告のみ'],
-     ['✏️ 活動報告は3タップ','結果を選ぶ→ひとことを選ぶ→送信。文章を書かなくていい（あとから追記も可能）'],
-     ['⏳ 待ちが見える','各案件に「いま誰待ちか」が出ます。あなたの番なら青、待ちなら黄色'],
-     ['🔔 通知＝あなた宛だけ','承認された・着工OK・差戻し。タップでその仕事に飛べます'],
-     ['☰ メニュー＝道具箱','顧客・物件台帳は「検索」と「絞り込み」が別。迷ったら ☰'],
-     ['💻 PCと同じデータ','ここでの到着・報告はPC版台帳の同じ案件に載ります。二重入力はありません']]
-    .map(([t,s])=>`<div class="card"><div class="t" style="margin-top:0">${t}</div><div class="s">${s}</div></div>`).join('')}`;
+  const pdfs=[
+    ['01-hajimete.pdf','はじめての方へ'],
+    ['02-eigyo.pdf','営業向け'],
+    ['03-koji.pdf','施工向け'],
+    ['04-kanri.pdf','管理部向け'],
+    ['05-mobile.pdf','スマホ操作ガイド'],
+    ['06-daicho.pdf','案件台帳・フィルタ'],
+  ];
+  const base=(location.pathname.replace(/[^/]+$/,'')||'./')+'manuals/';
+  const dl=pdfs.map(([f,t])=>`<a class="card" href="${base+f}" download="${f}" style="display:block;text-decoration:none;color:inherit">
+    <div class="t" style="margin-top:0">📄 ${t}</div><div class="s">PDFをダウンロード（デモ）</div></a>`).join('');
+  const tips=[['🏠 ホーム＝今日やること','開いた瞬間に「次の一手」が出ます。迷ったらホームに戻る'],
+     ['📍 活動は到着から','顧客・物件の予定はタップ → 現場到着 → 活動報告の順'],
+     ['⏳ 待ちが見える','各案件に「いま誰待ちか」。あなたの番なら青、待ちなら黄色'],
+     ['💻 PCと同じデータ','到着・報告はPC版台帳の同じ案件に載ります']];
+  return `<div class="dethead"><button class="backbtn" data-back="1">‹ 戻る</button><h2>マニュアル（PDF）</h2></div>
+  <div class="sec">ダウンロード</div>${dl}
+  <div class="sec">スマホの要点</div>
+  ${tips.map(([t,s])=>`<div class="card"><div class="t" style="margin-top:0">${t}</div><div class="s">${s}</div></div>`).join('')}`;
 }
 /* ---- 今後実装予定（WIP）画面 ---- */
 function wipView(key){
@@ -1294,7 +1304,7 @@ function propDetailView(pid){
   <div class="note">PC版の物件詳細と同じ軸です。管理台帳では案件行としても見えます。</div>`;
 }
 function pcInfoView(){
-  const rows=[['ホーム「今日やること」','ポータル「自分宛」'],['案件タブ','案件台帳（自分のView）'],['報告・履歴','同じ行のタイムライン（Comment）'],['承認（拠点長）','稟議View'],['通知','Inbox'],['メニューの道具','スペース（アプリカタログ）']];
+  const rows=[['ホーム「今日やること」','ポータル「自分宛」'],['案件タブ','案件台帳（自分のView）'],['報告・履歴','同じ行のタイムライン（Comment）'],['承認（拠点長）','稟議View'],['通知','Inbox'],['業務アプリ一覧','業務アプリ一覧']];
   return `<div class="dethead"><button class="backbtn" data-back="1">‹ 戻る</button><h2>PC版でできること</h2>
   <div class="sub">同じデータを別の窓で見ています。二重入力はありません。</div></div>
   <div class="card">${rows.map(([a,b])=>`<div class="kvrow"><span class="kt" style="flex-basis:130px">${a}</span><span>⇄ ${b}</span></div>`).join('')}</div>
@@ -1303,7 +1313,7 @@ function pcInfoView(){
     <li>大量の案件を表・Viewで一覧して捌く（管理部・事務・拠点長）</li>
     <li>マスタ管理（顧客・物件の本登録、組織・商品）</li>
     <li>請求発行・締め・分析（BI）</li>
-    <li>構成ページ・使い方マニュアルの全文</li>
+    <li>構成ページ・マニュアル（PDF）</li>
   </ul></div>
   <div class="note">スマホは「今日やること・報告・承認」に絞り、重い業務はPCへ。役割と場面で窓を使い分けます。</div>`;
 }
@@ -1901,8 +1911,8 @@ function aiReplyM(q){
   if(/宿題|今日|報告/.test(t)){
     return `${r.name}さん（${r.label}）向け: ホームの「今日の予定」をタップし、現場到着→活動報告の順で進めます。下部＋からも起票できます。`;
   }
-  if(/使い方|ヘルプ|どうやって/.test(t)){
-    return '下部タブ「メニュー」→「このアプリの使い方」に手順があります。顧客さがしは右上🔍、通知は🔔です。';
+  if(/使い方|マニュアル|ヘルプ|どうやって/.test(t)){
+    return 'メニュー→「マニュアル（PDF）」から手順書をダウンロードできます。顧客さがしは右上🔍、通知は🔔です。';
   }
   if(/顧客|物件/.test(t)) return '右上の🔍、またはメニューの「顧客台帳／物件台帳」から開けます。';
   if(!t) return `こんにちは。SAAD AI です（モック）。\n未読通知は ${n} 件。承認・今日の宿題・画面の使い方などを聞いてください。`;
@@ -1914,7 +1924,7 @@ function aiEnsureSeedM(){
 }
 function aiView(){
   aiEnsureSeedM();
-  const tips=['承認待ちは？','今日やること','このアプリの使い方','顧客をさがしたい'];
+  const tips=['承認待ちは？','今日やること','マニュアル','顧客をさがしたい'];
   const msgs=state.aiMsgs.map(x=>`<div class="bub ${x.who}"><span class="who">${x.who==='bot'?'SAAD AI':'あなた'}</span>${x.text.replace(/</g,'&lt;').replace(/\n/g,'<br>')}</div>`).join('');
   return `<div class="dethead"><button class="backbtn" data-back="1">‹ 戻る</button><h2>SAAD AI</h2><div class="sub">業務の聞き役（モック）</div></div>
   <div class="ai-page-msgs" id="aiPageMsgs">${msgs}</div>
@@ -1962,7 +1972,7 @@ function openDrawer(){
       ${dItem('📚','社内ナレッジ','wip:knowledge')}
       ${dItem('⚠️','安全衛生・ヒヤリハット','wip:anzen')}
       <div class="d-sec">ヘルプ・設定</div>
-      ${dItem('📖','このアプリの使い方','sub:help')}
+      ${dItem('📖','マニュアル（PDF）','sub:help')}
       ${dItem('💻','PC版でできること','sub:pcinfo')}
       ${dItem('⚙️','設定','wip:settings')}
     </div>
