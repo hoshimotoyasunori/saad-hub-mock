@@ -170,6 +170,10 @@ button.card{display:block;width:100%;text-align:left;cursor:pointer;font:inherit
 .sheet textarea{width:100%;border:1.5px solid var(--line);border-radius:12px;padding:10px 12px;font-size:13px;
   font-family:inherit;min-height:64px;resize:none;margin-top:6px}
 .slabel{font-size:12px;font-weight:700;color:var(--muted);margin:14px 0 2px}
+.fin{width:100%;border:1.5px solid var(--line);border-radius:12px;padding:11px 13px;font-size:14px;margin:4px 0 2px;background:#fff;font-family:inherit;box-sizing:border-box}
+textarea.fin{min-height:64px;resize:vertical}
+.fsum{display:flex;justify-content:space-between;align-items:baseline;font-size:13px;margin:4px 0}
+.fsum b{font-size:18px}
 .pick{display:flex;align-items:center;gap:10px;width:100%;border:1.5px solid var(--line);background:#fff;
   border-radius:12px;padding:11px 13px;margin-bottom:8px;cursor:pointer;text-align:left;font:inherit}
 .pick[aria-pressed="true"]{border-color:var(--accent);background:#e8f1fb}
@@ -696,10 +700,11 @@ function menuView(){
   return `<div class="hgreet"><h2>メニュー</h2><p>${ROLES[state.role].name}さん（${ROLES[state.role].label}） — どこに何があるかはここが正</p></div>
   <div class="sec">さがす</div>
   ${mItem('🔍','顧客をさがす','data-sub="cust"','約12,000件 — 検索が入口')}
-  ${mItem('🗂','過去の案件をさがす','data-subwip="pastdeals"')}
+  ${mItem('🗂','過去の案件をさがす','data-sub="past"','完了・Close済みも')}
   <div class="sec">申請する</div>
-  ${mItem('🧾','稟議（値引き・特価・着手）','data-subwip="ringi"')}
-  ${mItem('📦','資材・購買','data-subwip="buy"')}
+  ${mItem('🧾','稟議（値引き・特価・着手）','data-sub="ringiForm"')}
+  ${mItem('📦','資材・購買','data-sub="buyForm"')}
+  ${mItem('👤','顧客を登録（仮）','data-sub="custreg"','30秒で仮登録')}
   ${mItem('🚗','経費','data-subwip="keihi"')}
   ${mItem('🧑‍💼','休暇・勤怠（人事）','data-subwip="jinji"')}
   <div class="sec">仕事の道具</div>
@@ -759,11 +764,11 @@ function custView(){
   <div class="sub">実運用は約12,000件 — 一覧を眺めず、検索で1件に当てます（eSMと同じ入口）</div></div>
   <input class="searchbox" id="custQ" value="${state.custQ||''}" placeholder="🔍 名前・住所・電話番号">
   <div id="custList">${
-    hit.length?hit.map(c=>`<button class="card" data-deal="${c.deal}" style="width:100%;text-align:left">
+    hit.length?hit.map(c=>`<button class="card" ${c.deal?`data-deal="${c.deal}"`:''} style="width:100%;text-align:left">
       <div class="k">${c.kind}${c.warn?' <span class="tagP">保証期限間近</span>':''}</div>
       <div class="t">${c.name}</div><div class="s">${c.info} — タップで進行中の案件へ</div>
     </button>`).join('')
-    :`<p class="quiet">該当なし。新規のお客さまは「＋ → 顧客を登録」から仮登録できます（実装予定）。</p>`
+    :`<p class="quiet">該当なし。新規のお客さまは「＋ → 顧客を登録」から仮登録できます。</p>`
   }</div>
   <div class="note">モックの詳細データは3件。検索→顧客→案件の動線を確認するためのものです。</div>`;
 }
@@ -781,6 +786,105 @@ function pcInfoView(){
     <li>構成ページ・使い方マニュアルの全文</li>
   </ul></div>
   <div class="note">スマホは「今日やること・報告・承認」に絞り、重い業務はPCへ。役割と場面で窓を使い分けます。</div>`;
+}
+
+/* ================= 申請・登録（スマホ実装） ================= */
+const M_ITEMS=[['防除薬剤A 18L',23500],['防除薬剤B 5L',8200],['床下換気扇 UF-2',36000],['安全具セット',15800]];
+const PAST=[
+  {t:'シロアリ防除（2021-10 完了）',cust:'佐藤 一郎',info:'¥420,000 · 見積書・契約書・完了報告書・保証書'},
+  {t:'給排水 高圧洗浄（2023-06 完了）',cust:'株式会社サンプル',info:'¥250,000 · 見積書・作業報告書'},
+  {t:'防錆機器（DS）設置（2024-02 完了）',cust:'株式会社サンプル',info:'¥980,000 · 工事申込書・DS保証書'},
+  {t:'屋根改修（2021-08 完了）',cust:'グリーンハイツ管理組合',info:'¥3,600,000 · 10年保証書'},
+  {t:'貯水槽清掃（2025-09 完了）',cust:'グリーンハイツ管理組合',info:'¥180,000 · 作業報告書'},
+];
+function mfv(k){ return (state.mf&&state.mf[k])||''; }
+function mchips(k, list){ return `<div class="chips">${list.map(x=>`<button class="chip" data-mf="${k}:${x}" aria-pressed="${mfv(k)===x}">${x}</button>`).join('')}</div>`; }
+function mdealPick(){
+  return Object.entries(DEALS).map(([id,d])=>`<button class="pick" data-mf="deal:${id}" aria-pressed="${mfv('deal')===id}"><span>📁</span><span><div class="tt">${d.cust}</div><div class="ss">${d.title}</div></span></button>`).join('');
+}
+function custDupHtml(){
+  const n=mfv('name').trim();
+  if(n.length<2) return '';
+  const hit=CUSTS.filter(c=>c.name.includes(n)||n.includes(c.name));
+  return hit.length?`<div class="wait" style="margin-top:6px">⚠ 似たお客さまがいます: ${hit.map(c=>c.name).join('、')}（重複登録に注意）</div>`
+    :`<div class="wait ok" style="margin-top:6px">✓ 重複なし</div>`;
+}
+function custRegView(){
+  const ok=mfv('name').trim()&&mfv('kind');
+  return `<div class="dethead"><button class="backbtn" data-back="1">‹ 戻る</button><h2>顧客を登録（仮）</h2>
+  <div class="sub">名前と電話だけで30秒。事務が後から本登録します（eSMと同じ二段階）</div></div>
+  <div class="slabel">お名前（会社名）</div><input class="fin" data-mfi="name" value="${mfv('name')}" placeholder="例: 山田 花子">
+  <div id="dupBox">${custDupHtml()}</div>
+  <div class="slabel">電話番号</div><input class="fin" data-mfi="tel" value="${mfv('tel')}" placeholder="090-">
+  <div class="slabel">種別</div>${mchips('kind',['個人','法人'])}
+  <div class="slabel">どこから？</div>${mchips('via',['電話','Webフォーム','管理会社から','紹介','飛込み'])}
+  <button class="abtn p" style="margin-top:14px;${ok?'':'opacity:.4'}" data-msend="custreg">仮登録する</button>
+  <div class="note">登録するとPC版の顧客台帳に「仮登録」で載り、事務の本登録待ちに届きます。</div>`;
+}
+function ringiRouteM(){ return (Number(mfv('amount'))||0)>=1000000 ? '管理部（二次承認）' : '田中拠点長'; }
+function ringiFormView(){
+  const ok=mfv('deal')&&mfv('type');
+  return `<div class="dethead"><button class="backbtn" data-back="1">‹ 戻る</button><h2>稟議を申請</h2>
+  <div class="sub">金額で承認ルートが自動で決まります。結果は通知に届きます</div></div>
+  <div class="slabel">① どの案件？</div>${mdealPick()}
+  <div class="slabel">② 種類</div>${mchips('type',['値引き','特価','着手','その他'])}
+  <div class="slabel">③ 金額（円）</div><input class="fin" data-mfi="amount" inputmode="numeric" value="${mfv('amount')}" placeholder="例: 30400">
+  <div class="slabel">④ 理由</div>${mchips('why',['お客さま予算','競合対抗','追加工事','その他'])}
+  <textarea class="fin" data-mfi="memo" placeholder="補足（任意）">${mfv('memo')}</textarea>
+  <div class="card" style="margin-top:10px"><div class="kvrow"><span class="kt">承認する人</span><span id="routeBox">${ringiRouteM()}</span></div></div>
+  <button class="abtn p" style="margin-top:12px;${ok?'':'opacity:.4'}" data-msend="ringi">申請する</button>`;
+}
+function buyFormView(){
+  const it=M_ITEMS.find(x=>x[0]===mfv('item')), qty=Number(mfv('qty'))||0, total=it?it[1]*qty:0;
+  const ok=mfv('deal')&&it&&qty;
+  return `<div class="dethead"><button class="backbtn" data-back="1">‹ 戻る</button><h2>資材を注文</h2>
+  <div class="sub">案件に紐づけて申請。購買が発注すると納期が案件に載ります</div></div>
+  <div class="slabel">① どの案件？</div>${mdealPick()}
+  <div class="slabel">② 品目</div><div class="chips">${M_ITEMS.map(([n,p])=>`<button class="chip" data-mf="item:${n}" aria-pressed="${mfv('item')===n}">${n}<br><span style="font-size:10.5px;font-weight:500">${p.toLocaleString()}円</span></button>`).join('')}</div>
+  <div class="slabel">③ 数量</div>${mchips('qty',['1','2','3','5','10'])}
+  <div class="slabel">④ いつまでに？</div>${mchips('eta',['明日','3日後','来週'])}
+  ${it&&qty?`<div class="card" style="margin-top:10px"><div class="fsum"><span>合計</span><b>${total.toLocaleString()}円</b></div>
+    <div class="s">${total>=50000?'5万円以上 — 拠点長の承認が自動で付きます':'承認不要枠（5万円未満）'}</div></div>`:''}
+  <button class="abtn p" style="margin-top:12px;${ok?'':'opacity:.4'}" data-msend="buy">申請する</button>`;
+}
+function pastView(){
+  const q=(state.pastQ||'').trim();
+  const now=Object.entries(DEALS).map(([id,d])=>({t:d.title+'（進行中）',cust:d.cust,info:d.addr,deal:id}));
+  const list=now.concat(PAST).filter(x=>!q||(x.t+x.cust+x.info).includes(q));
+  return `<div class="dethead"><button class="backbtn" data-back="1">‹ 戻る</button><h2>過去の案件をさがす</h2>
+  <div class="sub">完了・Close済みも含めて横断検索（移行データを含む）</div></div>
+  <input class="searchbox" id="pastQ" value="${state.pastQ||''}" placeholder="🔍 顧客名・案件名">
+  <div id="pastList">${list.length?list.map(x=>`<button class="card" ${x.deal?`data-deal="${x.deal}"`:''} style="width:100%;text-align:left">
+    <div class="k">${x.deal?'<span class="tagOK">進行中</span>':'<span class="tagP">完了</span>'} ${x.cust}</div><div class="t">${x.t}</div><div class="s">${x.info}</div></button>`).join('')
+    :'<p class="quiet">該当なし</p>'}</div>
+  <div class="note">書類PDFの閲覧は準備中です（書類の有無だけ表示）。</div>`;
+}
+function doMSend(kind){
+  const who=ROLES[state.role].name.slice(0,1);
+  const addHist=(deal,t)=>{ state._extra=state._extra||{}; (state._extra[deal]=state._extra[deal]||[]).unshift({d:nowD(),who,t}); };
+  if(kind==='custreg'){
+    const name=mfv('name').trim(); if(!name||!mfv('kind')){ toast('お名前と種別を選んでください'); return; }
+    CUSTS.push({name, kind:`${mfv('kind')} / 仮登録`, deal:null, info:`${mfv('via')||'受付'} · ${mfv('tel')||'電話未入力'} · 事務の本登録待ち`});
+    state.mf={}; state.sub='cust'; state.custQ=name;
+    toast('✓ 仮登録しました — 事務の本登録待ちに届きました'); render(); return;
+  }
+  if(kind==='ringi'){
+    if(!mfv('deal')||!mfv('type')){ toast('案件と種類を選んでください'); return; }
+    const d=DEALS[mfv('deal')], amt=Number(mfv('amount'))||0, route=ringiRouteM();
+    addHist(mfv('deal'), `<b>${mfv('type')}の稟議を申請</b><div class="m">${amt?amt.toLocaleString()+'円 · ':''}${mfv('why')||''} ${mfv('memo')} → ${route}</div>`);
+    pushNotif('boss',{ic:'🧾',tt:`承認依頼: ${mfv('type')}（${d.cust}）`,ss:`${ROLES[state.role].name}さんから · ${route}`,go:{deal:mfv('deal')}});
+    state.mf={}; state.sub=null;
+    toast(`✓ 申請しました — ${route}へ`); render(); return;
+  }
+  if(kind==='buy'){
+    const it=M_ITEMS.find(x=>x[0]===mfv('item')), qty=Number(mfv('qty'))||0;
+    if(!mfv('deal')||!it||!qty){ toast('案件・品目・数量を選んでください'); return; }
+    const total=it[1]*qty;
+    addHist(mfv('deal'), `<b>資材を申請 — ${it[0]} ×${qty}</b><div class="m">${total.toLocaleString()}円 · 希望 ${mfv('eta')||'指定なし'}${total>=50000?' · 拠点長の承認付き':''}</div>`);
+    if(total>=50000) pushNotif('boss',{ic:'📦',tt:`承認依頼: 資材 ${it[0]} ×${qty}`,ss:`${total.toLocaleString()}円`,go:{deal:mfv('deal')}});
+    state.mf={}; state.sub=null;
+    toast('✓ 申請しました — 購買（鈴木さん）へ届きました'); render(); return;
+  }
 }
 
 /* ================= シート（報告・ランチャー） ================= */
@@ -801,10 +905,10 @@ function renderSheet(){
   if(state.sheet==='launcher'){
     title='何をしますか？';
     const items = state.role==='koji'
-      ? [['📍','入場を報告','現場に着いたらワンタップ','enter'],['📷','写真・完了を報告','作業前後の写真とチェック','done'],['📦','資材を注文','現場からワンタップ発注','wip:buy'],['⚠️','ヒヤリハット報告','安全衛生へ共有','wip:anzen'],['🧑‍💼','休暇・勤怠','打刻・休暇申請','wip:jinji']]
+      ? [['📍','入場を報告','現場に着いたらワンタップ','enter'],['📷','写真・完了を報告','作業前後の写真とチェック','done'],['📦','資材を注文','現場からワンタップ発注','sub:buyForm'],['⚠️','ヒヤリハット報告','安全衛生へ共有','wip:anzen'],['🧑‍💼','休暇・勤怠','打刻・休暇申請','wip:jinji']]
       : state.role==='boss'
       ? [['✅','承認する','待ちキューを開く','goboss'],['📊','拠点の数字を見る','売上・成約・訪問','wip:bi'],['✏️','訪問を報告','自分の同行分','report'],['🚗','経費を申請','出張・車両','wip:keihi']]
-      : [['✏️','訪問を報告','結果チップで3タップ','report'],['📷','写真を報告','調査・現場の写真','wip:photo'],['🧾','稟議を申請','値引き・特価・着手','wip:ringi'],['🧮','見積を作る','標準単価から自動計算','wip:quote'],['📦','資材を注文','施工前の手配','wip:buy'],['👤','顧客を登録','その場で仮登録（30秒）','wip:custreg'],['🚗','経費を申請','出張・立替','wip:keihi']];
+      : [['✏️','訪問を報告','結果チップで3タップ','report'],['📷','写真を報告','調査・現場の写真','wip:photo'],['🧾','稟議を申請','値引き・特価・着手','sub:ringiForm'],['🧮','見積を作る','標準単価から自動計算','wip:quote'],['📦','資材を注文','施工前の手配','sub:buyForm'],['👤','顧客を登録','その場で仮登録（30秒）','sub:custreg'],['🚗','経費を申請','出張・立替','wip:keihi']];
     body=items.map(([ic,tt,ss,act])=>`<button class="launch" data-launch="${act}"><span class="ic">${ic}</span><span><div class="tt">${tt}</div><div class="ss">${ss}</div></span></button>`).join('')
       +`<p class="note" style="margin-top:4px">🚧 マークのない項目は今すぐ使えます。準備中の項目は「今後実装予定」の画面が開きます。</p>`;
   }
@@ -841,6 +945,7 @@ function wireSheet(){
   sh.querySelectorAll('[data-launch]').forEach(b=>b.onclick=()=>{
     const a=b.dataset.launch;
     if(a.startsWith('wip:')){closeSheet();state.sub={wip:a.slice(4)};render();return;}
+    if(a.startsWith('sub:')){closeSheet();state.deal=null;state.approving=null;state.mf={};state.sub=a.slice(4);render();return;}
     if(a==='goboss'){closeSheet();state.sub=null;state.tab='home';render();return;}
     if(a==='enter'){closeSheet();doEnter(state.deal||'d3');return;}
     openSheet(a);
@@ -886,10 +991,11 @@ function openDrawer(){
     <div class="d-body">
       <div class="d-sec">さがす</div>
       ${dItem('🔍','顧客をさがす','sub:cust')}
-      ${dItem('🗂','過去の案件をさがす','wip:pastdeals','準備中')}
+      ${dItem('🗂','過去の案件をさがす','sub:past')}
       <div class="d-sec">申請する</div>
-      ${dItem('🧾','稟議（値引き・特価・着手）','wip:ringi','準備中')}
-      ${dItem('📦','資材・購買','wip:buy','準備中')}
+      ${dItem('🧾','稟議（値引き・特価・着手）','sub:ringiForm')}
+      ${dItem('📦','資材・購買','sub:buyForm')}
+      ${dItem('👤','顧客を登録（仮）','sub:custreg')}
       ${dItem('🚗','経費','wip:keihi','準備中')}
       ${dItem('🧑‍💼','休暇・勤怠（人事）','wip:jinji','準備中')}
       <div class="d-sec">仕事の道具</div>
@@ -959,7 +1065,8 @@ function render(){
   let html='';
   if(state.sub){
     const s=state.sub;
-    html = s.wip?wipView(s.wip) : s==='help'?helpView() : s==='ann'?annView() : s==='cust'?custView() : s==='pcinfo'?pcInfoView() : '';
+    html = s.wip?wipView(s.wip) : s==='help'?helpView() : s==='ann'?annView() : s==='cust'?custView() : s==='pcinfo'?pcInfoView()
+      : s==='custreg'?custRegView() : s==='ringiForm'?ringiFormView() : s==='buyForm'?buyFormView() : s==='past'?pastView() : '';
   }
   else if(state.approving) html=approveView(state.approving);
   else if(state.deal) html=dealDetail(state.deal);
@@ -1024,7 +1131,7 @@ function wireView(){
     const h=()=>toast('📱 '+b.dataset.wip);
     b.tagName==='INPUT'?b.addEventListener('focus',h):b.onclick=h;
   });
-  v.querySelectorAll('[data-sub]').forEach(b=>b.onclick=()=>{state.sub=b.dataset.sub;render();});
+  v.querySelectorAll('[data-sub]').forEach(b=>b.onclick=()=>{state.sub=b.dataset.sub;state.mf={};render();});
   v.querySelectorAll('[data-subwip]').forEach(b=>b.onclick=()=>{state.sub={wip:b.dataset.subwip};render();});
   v.querySelectorAll('[data-ann]').forEach(b=>b.onclick=()=>{
     const i=+b.dataset.ann;
@@ -1035,12 +1142,27 @@ function wireView(){
     state.custQ=e.target.value;
     const q=state.custQ.trim();
     const hit=q?CUSTS.filter(c=>(c.name+c.kind+c.info).includes(q)):CUSTS;
-    $('custList').innerHTML = hit.length?hit.map(c=>`<button class="card" data-deal="${c.deal}" style="width:100%;text-align:left">
+    $('custList').innerHTML = hit.length?hit.map(c=>`<button class="card" ${c.deal?`data-deal="${c.deal}"`:''} style="width:100%;text-align:left">
       <div class="k">${c.kind}${c.warn?' <span class="tagP">保証期限間近</span>':''}</div>
       <div class="t">${c.name}</div><div class="s">${c.info} — タップで進行中の案件へ</div>
     </button>`).join('')
-    :`<p class="quiet">該当なし。新規のお客さまは「＋ → 顧客を登録」から仮登録できます（実装予定）。</p>`;
+    :`<p class="quiet">該当なし。新規のお客さまは「＋ → 顧客を登録」から仮登録できます。</p>`;
     $('custList').querySelectorAll('[data-deal]').forEach(b=>b.onclick=()=>{state.deal=b.dataset.deal;state.sub=null;render();});
+  });
+  v.querySelectorAll('[data-mf]').forEach(b=>b.onclick=()=>{
+    const i=b.dataset.mf.indexOf(':'), k=b.dataset.mf.slice(0,i), val=b.dataset.mf.slice(i+1);
+    state.mf=state.mf||{}; state.mf[k]=state.mf[k]===val?'':val;
+    const y=v.scrollTop; render(); $('view').scrollTop=y;
+  });
+  v.querySelectorAll('[data-mfi]').forEach(el=>el.addEventListener('input',e=>{
+    state.mf=state.mf||{}; state.mf[el.dataset.mfi]=e.target.value;
+    const db=$('dupBox'); if(db) db.innerHTML=custDupHtml();
+    const rb=$('routeBox'); if(rb) rb.textContent=ringiRouteM();
+  }));
+  v.querySelectorAll('[data-msend]').forEach(b=>b.onclick=()=>doMSend(b.dataset.msend));
+  const pq=$('pastQ'); if(pq) pq.addEventListener('input',e=>{
+    state.pastQ=e.target.value; render();
+    const el=$('pastQ'); el.focus(); el.setSelectionRange(el.value.length,el.value.length);
   });
   const dq=$('dealQ'); if(dq) dq.addEventListener('input',e=>{
     state.dealQ=e.target.value; render();
