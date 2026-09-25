@@ -740,6 +740,16 @@ const VIEWS = [
   {id:'kojiv', label:'施工', q:'repo:koji ＋ ゲート', f:i=>i.repo==='koji'||i.kind==='gate', tree:false},
   {id:'billingv', label:'請求', q:'type:[請求] repo:billing', f:i=>i.kind==='bill', tree:false},
 ];
+/* 台帳Viewごとの新規（ヘッダ「＋ 新規」とは別に、その画面の主役だけ） */
+const BOARD_NEW={
+  all:{l:'＋ 案件・問い合わせを起票', form:'deal'},
+  mine:{l:'＋ 案件・問い合わせを起票', form:'deal'},
+  approvals:{l:'＋ 稟議を起票', form:'ringi'},
+  procurement:{l:'＋ 購買申請', form:'buy'},
+  kojiv:{l:'＋ 施工予定を開く', go:()=>go('mgmt',{mgmt:'schedule'})},
+  billingv:null,
+  handover:null,
+};
 
 let state = { role:'sales', screen:'portal', view:'all', sel:null, repo:null, wipKey:null, mScreen:'mhome', customer:null, property:null, crmAxis:'customer', crmQ:'', crmPage:0,
   picked:new Set(),
@@ -1781,6 +1791,7 @@ function renderBoard(){
           ${canPick?'<span class="quiet" style="margin:0">拠点長・事務・管理部は行を選んで担当替え／一括承認できます</span>':''}
           ${['leader','kanri','buy'].includes(state.role)?`<button type="button" class="sp-act" id="absBtn">${abs?`不在中→${PEOPLE[abs.proxy]}`:'不在設定'}</button>`:''}
           <button type="button" class="sp-act" id="remindBtn">自動催促を実行</button>
+          ${BOARD_NEW[state.view]?`<button type="button" class="bp" id="boardNew" style="margin-left:auto">${BOARD_NEW[state.view].l}</button>`:''}
         </div>
         <div class="chg-bar" id="pickBar" style="display:${state.picked.size?'flex':'none'};margin:0;border-radius:0;border-left:0;border-right:0">
           <span><b id="pickCount">${state.picked.size}</b> 件選択</span>
@@ -1816,6 +1827,11 @@ function renderBoard(){
   const pc=$('pickClear'); if(pc) pc.onclick=()=>{ state.picked.clear(); render(); };
   const ab=$('absBtn'); if(ab) ab.onclick=()=>openAbsenceModal();
   const rb=$('remindBtn'); if(rb) rb.onclick=()=>runAutoRemind();
+  const bn=$('boardNew'); if(bn) bn.onclick=()=>{
+    const n=BOARD_NEW[state.view]; if(!n) return;
+    if(n.go){ n.go(); return; }
+    openFormModal(n.form, {}, {from:`台帳「${v.label}」の新規`});
+  };
   const pp=$('pgPrev'); if(pp) pp.onclick=()=>{ state.boardPage--; render(); };
   const pn=$('pgNext'); if(pn) pn.onclick=()=>{ state.boardPage++; render(); };
   bindLedger($('main'), render);
@@ -3233,6 +3249,7 @@ const MGMT={
     stop:'部門別の単価表Excelと、改定時の手修正',
     who:'購買物流（維持）・営業／現場（参照）',
     rows:()=>ITEMS.map(x=>Object.assign(x,{id:x.sku})),
+    tools:[{l:'＋ 購買申請', f:()=>openFormModal('buy',{},{from:'商品・資材マスタ'})}],
     tabs:[
       {id:'all', label:'すべて', f:r=>true},
       {id:'stock', label:'在庫品', f:r=>r.stock},
@@ -3362,8 +3379,11 @@ function renderSchedule(){
     </tr>`;
   }).join('');
   $('main').innerHTML=`<div class="pad">
-    <button type="button" class="m-back" id="schBack">← 管理一覧</button>
-    <h2 class="page">施工予定・人員アサイン（9/28〜10/2）</h2>
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <button type="button" class="m-back" id="schBack" style="margin:0">← 管理一覧</button>
+      <h2 class="page" style="margin:0;flex:1">施工予定・人員アサイン（9/28〜10/2）</h2>
+      <button type="button" class="bp" id="schNewDeal">＋ 案件・問い合わせを起票</button>
+    </div>
     ${whyHtml(c,'static')}
     <div class="table-wrap"><table class="ledger"><thead><tr><th style="width:16%">担当</th>${DAYS.map(d=>`<th>${d}</th>`).join('')}</tr></thead><tbody>${grid}</tbody></table></div>
     <h3 class="m-h" style="margin-top:16px">未割当の現場 <span class="ref">${UNASSIGNED.length}</span></h3>
@@ -3372,6 +3392,7 @@ function renderSchedule(){
     <div class="note" style="max-width:960px">施工前ゲートが開いていない現場は割り当てられない（稟議・購買が Done になると解除）。割当は案件の施工行の履歴に残り、施工リーダーのInboxに届く。外注の注文書発行は後続。</div>
   </div>`;
   $('schBack').onclick=()=>go('mgmt',{mgmt:null});
+  const snd=$('schNewDeal'); if(snd) snd.onclick=()=>openFormModal('deal',{},{from:'施工予定'});
   $('main').querySelectorAll('[data-asg]').forEach(b=>b.onclick=()=>{
     const id=b.dataset.asg, u=UNASSIGNED.find(x=>x.id===id); if(!u) return;
     const ti=Number($('ut-'+id).value), di=Number($('ud-'+id).value);
@@ -3992,7 +4013,11 @@ function renderMyReq(){
     return '—';
   };
   $('main').innerHTML=`<div class="mg-page">
-    <div class="mg-top"><h2>自分の申請・登録 — ${PEOPLE[state.role]}</h2><button type="button" class="bp" id="myNew">＋ 新規</button></div>
+    <div class="mg-top"><h2>自分の申請・登録 — ${PEOPLE[state.role]}</h2>
+      <button type="button" class="bp" id="myNewRingi">＋ 稟議</button>
+      <button type="button" class="bp" id="myNewBuy">＋ 購買</button>
+      <button type="button" class="bp" id="myNewExp">＋ 経費</button>
+      <button type="button" class="bg" id="myNew">その他の新規…</button></div>
     <div class="mg-why"><div><b>ここで分かること</b>出した申請が今どこにあるか（誰待ちか）</div><div><b>下書き</b>途中で保存したもの。再開・削除できる</div><div><b>差戻し</b>「修正して再申請」で前回の内容から直す（同じ行を更新）</div><div><b>取り下げ</b>承認前なら取り下げ可。行は履歴に残る</div></div>
     <div class="filterbar"><div class="seg" role="tablist">${tabs.map(t=>`<button type="button" role="tab" data-myt="${t[0]}" aria-selected="${t[0]===cur[0]}">${t[1]} <span class="ref">${all.filter(t[2]).length}</span></button>`).join('')}</div>
       <input class="mg-q" id="myQ" value="${state.myQ||''}" placeholder="件名・種類で検索"><span class="count">${rows.length} 件</span></div>
@@ -4000,6 +4025,9 @@ function renderMyReq(){
     <tbody>${rows.map(r=>`<tr><td>${r.type}</td><td><b>${r.title}</b></td><td>${stp(r.st)}</td><td>${r.st==='差戻し'&&r.note?`<span class="warn-badge">${r.note}</span>`:['申請中','確認待ち','進行中'].includes(r.st)?r.who:'—'}</td><td class="num-r">${state.role==='koji'&&r.amount?'（非表示）':(r.amount||'—')}</td><td>${r.upd}</td><td><div style="display:flex;gap:4px;flex-wrap:wrap">${act(r)}</div></td></tr>`).join('')||'<tr><td colspan="7" class="quiet">該当なし</td></tr>'}</tbody></table></div>
     <div class="add-row">入口: ヘッダ「＋ 新規」／案件の詳細パネル「この案件で: ＋稟議を起票」／管理 → 登録。どこから出しても、ここに集まる。</div></div>`;
   $('myNew').onclick=()=>{ renderNewMenu(); $('newMenu').classList.add('open'); };
+  const mr=$('myNewRingi'); if(mr) mr.onclick=()=>openFormModal('ringi',{},{from:'自分の申請'});
+  const mb=$('myNewBuy'); if(mb) mb.onclick=()=>openFormModal('buy',{},{from:'自分の申請'});
+  const me=$('myNewExp'); if(me) me.onclick=()=>openFormModal('expense',{},{from:'自分の申請'});
   $('main').querySelectorAll('[data-myt]').forEach(b=>b.onclick=()=>{ state.myTab=b.dataset.myt; render(); });
   $('main').querySelectorAll('[data-dr]').forEach(b=>b.onclick=()=>{ const d=DRAFTS.find(x=>x.id===b.dataset.dr); openFormModal(d.form, d.vals, {draftId:d.id, from:'自分の申請（下書き）'}); });
   $('main').querySelectorAll('[data-dd]').forEach(b=>b.onclick=()=>{ const i=DRAFTS.findIndex(x=>x.id===b.dataset.dd); if(i>=0) DRAFTS.splice(i,1); render(); });
@@ -4495,7 +4523,7 @@ MGMT.porders.acts=(orig=>r=>{ const a=orig(r); if(r.status==='作成中') a.push
 MGMT.expenses={
   title:'経費の確認', asis:'紙の経費申請と領収書を経理が目視で確認', why:'立替を正しく精算し、不備は申請者に戻す',
   stop:'紙の回付と差戻しの電話', who:'経理（3万円以上は拠点長も）',
-  rows:()=>EXPENSES,
+  rows:()=>EXPENSES, tools:[{l:'＋ 経費を申請', f:()=>openFormModal('expense',{},{from:'経費の確認'})}],
   tabs:[{id:'wait', label:'確認待ち', f:r=>r.status==='申請中'},{id:'back', label:'差戻し中', f:r=>r.status==='差戻し'},{id:'done', label:'承認済', f:r=>r.status==='承認済'},{id:'all', label:'すべて', f:r=>true}],
   cols:[{h:'申請者', v:r=>`<b>${PEOPLE[r.by]||r.by}</b>`},{h:'区分', v:r=>r.cat||'—'},{h:'内容', v:r=>r.title},{h:'金額', v:r=>`<span class="num-r">${yen(r.amount)}</span>`},{h:'日付', v:r=>r.date},{h:'状態', v:r=>`<span class="pill ${r.status==='承認済'?'done':r.status==='差戻し'?'back':r.status==='取り下げ'?'block':'wait'}">${r.status}</span>`}],
   q:r=>(PEOPLE[r.by]||'')+r.title+r.status,
