@@ -751,7 +751,7 @@ const BOARD_NEW={
   handover:null,
 };
 
-let state = { role:'sales', screen:'portal', view:'all', sel:null, repo:null, wipKey:null, mScreen:'mhome', customer:null, property:null, crmAxis:'customer', crmQ:'', crmPage:0,
+let state = { role:'sales', screen:'portal', view:'all', sel:null, repo:null, wipKey:null, mScreen:'mhome', customer:null, property:null, crmAxis:'customer', crmQ:'', crmDomain:'', crmBranch:'', crmPage:0,
   picked:new Set(),
   sortKey:'upd', sortDir:'desc',
   scope:'role', /* role | self | branch | all */
@@ -2081,9 +2081,17 @@ function custStats(cid){
   return {deals, activeDeals, leads, all:list};
 }
 const CRM_PAGE_SIZE=25;
+function crmOrgOptions(){
+  const rows=state.crmAxis==='property' ? propRows() : crmRows();
+  const domains=[...new Set(rows.map(r=>r.domain).filter(Boolean))].sort();
+  const branches=[...new Set(rows.filter(r=>!state.crmDomain||r.domain===state.crmDomain).map(r=>r.branch).filter(Boolean))].sort();
+  return {domains, branches};
+}
 function crmFiltered(){
   const q=(state.crmQ||'').trim();
   let list=state.crmAxis==='property' ? propRows() : crmRows();
+  if(state.crmDomain) list=list.filter(r=>r.domain===state.crmDomain);
+  if(state.crmBranch) list=list.filter(r=>r.branch===state.crmBranch);
   if(q){
     list=list.filter(r=>{
       const hay=state.crmAxis==='property'
@@ -2129,6 +2137,10 @@ function renderCrm(){
   const axis=state.crmAxis||'customer';
   const t=crmTableHtml();
   const isProp=axis==='property';
+  const org=crmOrgOptions();
+  if(state.crmBranch && !org.branches.includes(state.crmBranch)) state.crmBranch='';
+  const domOpts=`<option value="">部門: すべて</option>`+org.domains.map(d=>`<option value="${d}"${state.crmDomain===d?' selected':''}>${d}</option>`).join('');
+  const brOpts=`<option value="">拠点: すべて</option>`+org.branches.map(b=>`<option value="${b}"${state.crmBranch===b?' selected':''}>${b}</option>`).join('');
   $('main').innerHTML=`
     <div class="filterbar">
       <div class="seg" role="tablist" aria-label="マスタのView">
@@ -2140,7 +2152,9 @@ function renderCrm(){
       <span class="count">実運用想定 約12,000件 — モック ${isProp?propRows().length:crmRows().length}件</span>
     </div>
     <div class="filterbar" style="background:#fff">
-      <input id="crmQ" value="${state.crmQ||''}" placeholder="${isProp?'物件名・構造・拠点・部門・仮/本（例: 横浜 / RC / 仮）':'顧客名・拠点・部門・仮/本（例: 藤沢 / 仮 / 管理）'}"
+      <label class="quiet" style="margin:0">部門 <select id="crmDom">${domOpts}</select></label>
+      <label class="quiet" style="margin:0">拠点 <select id="crmBr">${brOpts}</select></label>
+      <input id="crmQ" value="${state.crmQ||''}" placeholder="${isProp?'物件名・構造・仮/本（例: RC / 仮）':'顧客名・種別・仮/本（例: 仮 / 管理）'}"
         style="flex:1;border:1px solid var(--line);border-radius:8px;padding:7px 10px;font-size:12.5px">
       <button type="button" class="bg" id="pgPrev">◀</button>
       <span class="count" id="pgInfo">${t.start+1}–${t.end} / ${t.total}</span>
@@ -2163,8 +2177,10 @@ function renderCrm(){
   };
   const refresh=()=>{ const t2=crmTableHtml(); $('crmBody').innerHTML=t2.body; $('pgInfo').textContent=`${t2.total?t2.start+1:0}–${t2.end} / ${t2.total}`; bindRows(); };
   $('main').querySelectorAll('[data-axis]').forEach(b=>b.onclick=()=>{
-    state.crmAxis=b.dataset.axis; state.crmPage=0; state.crmQ=''; state.customer=null; state.property=null; render();
+    state.crmAxis=b.dataset.axis; state.crmPage=0; state.crmQ=''; state.crmDomain=''; state.crmBranch=''; state.customer=null; state.property=null; render();
   });
+  $('crmDom').onchange=()=>{ state.crmDomain=$('crmDom').value; state.crmBranch=''; state.crmPage=0; render(); };
+  $('crmBr').onchange=()=>{ state.crmBranch=$('crmBr').value; state.crmPage=0; refresh(); };
   $('crmQ').addEventListener('input', e=>{ state.crmQ=e.target.value; state.crmPage=0; refresh(); });
   $('pgPrev').onclick=()=>{ if(state.crmPage>0){ state.crmPage--; refresh(); } };
   $('pgNext').onclick=()=>{ const t2=crmFiltered(); if((state.crmPage+1)*CRM_PAGE_SIZE<t2.length){ state.crmPage++; refresh(); } };
