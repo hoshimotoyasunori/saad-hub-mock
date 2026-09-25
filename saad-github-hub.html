@@ -265,40 +265,23 @@ h2.page{margin:0 0 6px;font-size:17px}
 .gate-banner.ok{background:#e8f6ee;border-color:#b7e0c5;color:#1a7f4b}
 .repo-banner{flex:none;margin:0;padding:8px 14px;font-size:12px;background:#eef2f7;border-bottom:1px solid var(--line);color:var(--muted)}
 
-/* リスト｜詳細のワークスペース（従来の横並び） */
-.split{flex:1;min-height:0;display:grid;grid-template-columns:1fr;overflow:hidden}
-.has-panel .split{grid-template-columns:minmax(280px,1fr) 6px var(--det-w, 52%); align-items:stretch}
-@media(max-width:960px){.has-panel .split{grid-template-columns:1fr}.has-panel .list-pane,.has-panel .split-resizer{display:none}}
-.list-pane{min-height:0;height:100%;display:flex;flex-direction:column;overflow:hidden;background:#fff}
-.has-panel .list-pane{border-right:0;min-width:0}
-.split-resizer{display:none}
-.has-panel .split-resizer{
-  display:block;width:6px;padding:0;margin:0;border:0;cursor:ew-resize;touch-action:none;
-  background:#e8edf5;position:relative;z-index:2;align-self:stretch;
-}
-.has-panel .split-resizer::after{
-  content:"";position:absolute;left:1px;top:50%;transform:translateY(-50%);
-  width:4px;height:40px;border-radius:2px;background:#c9d2e0;
-}
-.has-panel .split-resizer:hover,.split.resizing .split-resizer{background:#d7ecec}
-.has-panel .split-resizer:hover::after,.split.resizing .split-resizer::after{background:var(--teal)}
-.split.resizing{user-select:none;cursor:ew-resize}
-.split.resizing .list-pane,.split.resizing .detail{pointer-events:none}
+/* リスト｜詳細 — 詳細は台帳エリア内の右オーバーレイ（テーブル幅は変えない） */
+.split{flex:1;min-height:0;display:grid;grid-template-columns:1fr;overflow:hidden;position:relative}
+.list-pane{min-height:0;height:100%;display:flex;flex-direction:column;overflow:hidden;background:#fff;min-width:0}
 .list-pane .filterbar{flex:none}
+.split-scrim{
+  display:none;position:absolute;inset:0;z-index:4;border:0;padding:0;cursor:pointer;
+  background:rgba(12,18,34,.06);
+}
+.has-panel .split-scrim{display:block;right:var(--det-w, 52%)}
+.split-resizer{display:none!important}
 .table-wrap{min-height:0;overflow:auto;overscroll-behavior:contain}
 /* 文書ページ（構成・使い方など）の表は全行展開。スクロールは #main 側だけ */
 .pad .table-wrap{overflow:visible;height:auto;min-height:0;border:1px solid var(--line);border-radius:8px}
 .list-pane > .table-wrap,
 .split > .table-wrap{flex:1 1 auto}
 .main > .table-wrap{flex:1 1 auto}
-/* 詳細オープン時は幅が狭いので重要列を優先、余りは横スクロール */
-.has-panel .ledger th:nth-child(6),
-.has-panel .ledger td:nth-child(6),
-.has-panel .ledger th:nth-child(7),
-.has-panel .ledger td:nth-child(7){display:none}
-.has-panel .row-title{min-width:140px}
-table.ledger{width:100%;border-collapse:collapse;font-size:12px;min-width:520px}
-.has-panel table.ledger{min-width:380px}
+table.ledger{width:100%;border-collapse:collapse;font-size:12px;min-width:720px}
 table.ledger th.pickcell,table.ledger td.pickcell{width:28px;padding-left:8px;padding-right:4px;text-align:center;vertical-align:middle}
 table.ledger th{text-align:left;font-weight:600;color:var(--muted);padding:8px 10px;border-bottom:1px solid var(--line);background:#fbfcfe;position:sticky;top:0;z-index:1}
 table.ledger td{padding:7px 10px;border-bottom:1px solid #e8edf5;vertical-align:middle}
@@ -361,13 +344,32 @@ table.man .who{white-space:nowrap;font-weight:600}
 .add-row-btn{display:block;width:100%;border:0;background:transparent;padding:10px 12px;text-align:left;font-size:12.5px;color:var(--muted);cursor:pointer;flex:none;border-top:1px solid var(--line)}
 .add-row-btn:hover{color:#0969da;background:#f6f8fa}
 
-/* panel — リストと独立して縦スクロール（本文｜メタもそれぞれ） */
-.detail{display:none;min-height:0;height:100%;border-left:0;background:#fff;overflow:hidden}
-.has-panel .detail{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(200px,.85fr);overflow:hidden}
-@media(max-width:960px){.has-panel .detail{display:flex;flex-direction:column;overflow:auto}}
+/* panel — 台帳エリア内の右オーバーレイ（本文｜メタの2カラムは従来どおり） */
+.detail{
+  display:none;position:absolute;top:0;right:0;bottom:0;
+  width:var(--det-w, 52%);max-width:50%;min-width:min(420px,50%);
+  z-index:5;background:#fff;overflow:hidden;
+  border-left:1px solid var(--line);
+  box-shadow:-10px 0 28px rgba(15,23,42,.12);
+}
+.has-panel .detail{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(180px,.85fr)}
+@media(max-width:720px){
+  .has-panel .detail{width:100%!important;max-width:100%;min-width:0;grid-template-columns:1fr;display:flex;flex-direction:column;overflow:auto}
+  .has-panel .split-scrim{display:none}
+}
+.det-resize{
+  position:absolute;left:0;top:0;bottom:0;width:8px;z-index:6;
+  cursor:ew-resize;touch-action:none;border:0;padding:0;background:transparent;
+}
+.det-resize::after{
+  content:"";position:absolute;left:2px;top:50%;transform:translateY(-50%);
+  width:3px;height:40px;border-radius:2px;background:#c9d2e0;
+}
+.det-resize:hover::after,.detail.resizing .det-resize::after{background:var(--teal)}
+.detail.resizing,.split.resizing{user-select:none}
 .dmain{padding:14px 16px 20px;border-right:1px solid var(--line);overflow:auto;overscroll-behavior:contain;min-height:0}
 .dside{padding:14px 12px;background:#f8fafc;overflow:auto;overscroll-behavior:contain;min-height:0}
-@media(max-width:960px){.dmain{border-right:0;border-bottom:1px solid var(--line)}}
+@media(max-width:720px){.dmain{border-right:0;border-bottom:1px solid var(--line)}}
 .badge{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;border-radius:999px;padding:2px 9px;background:#e8f6ee;color:var(--open)}
 .badge.closed{background:#ece8f6;color:var(--done)}
 .x{border:0;background:transparent;font-size:18px;color:var(--muted);line-height:1}
@@ -2017,7 +2019,7 @@ function renderBoard(){
           <button type="button" class="bg" id="pgNext" ${state.boardPage>=pages-1?'disabled':''}>もっと見る ▶</button>
         </div>
       </div>
-      <button type="button" class="split-resizer" id="splitResizer" aria-label="詳細パネルの幅を変更" title="ドラッグで幅を変更（最小420px〜画面の半分）"></button>
+      <button type="button" class="split-scrim" id="splitScrim" aria-label="詳細を閉じる"></button>
       <aside class="detail" id="detail"></aside>
     </div>`;
   $('main').querySelectorAll('[data-v]').forEach(b=>b.onclick=()=>{ state.view=b.dataset.v; state.sel=null; state.picked.clear(); state.boardPage=0; render(); });
@@ -2166,7 +2168,7 @@ function renderRepo(){
         </div>
         ${nAll?ledgerTable(rowObjs,true,{kidsOf:kidsInRepo}):'<div class="pad" style="flex:1"><p class="quiet">このアプリのデモIssueはまだありません。案件台帳の他リポ行を参照。</p></div>'}
       </div>
-      <button type="button" class="split-resizer" id="splitResizer" aria-label="詳細パネルの幅を変更" title="ドラッグで幅を変更（最小420px〜画面の半分）"></button>
+      <button type="button" class="split-scrim" id="splitScrim" aria-label="詳細を閉じる"></button>
       <aside class="detail" id="detail"></aside>
     </div>`;
   if(nAll){
@@ -2197,26 +2199,38 @@ function applySplitWidths(){
   const w=loadDetW(split.clientWidth||undefined);
   state.detailW=w;
   split.style.setProperty('--det-w', w+'px');
+  const det=$('detail'); if(det) det.style.width=w+'px';
 }
 function bindSplitResize(){
   const run=()=>applySplitWidths();
   run();
   requestAnimationFrame(run);
-  const h=$('splitResizer'), split=document.querySelector('#main .split');
-  if(!h||!split||h.dataset.bound) return;
+  const det=$('detail'), split=document.querySelector('#main .split'), scrim=$('splitScrim');
+  if(scrim) scrim.onclick=()=>{ state.sel=null; render(); };
+  if(!det||!split) return;
+  let h=det.querySelector('.det-resize');
+  if(!h){
+    h=document.createElement('button');
+    h.type='button'; h.className='det-resize';
+    h.setAttribute('aria-label','詳細パネルの幅を変更');
+    h.title='ドラッグで幅を変更（最小420px〜台帳エリアの半分）';
+    det.prepend(h);
+  }
+  if(h.dataset.bound) return;
   h.dataset.bound='1';
   h.addEventListener('pointerdown', e=>{
     e.preventDefault(); e.stopPropagation();
-    split.classList.add('resizing');
+    split.classList.add('resizing'); det.classList.add('resizing');
     try{ h.setPointerCapture(e.pointerId); }catch(_){}
     const move=ev=>{
       const rect=split.getBoundingClientRect();
       const w=clampDetW(rect.right-ev.clientX, rect.width);
       state.detailW=w;
       split.style.setProperty('--det-w', w+'px');
+      det.style.width=w+'px';
     };
     const up=ev=>{
-      split.classList.remove('resizing');
+      split.classList.remove('resizing'); det.classList.remove('resizing');
       try{ h.releasePointerCapture(ev.pointerId); }catch(_){}
       h.removeEventListener('pointermove', move);
       h.removeEventListener('pointerup', up);
