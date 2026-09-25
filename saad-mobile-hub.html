@@ -385,7 +385,7 @@ const STAGES=['引合','商談','契約','施工','請求'];
 
 /* 案件ルート = PC issues の deal/lead（d1=#841 / d2=#2103 / d3=SCHED貯水槽 / dL*=リード / d44=Close） */
 const DEALS={
-  d1:{ref:'sfa#841', cust:'株式会社サンプル', title:'ES-2026-0841 調査依頼（横浜支店ビル）', dom:'ES',
+  d1:{ref:'sfa#841', cust:'株式会社サンプル', title:'ES-2026-現地調査・建物調査（横浜支店ビル）', dom:'ES',
     addr:'横浜市西区みなとみらい1-1', tel:'045-xxx-xxxx', stage:2, amount:'1,500,000円（値引12%前提）',
     hist:[
       {d:'9/23',who:'星',t:'<b>値引起案（12%）を出しました</b><div class="m">¥180,000 — ringi#12 → 田中拠点長へ</div>'},
@@ -393,55 +393,55 @@ const DEALS={
       {d:'9/20',who:'星',t:'<b>現地調査の日程調整</b><div class="m">木曜14:00で確定</div>'},
       {d:'9/18',who:'sys',t:'Project「地区・案件台帳」に追加 — 進み: 対応中'},
     ]},
-  d2:{ref:'sfa#2103', cust:'佐藤 一郎さま', title:'HS-2026-2103 定期点検更新', dom:'HSE',
+  d2:{ref:'sfa#2103', cust:'佐藤 一郎さま', title:'HS-2026-定期点検・保証更新（戸建（藤沢・木造2F））', dom:'HSE',
     addr:'藤沢市鵠沼3-2', tel:'090-xxxx-xxxx', stage:1, amount:'見積作成中',
     hist:[
       {d:'9/22',who:'星',t:'<b>見積提示を予定</b><div class="m">期限 9/25 — 保証更新の再アプローチとあわせて提示</div>'},
       {d:'9/18',who:'星',t:'<b>初回訪問を完了</b><div class="m">戸建（藤沢・木造2F）· 床下確認済</div>'},
       {d:'9/17',who:'sys',t:'保証期限30日前リードから案件化 — Projectに追加'},
     ]},
-  d3:{ref:'koji·sched', cust:'グリーンハイツ管理組合', title:'貯水槽清掃（年次）', dom:'PCS',
+  d3:{ref:'koji·sched', cust:'グリーンハイツ管理組合', title:'PCS-2026-定期点検・貯水槽清掃（グリーンハイツ）', dom:'PCS',
     addr:'相模原市中央区緑が丘', tel:'042-xxx-xxxx', stage:3, amount:'180,000円',
     hist:[
       {d:'9/20',who:'山',t:'<b>作業前の確認を完了</b><div class="m">断水案内の掲示OK。9/25 9:00 開始</div>'},
       {d:'9/12',who:'sys',t:'施工スケジュールに割当 — 山本（施工）'},
     ]},
-  dL1:{ref:'sfa#2201', cust:'株式会社サンプル', title:'外壁調査の問い合わせ（Webフォーム）', dom:'ES',
+  dL1:{ref:'sfa#2201', cust:'株式会社サンプル', title:'ES-2026-問い合わせ対応・外壁（川崎倉庫）', dom:'ES',
     addr:'川崎市川崎区 ind-2（川崎倉庫）', tel:'045-xxx-xxxx', stage:0, amount:'—', lead:true,
     hist:[
       {d:'9/22',who:'星',t:'<b>一次確認</b><div class="m">川崎倉庫の外壁。来週訪問の候補日を打診中</div>'},
       {d:'9/20',who:'sys',t:'Webフォームから自動起票 — Assignees: 星本'},
     ]},
-  dL2:{ref:'sfa#2202', cust:'佐藤 一郎さま', title:'保証更新の再アプローチ（定期点検 2026-10 期限）', dom:'HSE',
+  dL2:{ref:'sfa#2202', cust:'佐藤 一郎さま', title:'HS-2026-再アプローチ・保証更新（戸建（藤沢・木造2F））', dom:'HSE',
     addr:'藤沢市鵠沼3-2', tel:'090-xxxx-xxxx', stage:0, amount:'—', lead:true,
     hist:[
       {d:'9/17',who:'sys',t:'保証期限 30日前 — 自動でリード起票（Workflows相当）'},
     ]},
-  d44:{ref:'sfa#44', cust:'グリーンハイツ管理組合', title:'PCS-2026-044 屋根改修', dom:'PCS',
+  d44:{ref:'sfa#44', cust:'グリーンハイツ管理組合', title:'PCS-2026-その他・屋根改修（グリーンハイツ）', dom:'PCS',
     addr:'相模原市中央区緑が丘', tel:'042-xxx-xxxx', stage:4, amount:'860,000円', closed:true,
     hist:[
       {d:'8/30',who:'sys',t:'請求入金確認 — 案件を Close'},
       {d:'8/12',who:'山',t:'<b>施工完了報告</b><div class="m">写真・サイン済</div>'},
     ]},
-  d3001:{ref:'sfa#3001', cust:'株式会社青葉ビル', title:'ES-2026-3001 給排水高圧洗浄（青葉ビル本館）', dom:'ES',
+  d3001:{ref:'sfa#3001', cust:'株式会社青葉ビル', title:'ES-2026-その他・給排水高圧洗浄（青葉ビル本館）', dom:'ES',
     addr:'横浜市青葉区青葉台2-1', tel:'045-yyy-1000', stage:1, amount:'見積提示中',
     hist:[{d:'9/21',who:'星',t:'<b>見積提示予定</b><div class="m">本館管財へ。別館は別活動で並行</div>'}]},
-  d3002:{ref:'sfa#3002', cust:'株式会社青葉ビル', title:'ES-2026-3002 建物調査（青葉ビル別館）', dom:'ES',
+  d3002:{ref:'sfa#3002', cust:'株式会社青葉ビル', title:'ES-2026-現地調査・建物調査（青葉ビル別館）', dom:'ES',
     addr:'横浜市青葉区青葉台2-3', tel:'045-yyy-1000', stage:0, amount:'—', lead:true,
     hist:[{d:'9/19',who:'sys',t:'本館と並列で起票 — 物件軸で履歴分離'}]},
-  d3003:{ref:'sfa#3003', cust:'田中 花子さま', title:'HS-2026-3003 シロアリ防除（辻堂）', dom:'HSE',
+  d3003:{ref:'sfa#3003', cust:'田中 花子さま', title:'HS-2026-現地調査・シロアリ防除（戸建（辻堂・木造2F））', dom:'HSE',
     addr:'藤沢市辻堂1-8', tel:'080-xxxx-2211', stage:1, amount:'見積作成中',
     hist:[{d:'9/15',who:'星',t:'<b>現地調査を完了</b>'}]},
-  d3004:{ref:'sfa#3004', cust:'桜丘マンション管理組合', title:'PCS-2026-3004 貯水槽清掃（桜丘）', dom:'PCS',
+  d3004:{ref:'sfa#3004', cust:'桜丘マンション管理組合', title:'PCS-2026-定期点検・貯水槽清掃（桜丘マンション）', dom:'PCS',
     addr:'相模原市南区桜丘4-2', tel:'042-xxx-xxxx', stage:3, amount:'165,000円',
     hist:[{d:'9/10',who:'山',t:'<b>施工準備</b><div class="m">9/26 着手予定</div>'}]},
-  d3007:{ref:'sfa#3007', cust:'厚木精密工業株式会社', title:'SE-2026-3007 DS防錆機器 点検', dom:'SE',
+  d3007:{ref:'sfa#3007', cust:'厚木精密工業株式会社', title:'SE-2026-定期点検・DS防錆機器（厚木第一工場）', dom:'SE',
     addr:'厚木市岡田3000', tel:'046-xxx-xxxx', stage:1, amount:'保守契約内',
     hist:[{d:'9/11',who:'星',t:'<b>点検日程調整中</b>'}]},
-  d3008:{ref:'sfa#3008', cust:'渡辺 美咲さま', title:'電話問い合わせ（物件未定）', dom:'HSE',
+  d3008:{ref:'sfa#3008', cust:'渡辺 美咲さま', title:'HS-2026-問い合わせ対応（渡辺 美咲）', dom:'HSE',
     addr:'', tel:'090-xxxx-3344', stage:0, amount:'—', lead:true,
     hist:[{d:'9/22',who:'星',t:'<b>電話受付</b><div class="m">物件は訪問後に登録</div>'}]},
-  d3013:{ref:'sfa#3013', cust:'株式会社青葉ビル', title:'ES-2026-3013 防鼠施工（川崎物流センター）', dom:'ES',
+  d3013:{ref:'sfa#3013', cust:'株式会社青葉ビル', title:'ES-2026-その他・防鼠施工（川崎物流センター）', dom:'ES',
     addr:'川崎市川崎区東扇島', tel:'045-yyy-1000', stage:1, amount:'見積中',
     hist:[{d:'8/28',who:'星',t:'<b>テナント入居前の防鼠</b>'}]},
 };
@@ -710,16 +710,16 @@ function openActPlanSheet(ctx){
 }
 
 const ACT_KINDS_M=['初回訪問','現地調査','見積提示','契約説明','定期点検','再アプローチ','問い合わせ対応','施工前打合せ','その他'];
-let MOBILE_ACT_SEQ=240;
+function domainCodeM(d){ return d==='HSE'?'HS':(d||'ES'); }
+/** 案件名: {部門}-{年}-{活動種別}・{作業内容}（{対象}） — 連番なし */
 function composeMobileTitle(vals){
-  const dom=vals.dom||'ES';
-  MOBILE_ACT_SEQ+=1;
-  const num=String(MOBILE_ACT_SEQ).padStart(4,'0');
+  const dom=domainCodeM(vals.dom);
+  const year=vals.year||'2026';
   const kind=(vals.actKind||'').trim()||'活動';
   const detail=(vals.actDetail||'').trim();
   const who=(vals.prop||vals.cust||vals.alias||'対象未定').trim()||'対象未定';
   const mid=detail?`${kind}・${detail}`:kind;
-  return `${dom}-2026-${num} ${mid}（${who}）`;
+  return `${dom}-${year}-${mid}（${who}）`;
 }
 function createMobileActivity(vals){
   const id='dn'+Date.now().toString(36);
@@ -1016,7 +1016,7 @@ function approveView(rid){
   return `<div class="dethead">
     <button class="backbtn" data-back="1">‹ 戻る</button>
     <div class="k" style="font-size:13.2px;font-weight:700;color:var(--muted)"><span class="tagP">承認待ち</span>${isR1?'値引起案 · ringi#12':'施工着手承認 · ringi#13'} · 申請者 星本</div>
-    <h2>株式会社サンプル — ES-2026-0841 調査依頼（横浜支店ビル）</h2>
+    <h2>株式会社サンプル — ES-2026-現地調査・建物調査（横浜支店ビル）</h2>
   </div>
   <div class="card">
     <div class="apr-amt">${isR1?'1,500,000 → 1,320,000円':'着手承認（標準）'}</div>
@@ -1659,7 +1659,7 @@ function renderSheet(){
         const det=(pick.actDetail||'').trim();
         const mid=det?`${kind}・${det}`:kind;
         const dom=(c&&c.domain)||(p&&p.domain)||'ES';
-        return `${dom}-2026-□□□□ ${mid}（${who}）`;
+        return `${(dom==='HSE'?'HS':dom)}-2026-${mid}（${who}）`;
       })();
       body=`<p class="quiet" style="margin:0 0 8px">${name?`<b>${name}</b> への活動予定`:'顧客・物件は検索して選びます（マスタに無いときは空のまま可）'}。案件名は命名規則で自動生成されます。</p>
         ${needPick?`<div class="slabel">① 顧客（検索）</div>
@@ -1681,7 +1681,7 @@ function renderSheet(){
         <div class="chips">${VIA_CHIPS.map(x=>`<button class="chip" data-pk="via:${x}" aria-pressed="${pick.via===x}">${x}</button>`).join('')}</div>
         <input class="searchbox" id="actViaFree" placeholder="上記以外はここに入力" value="${(pick.via && !VIA_CHIPS.includes(pick.via))?pick.via:''}">
         <textarea placeholder="メモ（任意・案件名には出さない）" id="actMemo"></textarea>
-        <div class="card" style="margin:10px 0 0"><div class="k">案件名プレビュー</div><div class="t" style="font-size:13px">${titlePrev}</div><div class="s">{部門}-{年}-{連番} {種類}・{作業内容}（{対象}）</div></div>
+        <div class="card" style="margin:10px 0 0"><div class="k">案件名プレビュー</div><div class="t" style="font-size:13px">${titlePrev}</div><div class="s">{部門}-{年}-{活動種別}・{作業内容}（{対象}）</div></div>
         <button class="abtn p" style="margin-top:12px${!pick.actKind?';opacity:.4':''}" data-send="actnew" ${pick.actKind?'':'disabled'}>予定を登録する</button>
         <button class="abtn w" style="margin-top:8px" data-actstep="choose">‹ 戻る</button>`;
     } else {

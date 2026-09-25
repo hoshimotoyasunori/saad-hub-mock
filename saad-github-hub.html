@@ -841,17 +841,21 @@ function activityTargetLabel(v){
   const a=(v.alias||'').trim();
   return a||'対象未定';
 }
-function composeActivityTitle(v, seqNum){
+function domainCode(d){
+  if(d==='HSE') return 'HS';
+  return d||'ES';
+}
+/** 案件名: {部門}-{年}-{活動種別}・{作業内容}（{対象}） — 連番なし。作業内容が空なら・以降を省略 */
+function composeActivityTitle(v){
   const c=v.cust?ensureCustMaster(v.cust):null;
   const p=v.prop?ensurePropMaster(v.prop):null;
-  const dom=c?c.domain:(p?p.domain:(v.domHint||'ES'));
-  const year='2026';
-  const num=seqNum!=null?String(seqNum).padStart(4,'0'):'□□□□';
+  const dom=domainCode(c?c.domain:(p?p.domain:(v.domHint||'ES')));
+  const year=v.year||'2026';
   const kind=(v.actKind||'').trim()||'活動';
   const detail=(v.actDetail||'').trim();
   const who=activityTargetLabel(v);
   const mid=detail?`${kind}・${detail}`:kind;
-  return `${dom}-${year}-${num} ${mid}（${who}）`;
+  return `${dom}-${year}-${mid}（${who}）`;
 }
 function lookupSearch(kind, q){
   const s=(q||'').trim().toLowerCase();
@@ -880,7 +884,7 @@ function propStats(pid){
 function ev(t, who, a, b){ return t==='sys' ? {t:'sys', who, text:a} : {t:'cm', who, head:a, body:b}; }
 
 let issues = [
-  {id:'841', ref:'sfa#841', repo:'sfa', kind:'deal', depth:0, parent:null, customer:'c1', property:'p1', division:'ES', branch:'横浜営業所', title:'ES-2026-0841 調査依頼（物件A）', status:'In Progress', open:true, own:'sales',
+  {id:'841', ref:'sfa#841', repo:'sfa', kind:'deal', depth:0, parent:null, customer:'c1', property:'p1', division:'ES', branch:'横浜営業所', title:'ES-2026-現地調査・建物調査（横浜支店ビル）', status:'In Progress', open:true, own:'sales',
     body:{'顧客 / 物件':'サンプル社 / 横浜支店ビル','用途':'案件の識別。工程・ゲート・請求はすべてこの下の子Issue。'},
     tl:[ev('cm','星本','# 案件メモ','ES枠の調査依頼。見積合意まで完了。'), ev('sys','system','Project「地区・案件台帳」に追加 — 進捗: 対応中')]},
   {id:'841-p0', ref:'sfa#843', repo:'sfa', kind:'phase', depth:1, parent:'841', title:'引合・受付', status:'Done', open:true, own:'sales', body:{'用途':'工程まとまり'}, tl:[ev('sys','system','完了 — 受付確認・一次振り分け Done')]},
@@ -914,48 +918,48 @@ let issues = [
     body:{'案件':'sfa#841 物件A','金額':'¥1,320,000（値引後）','用途':'施工完了後に発行。入金消込まで。'},
     tl:[ev('sys','system','施工 koji#55 完了までブロック')]},
 
-  {id:'2103', ref:'sfa#2103', repo:'sfa', kind:'deal', depth:0, parent:null, customer:'c2', property:'p3', division:'HSE', branch:'藤沢営業所', title:'HS-2026-2103 定期点検更新', status:'In Progress', open:true, own:'sales',
+  {id:'2103', ref:'sfa#2103', repo:'sfa', kind:'deal', depth:0, parent:null, customer:'c2', property:'p3', division:'HSE', branch:'藤沢営業所', title:'HS-2026-定期点検・保証更新（戸建（藤沢・木造2F））', status:'In Progress', open:true, own:'sales',
     body:{'顧客 / 物件':'既存顧客 / 戸建','用途':'商談中の2件目。ゲートはまだ作られていない。'}, tl:[ev('sys','system','Projectに追加')]},
   {id:'2103-p1', ref:'sfa#2104', repo:'sfa', kind:'phase', depth:1, parent:'2103', title:'商談・見積', status:'In Progress', open:true, own:'sales', body:{'用途':'工程'}, tl:[]},
   {id:'2103-t1', ref:'sfa#2105', repo:'sfa', kind:'task', depth:2, parent:'2103-p1', title:'初回訪問', status:'Done', open:true, own:'sales', body:{'メモ':'9/18 完了'}, tl:[]},
   {id:'2103-t2', ref:'sfa#2106', repo:'sfa', kind:'task', depth:2, parent:'2103-p1', title:'見積提示', status:'Todo', open:true, own:'sales', body:{'期限':'9/25'}, tl:[ev('cm','星本','# 予定','9/25までに提示。')]},
 
-  {id:'44', ref:'sfa#44', repo:'sfa', kind:'deal', depth:0, parent:null, customer:'c3', property:'p4', division:'PCS', branch:'相模原営業所', title:'PCS-2026-044 屋根改修', status:'Done', open:false, own:'sales',
+  {id:'44', ref:'sfa#44', repo:'sfa', kind:'deal', depth:0, parent:null, customer:'c3', property:'p4', division:'PCS', branch:'相模原営業所', title:'PCS-2026-その他・屋根改修（グリーンハイツ）', status:'Done', open:false, own:'sales',
     body:{'用途':'完了済の対比用。Open≠Status の見本（Closed＝紫）。'}, tl:[ev('sys','system','請求入金確認 — 案件を Close')]},
   {id:'44-p1', ref:'sfa#45', repo:'sfa', kind:'phase', depth:1, parent:'44', title:'施工〜請求', status:'Done', open:false, own:'kanri', body:{}, tl:[]},
   {id:'44-bill', ref:'billing#70', repo:'billing', kind:'bill', depth:2, parent:'44-p1', title:'請求・入金済', status:'Done', open:false, own:'kanri', amount:'¥860,000', body:{}, tl:[]},
 
   /* ===== CRM系の行（リード・対応履歴）— 同じ台帳に載る ===== */
-  {id:'L1', ref:'sfa#2201', repo:'sfa', kind:'lead', depth:0, parent:null, customer:'c1', property:'p2', division:'ES', branch:'横浜営業所', title:'外壁調査の問い合わせ（Webフォーム）', status:'Todo', open:true, own:'sales',
+  {id:'L1', ref:'sfa#2201', repo:'sfa', kind:'lead', depth:0, parent:null, customer:'c1', property:'p2', division:'ES', branch:'横浜営業所', title:'ES-2026-問い合わせ対応・外壁（川崎倉庫）', status:'Todo', open:true, own:'sales',
     body:{'顧客':'株式会社サンプル（既存）','経路':'Webフォーム 9/20','用途':'未案件化のリード。対応後に [案件] へ昇格して子工程を作る。'},
     tl:[ev('sys','system','Webフォームから自動起票 — 担当: 星本'), ev('cm','星本','# 一次確認','川崎倉庫の外壁。来週訪問の候補日を打診中。')]},
-  {id:'L2', ref:'sfa#2202', repo:'sfa', kind:'lead', depth:0, parent:null, customer:'c2', property:'p3', division:'HSE', branch:'藤沢営業所', title:'保証更新の再アプローチ（定期点検 2026-10 期限）', status:'Todo', open:true, own:'sales',
+  {id:'L2', ref:'sfa#2202', repo:'sfa', kind:'lead', depth:0, parent:null, customer:'c2', property:'p3', division:'HSE', branch:'藤沢営業所', title:'HS-2026-再アプローチ・保証更新（戸建（藤沢・木造2F））', status:'Todo', open:true, own:'sales',
     body:{'顧客':'佐藤 一郎（HS）','トリガ':'シロアリ保証 2026-10 期限（自動検知）','用途':'再施工サイクルの入口。Workflows相当の自動起票を想定。'},
     tl:[ev('sys','system','保証期限 30日前 — 自動でリード起票（Workflows相当）')]},
-  {id:'S1', ref:'sfa#2150', repo:'sfa', kind:'support', depth:0, parent:null, customer:'c3', property:'p4', division:'PCS', branch:'相模原営業所', title:'施工後の匂いに関する問い合わせ', status:'Done', open:false, own:'sales',
+  {id:'S1', ref:'sfa#2150', repo:'sfa', kind:'support', depth:0, parent:null, customer:'c3', property:'p4', division:'PCS', branch:'相模原営業所', title:'PCS-2026-問い合わせ対応・施工後の匂い（グリーンハイツ）', status:'Done', open:false, own:'sales',
     body:{'顧客':'グリーンハイツ管理組合','受付':'お客様相談室 → 拠点へ回付','結果':'再訪問・換気説明で解消。クレームではなく問い合わせで完了。'},
     tl:[ev('cm','相談室','# 受付','完工1週間後、屋上防水の匂いが気になるとの連絡。'), ev('cm','星本','# 対応','再訪問し換気経路を説明。以後の連絡なし。'), ev('sys','system','Close — 対応完了（対応履歴は顧客レコードに残る）')]},
 
   /* ===== 追加デモ案件（多様なパターン・顧客/物件と整合） ===== */
-  {id:'3001', ref:'sfa#3001', repo:'sfa', kind:'deal', depth:0, parent:null, customer:'c5', property:'p6', division:'ES', branch:'横浜営業所', title:'ES-2026-3001 給排水高圧洗浄（青葉ビル本館）', status:'In Progress', open:true, own:'sales',
+  {id:'3001', ref:'sfa#3001', repo:'sfa', kind:'deal', depth:0, parent:null, customer:'c5', property:'p6', division:'ES', branch:'横浜営業所', title:'ES-2026-その他・給排水高圧洗浄（青葉ビル本館）', status:'In Progress', open:true, own:'sales',
     body:{'顧客 / 物件':'株式会社青葉ビル / 青葉ビル本館','用途':'同一顧客の複数物件のうち本館側。別館案件と並列。'},
     tl:[ev('cm','星本','# 進捗','本館は見積提示済。別館は別案件で並行。'), ev('sys','system','Projectに追加')]},
   {id:'3001-p1', ref:'sfa#3001a', repo:'sfa', kind:'phase', depth:1, parent:'3001', title:'商談・見積', status:'In Progress', open:true, own:'sales', body:{'用途':'工程'}, tl:[]},
   {id:'3001-t1', ref:'sfa#3001b', repo:'sfa', kind:'task', depth:2, parent:'3001-p1', title:'見積提示・説明', status:'Todo', open:true, own:'sales', body:{'期限':'9/28'}, tl:[ev('cm','星本','# 予定','金曜に本館管財へ提示')]},
 
-  {id:'3002', ref:'sfa#3002', repo:'sfa', kind:'deal', depth:0, parent:null, customer:'c5', property:'p7', division:'ES', branch:'横浜営業所', title:'ES-2026-3002 建物調査（青葉ビル別館）', status:'Todo', open:true, own:'sales',
+  {id:'3002', ref:'sfa#3002', repo:'sfa', kind:'deal', depth:0, parent:null, customer:'c5', property:'p7', division:'ES', branch:'横浜営業所', title:'ES-2026-現地調査・建物調査（青葉ビル別館）', status:'Todo', open:true, own:'sales',
     body:{'顧客 / 物件':'株式会社青葉ビル / 青葉ビル別館','用途':'同一顧客・別物件の並列案件。'},
     tl:[ev('sys','system','本館案件と同時期に起票 — 物件軸で履歴を分ける')]},
   {id:'3002-p1', ref:'sfa#3002a', repo:'sfa', kind:'phase', depth:1, parent:'3002', title:'引合・受付', status:'Todo', open:true, own:'sales', body:{}, tl:[]},
 
-  {id:'3003', ref:'sfa#3003', repo:'sfa', kind:'deal', depth:0, parent:null, customer:'c4', property:'p5', division:'HSE', branch:'藤沢営業所', title:'HS-2026-3003 シロアリ防除（辻堂）', status:'In Progress', open:true, own:'sales',
+  {id:'3003', ref:'sfa#3003', repo:'sfa', kind:'deal', depth:0, parent:null, customer:'c4', property:'p5', division:'HSE', branch:'藤沢営業所', title:'HS-2026-現地調査・シロアリ防除（戸建（辻堂・木造2F））', status:'In Progress', open:true, own:'sales',
     body:{'顧客 / 物件':'田中 花子 / 戸建（辻堂）','用途':'個人HSの標準商談。'},
     tl:[ev('cm','星本','# 訪問','床下確認済。薬剤選定中。'), ev('sys','system','Projectに追加')]},
   {id:'3003-p1', ref:'sfa#3003a', repo:'sfa', kind:'phase', depth:1, parent:'3003', title:'商談・見積', status:'In Progress', open:true, own:'sales', body:{}, tl:[]},
   {id:'3003-t1', ref:'sfa#3003b', repo:'sfa', kind:'task', depth:2, parent:'3003-p1', title:'現地調査', status:'Done', open:true, own:'sales', body:{'メモ':'9/15 完了'}, tl:[]},
   {id:'3003-t2', ref:'sfa#3003c', repo:'sfa', kind:'task', depth:2, parent:'3003-p1', title:'見積作成', status:'Todo', open:true, own:'sales', body:{}, tl:[]},
 
-  {id:'3004', ref:'sfa#3004', repo:'sfa', kind:'deal', depth:0, parent:null, customer:'c6', property:'p8', division:'PCS', branch:'相模原営業所', title:'PCS-2026-3004 貯水槽清掃（桜丘）', status:'In Progress', open:true, own:'sales',
+  {id:'3004', ref:'sfa#3004', repo:'sfa', kind:'deal', depth:0, parent:null, customer:'c6', property:'p8', division:'PCS', branch:'相模原営業所', title:'PCS-2026-定期点検・貯水槽清掃（桜丘マンション）', status:'In Progress', open:true, own:'sales',
     body:{'顧客 / 物件':'桜丘マンション管理組合 / 桜丘マンション','用途':'施工フェーズ中。ゲート済の対比。'},
     tl:[ev('sys','system','施工スケジュール割当 — 山本')]},
   {id:'3004-gate', ref:'sfa#3004g', repo:'sfa', kind:'gate', depth:1, parent:'3004', title:'施工前ゲート', status:'Done', open:true, own:'sales', gate:true, body:{'用途':'決裁済'}, tl:[ev('sys','system','ゲート開通')]},
@@ -963,52 +967,52 @@ let issues = [
     body:{'用途':'年次清掃。断水案内済。'}, tl:[ev('cm','山本','# 準備','9/26 着手予定')]},
   {id:'3004-k1', ref:'koji#302', repo:'koji', kind:'task', depth:2, parent:'3004-p2', title:'当日入場・清掃', status:'Todo', open:true, own:'koji', body:{}, tl:[]},
 
-  {id:'3005', ref:'sfa#3005', repo:'sfa', kind:'lead', depth:0, parent:null, customer:'c7', property:'p9', division:'HSE', branch:'藤沢営業所', title:'保証期限リード（湘南台・山田健）', status:'Todo', open:true, own:'sales',
+  {id:'3005', ref:'sfa#3005', repo:'sfa', kind:'lead', depth:0, parent:null, customer:'c7', property:'p9', division:'HSE', branch:'藤沢営業所', title:'HS-2026-再アプローチ・保証期限（戸建（湘南台））', status:'Todo', open:true, own:'sales',
     body:{'顧客 / 物件':'山田 健 / 戸建（湘南台）','トリガ':'保証 2026-09 期限','用途':'自動リード。案件化前。'},
     tl:[ev('sys','system','保証期限30日前 — 自動起票')]},
 
-  {id:'3006', ref:'sfa#3006', repo:'sfa', kind:'lead', depth:0, parent:null, customer:'c8', property:'p10', division:'ES', branch:'横浜営業所', title:'港商事 本社ビルの調査相談（仮登録）', status:'Todo', open:true, own:'sales',
+  {id:'3006', ref:'sfa#3006', repo:'sfa', kind:'lead', depth:0, parent:null, customer:'c8', property:'p10', division:'ES', branch:'横浜営業所', title:'ES-2026-問い合わせ対応・調査相談（港商事 本社ビル）', status:'Todo', open:true, own:'sales',
     body:{'顧客 / 物件':'株式会社港商事（仮） / 港商事 本社ビル（仮）','用途':'顧客・物件とも仮。受注時に本登録。'},
     tl:[ev('cm','星本','# 受付','電話で概要のみ。住所の番地未確認。')]},
 
-  {id:'3007', ref:'sfa#3007', repo:'sfa', kind:'deal', depth:0, parent:null, customer:'c9', property:'p11', division:'SE', branch:'厚木営業所', title:'SE-2026-3007 DS防錆機器 点検（厚木工場）', status:'In Progress', open:true, own:'sales',
+  {id:'3007', ref:'sfa#3007', repo:'sfa', kind:'deal', depth:0, parent:null, customer:'c9', property:'p11', division:'SE', branch:'厚木営業所', title:'SE-2026-定期点検・DS防錆機器（厚木第一工場）', status:'In Progress', open:true, own:'sales',
     body:{'顧客 / 物件':'厚木精密工業 / 厚木第一工場','用途':'SE部門・他拠点の案件。'},
     tl:[ev('sys','system','厚木営業所スコープで起票')]},
   {id:'3007-p1', ref:'sfa#3007a', repo:'sfa', kind:'phase', depth:1, parent:'3007', title:'点検・報告', status:'In Progress', open:true, own:'sales', body:{}, tl:[]},
 
-  {id:'3008', ref:'sfa#3008', repo:'sfa', kind:'lead', depth:0, parent:null, customer:'c10', property:null, division:'HSE', branch:'横浜北営業所', title:'電話問い合わせ（渡辺美咲・物件未定）', status:'Todo', open:true, own:'sales',
+  {id:'3008', ref:'sfa#3008', repo:'sfa', kind:'lead', depth:0, parent:null, customer:'c10', property:null, division:'HSE', branch:'横浜北営業所', title:'HS-2026-問い合わせ対応（渡辺 美咲）', status:'Todo', open:true, own:'sales',
     body:{'顧客 / 物件':'渡辺 美咲 / （未紐づけ）','用途':'顧客のみ。物件は訪問後に登録。'},
     tl:[ev('cm','星本','# 受付','シロアリが気になるとの電話。住所は後確認。')]},
 
-  {id:'3009', ref:'sfa#3009', repo:'sfa', kind:'lead', depth:0, parent:null, customer:null, property:'p12', division:'ES', branch:'横浜営業所', title:'空きテナント（関内）現地調査の依頼', status:'Todo', open:true, own:'sales',
+  {id:'3009', ref:'sfa#3009', repo:'sfa', kind:'lead', depth:0, parent:null, customer:null, property:'p12', division:'ES', branch:'横浜営業所', title:'ES-2026-現地調査（空きテナント（関内））', status:'Todo', open:true, own:'sales',
     body:{'顧客 / 物件':'（未紐づけ） / 空きテナント（関内）','用途':'物件のみ。契約顧客は管理会社決定後。'},
     tl:[ev('sys','system','物件仮登録から起票 — 顧客は未定')]},
 
-  {id:'3010', ref:'sfa#3010', repo:'sfa', kind:'deal', depth:0, parent:null, customer:'c12', property:'p13', division:'HSE', branch:'藤沢営業所', title:'HS-2025-3010 床下換気扇設置（茅ヶ崎）', status:'Done', open:false, own:'sales',
+  {id:'3010', ref:'sfa#3010', repo:'sfa', kind:'deal', depth:0, parent:null, customer:'c12', property:'p13', division:'HSE', branch:'藤沢営業所', title:'HS-2025-その他・床下換気扇設置（戸建（茅ヶ崎））', status:'Done', open:false, own:'sales',
     body:{'顧客 / 物件':'伊藤 誠 / 戸建（茅ヶ崎）','用途':'完了・Close済みの履歴案件。'},
     tl:[ev('sys','system','請求入金確認 — Close')]},
   {id:'3010-p1', ref:'sfa#3010a', repo:'sfa', kind:'phase', depth:1, parent:'3010', title:'施工〜請求', status:'Done', open:false, own:'kanri', body:{}, tl:[]},
   {id:'3010-bill', ref:'billing#301', repo:'billing', kind:'bill', depth:2, parent:'3010-p1', title:'請求・入金済', status:'Done', open:false, own:'kanri', amount:'¥210,000', body:{}, tl:[]},
 
-  {id:'3011', ref:'sfa#3011', repo:'sfa', kind:'support', depth:0, parent:null, customer:'c3', property:'p4', division:'PCS', branch:'相模原営業所', title:'貯水槽清掃後の水位計確認依頼', status:'In Progress', open:true, own:'sales',
+  {id:'3011', ref:'sfa#3011', repo:'sfa', kind:'support', depth:0, parent:null, customer:'c3', property:'p4', division:'PCS', branch:'相模原営業所', title:'PCS-2026-問い合わせ対応・水位計確認（グリーンハイツ）', status:'In Progress', open:true, own:'sales',
     body:{'顧客 / 物件':'グリーンハイツ管理組合 / グリーンハイツ','用途':'完了案件後のサポート。同一顧客・物件で別行。'},
     tl:[ev('cm','相談室','# 受付','水位表示が不安定との連絡。'), ev('cm','星本','# 対応中','再訪問を調整中。')]},
 
-  {id:'3012', ref:'sfa#3012', repo:'sfa', kind:'deal', depth:0, parent:null, customer:'c11', property:'p14', division:'PCS', branch:'相模原営業所', title:'PCS-2026-3012 共用部改修の見積（中央パークサイド）', status:'In Progress', open:true, own:'sales',
+  {id:'3012', ref:'sfa#3012', repo:'sfa', kind:'deal', depth:0, parent:null, customer:'c11', property:'p14', division:'PCS', branch:'相模原営業所', title:'PCS-2026-見積提示・共用部改修（中央パークサイド）', status:'In Progress', open:true, own:'sales',
     body:{'顧客 / 物件':'株式会社中央不動産 / 中央パークサイド','用途':'管理会社経由のPCS。'},
     tl:[ev('sys','system','Projectに追加')]},
   {id:'3012-p1', ref:'sfa#3012a', repo:'sfa', kind:'phase', depth:1, parent:'3012', title:'商談・見積', status:'Todo', open:true, own:'sales', body:{}, tl:[]},
 
-  {id:'3013', ref:'sfa#3013', repo:'sfa', kind:'deal', depth:0, parent:null, customer:'c5', property:'p15', division:'ES', branch:'川崎営業所', title:'ES-2026-3013 防鼠施工（川崎物流センター）', status:'In Progress', open:true, own:'sales',
+  {id:'3013', ref:'sfa#3013', repo:'sfa', kind:'deal', depth:0, parent:null, customer:'c5', property:'p15', division:'ES', branch:'川崎営業所', title:'ES-2026-その他・防鼠施工（川崎物流センター）', status:'In Progress', open:true, own:'sales',
     body:{'顧客 / 物件':'株式会社青葉ビル / 川崎物流センター','用途':'同一顧客・他拠点物件。部門ES・川崎。'},
     tl:[ev('cm','星本','# メモ','テナント入居前の防鼠。青葉本館・別館と並行。')]},
   {id:'3013-p1', ref:'sfa#3013a', repo:'sfa', kind:'phase', depth:1, parent:'3013', title:'商談・施工手配', status:'In Progress', open:true, own:'sales', body:{}, tl:[]},
 
-  {id:'3014', ref:'sfa#3014', repo:'sfa', kind:'deal', depth:0, parent:null, customer:'c1', property:'p1', division:'ES', branch:'横浜営業所', title:'ES-2026-3014 定期建物点検（横浜支店ビル・追加）', status:'Todo', open:true, own:'sales',
+  {id:'3014', ref:'sfa#3014', repo:'sfa', kind:'deal', depth:0, parent:null, customer:'c1', property:'p1', division:'ES', branch:'横浜営業所', title:'ES-2026-定期点検・建物点検（横浜支店ビル）', status:'Todo', open:true, own:'sales',
     body:{'顧客 / 物件':'株式会社サンプル / 横浜支店ビル','用途':'同一物件で sfa#841 と別案件（定期点検）。'},
     tl:[ev('sys','system','年間契約の定期枠から起票')]},
 
-  {id:'3015', ref:'sfa#3015', repo:'sfa', kind:'deal', depth:0, parent:null, customer:'c6', property:'p8', division:'PCS', branch:'相模原営業所', title:'PCS-2025-3015 エントランス改修（桜丘・完了）', status:'Done', open:false, own:'sales',
+  {id:'3015', ref:'sfa#3015', repo:'sfa', kind:'deal', depth:0, parent:null, customer:'c6', property:'p8', division:'PCS', branch:'相模原営業所', title:'PCS-2025-その他・エントランス改修（桜丘マンション）', status:'Done', open:false, own:'sales',
     body:{'顧客 / 物件':'桜丘マンション管理組合 / 桜丘マンション','用途':'同一物件の過去完了。現在の貯水槽案件と履歴分離。'},
     tl:[ev('sys','system','Close — 2025-11 完工')]},
 
@@ -4496,12 +4500,12 @@ function renderFormLegacy(){
 
 /* ================= 過去案件の横断検索 ================= */
 const PAST_DEALS=[
-  {ref:'sfa#1520', title:'HS-2021-1520 シロアリ防除', cust:'佐藤 一郎', prop:'戸建（藤沢・木造2F）', domain:'HSE', closed:'2021-10', amount:420000, docs:'見積書・契約書・完了報告書・保証書', src:'eSM移行'},
-  {ref:'sfa#1188', title:'ES-2023-1188 給排水 高圧洗浄', cust:'株式会社サンプル', prop:'横浜支店ビル', domain:'ES', closed:'2023-06', amount:250000, docs:'見積書・作業報告書', src:'eSM移行'},
-  {ref:'sfa#1342', title:'ES-2024-1342 防錆機器（DS）設置', cust:'株式会社サンプル', prop:'川崎倉庫', domain:'ES', closed:'2024-02', amount:980000, docs:'見積書・工事申込書・DS保証書', src:'NEXT移行'},
-  {ref:'sfa#0412', title:'PCS-2021-0412 屋根改修', cust:'グリーンハイツ管理組合', prop:'グリーンハイツ', domain:'PCS', closed:'2021-08', amount:3600000, docs:'見積書・契約書・完了報告書・10年保証書', src:'eSM移行'},
-  {ref:'sfa#1777', title:'PCS-2025-1777 貯水槽清掃（年次）', cust:'グリーンハイツ管理組合', prop:'グリーンハイツ', domain:'PCS', closed:'2025-09', amount:180000, docs:'作業報告書', src:'Excel移行'},
-  {ref:'sfa#1603', title:'HS-2024-1603 床下換気扇 設置', cust:'田中 一郎', prop:'戸建（横浜）', domain:'HSE', closed:'2024-11', amount:210000, docs:'見積書・契約書', src:'eSM移行'},
+  {ref:'sfa#1520', title:'HS-2021-その他・シロアリ防除（戸建（藤沢・木造2F））', cust:'佐藤 一郎', prop:'戸建（藤沢・木造2F）', domain:'HSE', closed:'2021-10', amount:420000, docs:'見積書・契約書・完了報告書・保証書', src:'eSM移行'},
+  {ref:'sfa#1188', title:'ES-2023-その他・給排水高圧洗浄（横浜支店ビル）', cust:'株式会社サンプル', prop:'横浜支店ビル', domain:'ES', closed:'2023-06', amount:250000, docs:'見積書・作業報告書', src:'eSM移行'},
+  {ref:'sfa#1342', title:'ES-2024-その他・DS防錆機器設置（川崎倉庫）', cust:'株式会社サンプル', prop:'川崎倉庫', domain:'ES', closed:'2024-02', amount:980000, docs:'見積書・工事申込書・DS保証書', src:'NEXT移行'},
+  {ref:'sfa#0412', title:'PCS-2021-その他・屋根改修（グリーンハイツ）', cust:'グリーンハイツ管理組合', prop:'グリーンハイツ', domain:'PCS', closed:'2021-08', amount:3600000, docs:'見積書・契約書・完了報告書・10年保証書', src:'eSM移行'},
+  {ref:'sfa#1777', title:'PCS-2025-定期点検・貯水槽清掃（グリーンハイツ）', cust:'グリーンハイツ管理組合', prop:'グリーンハイツ', domain:'PCS', closed:'2025-09', amount:180000, docs:'作業報告書', src:'Excel移行'},
+  {ref:'sfa#1603', title:'HS-2024-その他・床下換気扇設置（戸建（横浜））', cust:'田中 一郎', prop:'戸建（横浜）', domain:'HSE', closed:'2024-11', amount:210000, docs:'見積書・契約書', src:'eSM移行'},
 ];
 function renderSearch(){
   const q=(state.searchQ||'').trim();
@@ -5339,10 +5343,10 @@ FORMS.deal={
       ||(bothEmpty?`<span class="warn-badge">マスタ未紐づけ</span> 仮呼称: <b>${(v.alias||'').trim()||'（未入力）'}</b>`:'');
     const dup=v.prop?issues.filter(i=>i.depth===0 && i.open && ['lead','deal'].includes(i.kind) && i.property===v.prop):[];
     const hint=!c&&p?'物件のみ。契約顧客はあとから紐づけできます。':c&&!p?'顧客のみ。物件はあとから紐づけできます。':bothEmpty?'顧客・物件がマスタに無い／まだ分からないときも登録可。仮の相手名を入れておけば全社の台帳で探せます。あとからマスタへ紐づけます。':'';
-    const titlePrev=composeActivityTitle(v, (SEQ.sfa||0)+1);
+    const titlePrev=composeActivityTitle(Object.assign({},v,{domHint:v.domHint||'ES'}));
     return `<dl class="idb">
       <dt>案件名（自動・全社で見える）</dt><dd><b>${titlePrev}</b></dd>
-      <dt>命名規則</dt><dd><span class="ref">{部門}-{年}-{連番} {活動種類}・{作業内容}（{顧客|物件|仮の相手名}）</span></dd>
+      <dt>命名規則</dt><dd><span class="ref">{部門}-{年}-{活動種別}・{作業内容}（{顧客|物件|仮の相手名}）</span></dd>
       <dt>紐づけ</dt><dd>${link}</dd>
       <dt>部門・拠点</dt><dd>${org}</dd>
       <dt>請求先・書類（取引形態から）</dt><dd>${dt.billTo||'—'} ／ ${dt.docs||'—'}</dd>
@@ -5358,10 +5362,9 @@ FORMS.deal={
     if(!c&&!p&&!(v.alias||'').trim()) return {err:'顧客・物件とも未選択のときは「仮の相手名」を入れてください（あとからマスタ紐づけ可）'};
     const dt=DEALTYPES.find(d=>d.id===v.dtype)||{}, id=nextId();
     const ref=nextRef('sfa');
-    const seqNum=Number(String(ref).split('#')[1])||SEQ.sfa;
     const division=c?c.domain:(p?p.domain:'ES');
     const branch=c?c.branch:(p?p.branch:'横浜営業所');
-    const title=composeActivityTitle(Object.assign({},v,{domHint:division}), seqNum);
+    const title=composeActivityTitle(Object.assign({},v,{domHint:division}));
     const custLabel=c?c.name:(v.alias||'（未定）');
     const propLabel=p?p.name:(v.alias&&!c?v.alias:'（未定）');
     insertIssue({id, ref, repo:'sfa', kind:'lead', depth:0, parent:null, customer:v.cust||null, property:v.prop||null,
