@@ -642,7 +642,7 @@ const ROLES = {
 };
 /* アプリ＝リポ。裏のマスタ・案件は共有。P2/P3は入口のみ（深い画面は後続） */
 const REPOS = {
-  sfa:{name:'sfa', label:'SFA/CRM', cat:'営業', pri:'P1', desc:'案件・商談・見積・活動', share:'顧客・物件・案件'},
+  sfa:{name:'sfa', label:'営業支援', cat:'営業', pri:'P1', desc:'案件・商談・見積・活動', share:'顧客・物件・案件'},
   ringi:{name:'ringi', label:'稟議・WF', cat:'共通', pri:'P1', desc:'決裁ワークフロー', share:'見積条件・案件'},
   buy:{name:'buy', label:'調達管理', cat:'物流', pri:'P2', desc:'購買申請・PO', share:'商品・在庫・案件'},
   order:{name:'order', label:'クイック発注', cat:'物流', pri:'P1', desc:'現場のワンタップ発注', share:'商品・在庫'},
@@ -2037,15 +2037,24 @@ const APP_USERS={
   koji:'施工リーダー', jimu:'地区事務', billing:'管理部（経理）', bi:'経営・管理部',
 };
 const APP_ACTIONS={
-  sfa:[{l:'担当の案件', view:'mine'},{l:'顧客を探す', screen:'crm'},{l:'見積作成', form:'quote'},{l:'定期点検', mgmt:'inspect'}],
-  ringi:[{l:'承認キュー', view:'approvals'},{l:'起票', form:'ringi'}],
-  buy:[{l:'購買キュー', view:'procurement'},{l:'外注・仕入先', mgmt:'vendors'}],
+  sfa:[{l:'担当の案件', view:'mine'},{l:'顧客を探す', screen:'crm'},{l:'見積作成', form:'quote'},{l:'活動予定', form:'deal'},{l:'定期点検', mgmt:'inspect'}],
+  ringi:[{l:'承認キュー', view:'approvals'},{l:'＋ 申請する', form:'ringi'}],
+  buy:[{l:'購買キュー', view:'procurement'},{l:'＋ 申請する', form:'buy'},{l:'外注・仕入先', mgmt:'vendors'}],
   order:[{l:'発注する', form:'buy'},{l:'商品マスタ', mgmt:'items'}],
   stock:[{l:'在庫を見る', mgmt:'stock'}],
-  koji:[{l:'施工ビュー', view:'kojiv'},{l:'施工予定', mgmt:'schedule'}],
-  jimu:[{l:'担当の案件', view:'mine'},{l:'保証書', mgmt:'warranty'}],
+  koji:[{l:'施工ビュー', view:'kojiv'},{l:'施工予定・アサイン', mgmt:'schedule'}],
+  jimu:[{l:'担当の案件', view:'mine'},{l:'契約書類', mgmt:'contracts'},{l:'保証書', mgmt:'warranty'}],
   billing:[{l:'請求ビュー', view:'billingv'},{l:'入金・消込', mgmt:'payment'}],
   bi:[{l:'KPIを見る', repo:'bi'}],
+};
+/** アプリ詳細ページ（repo）上部の主操作。稟議などはここから申請する */
+const REPO_NEW={
+  sfa:[{l:'📅 活動予定を立てる', form:'deal'},{l:'見積を作成', form:'quote'},{l:'顧客マスタ', screen:'crm'}],
+  ringi:[{l:'＋ 稟議を申請', form:'ringi'},{l:'承認キューを見る', view:'approvals'}],
+  buy:[{l:'＋ 購買申請', form:'buy'},{l:'購買キュー', view:'procurement'}],
+  koji:[{l:'施工予定・人員アサイン', mgmt:'schedule'},{l:'施工ビュー', view:'kojiv'}],
+  jimu:[{l:'契約書類・受注登録', mgmt:'contracts'},{l:'保証書', mgmt:'warranty'}],
+  billing:[{l:'請求ビュー', view:'billingv'},{l:'入金・消込', mgmt:'payment'}],
 };
 const openCount=id=>issues.filter(i=>i.repo===id && i.open && i.status!=='Done').length;
 const myCount=id=>issues.filter(i=>i.repo===id && i.open && i.status!=='Done' && i.own===state.role).length;
@@ -2513,6 +2522,8 @@ function renderRepo(){
     return true;
   }).map(it=>({it, ctx:false}));
   const nAll=allInRepo.length, nShow=rowObjs.length;
+  const news=REPO_NEW[rid]||[];
+  const newBtns=news.map((a,i)=>`<button type="button" class="bp" data-repo-new="${i}" style="margin-left:${i?6:0}px">${a.l}</button>`).join('');
   $('main').innerHTML=`
     <p class="repo-banner"><b>${r.label}</b>（${r.name}）— ${r.desc}。共有: ${r.share}。同じIssueが案件台帳にも載る。</p>
     <div class="split">
@@ -2523,8 +2534,9 @@ function renderRepo(){
           <span class="count">${nShow}${nShow!==nAll?` / ${nAll}`:''} 件</span>
           <button type="button" class="sp-act" id="repoExpAll" title="工程・作業をすべて開く">すべて開く</button>
           <button type="button" class="sp-act" id="repoColAll" title="小タスクを折りたたむ">すべて閉じる</button>
+          ${newBtns?`<span style="margin-left:auto;display:flex;flex-wrap:wrap;gap:6px;align-items:center">${newBtns}</span>`:''}
         </div>
-        ${nAll?ledgerTable(rowObjs,true,{kidsOf:kidsInRepo}):'<div class="pad" style="flex:1"><p class="quiet">このアプリのデモIssueはまだありません。案件台帳の他リポ行を参照。</p></div>'}
+        ${nAll?ledgerTable(rowObjs,true,{kidsOf:kidsInRepo}):'<div class="pad" style="flex:1"><p class="quiet">このアプリのデモIssueはまだありません。上のボタンから申請・登録を始められます。案件台帳の他リポ行も参照できます。</p></div>'}
       </div>
       <button type="button" class="split-scrim" id="splitScrim" aria-label="詳細を閉じる"></button>
       <aside class="detail" id="detail"></aside>
@@ -2535,6 +2547,14 @@ function renderRepo(){
     bindLedger($('main'), render); if(state.sel){ renderPanel($('detail')); bindSplitResize(); }
   }
   else if(state.sel){ renderPanel($('detail')); bindSplitResize(); }
+  $('main').querySelectorAll('[data-repo-new]').forEach(b=>b.onclick=()=>{
+    const a=news[Number(b.dataset.repoNew)]; if(!a) return;
+    if(a.form==='deal'){ openNewActivity({from:`${r.label}`}); return; }
+    if(a.form){ openFormModal(a.form, {}, {from:`${r.label}`}); return; }
+    if(a.view){ state.view=a.view; go('board'); return; }
+    if(a.screen) go(a.screen);
+    else if(a.mgmt) go('mgmt',{mgmt:a.mgmt});
+  });
 }
 
 /* ================= panel ================= */
@@ -4295,8 +4315,10 @@ function renderSchedule(){
       <button type="button" class="m-back" id="schBack" style="margin:0">← 台帳・登録</button>
       <h2 class="page" style="margin:0;flex:1">施工予定・人員アサイン（9/28〜10/2）</h2>
       <button type="button" class="bp" id="schNewDeal">📅 活動予定を立てる</button>
+      <button type="button" class="bp" id="schFromDeal">契約・案件から予定登録</button>
     </div>
     ${whyHtml(c,'static')}
+    <p class="quiet" style="max-width:72ch">契約情報（案件・顧客・物件・ゲート状態）を見て、施工リーダーが人員と日程を割り当てます。ゲート未開通の現場は割当不可。</p>
     <div class="table-wrap"><table class="ledger"><thead><tr><th style="width:16%">担当</th>${DAYS.map(d=>`<th>${d}</th>`).join('')}</tr></thead><tbody>${grid}</tbody></table></div>
     <h3 class="m-h" style="margin-top:16px">未割当の現場 <span class="ref">${UNASSIGNED.length}</span></h3>
     <div class="table-wrap"><table class="ledger"><thead><tr><th>現場</th><th>着手条件</th><th>担当</th><th>日</th><th></th></tr></thead>
@@ -4305,6 +4327,16 @@ function renderSchedule(){
   </div>`;
   $('schBack').onclick=()=>go('mgmt',{mgmt:null});
   const snd=$('schNewDeal'); if(snd) snd.onclick=()=>openActivityPlanFromCrm({from:'施工予定'});
+  const sfd=$('schFromDeal'); if(sfd) sfd.onclick=()=>{
+    const candidates=DEALS.filter(d=>['契約','施工','施工中'].some(s=>(d.stage||'').includes(s)) || (d.id==='841'));
+    const pick=candidates[0]||byId('841');
+    if(!pick){ toast('契約済み案件がありません'); return; }
+    openDeal(pick.id);
+    setTimeout(()=>{
+      const btn=[...document.querySelectorAll('#panelExtras button')].find(b=>/施工予定/.test(b.textContent||''));
+      if(btn) btn.click(); else toast('案件パネルの「施工予定を登録」から進めます');
+    },40);
+  };
   $('main').querySelectorAll('[data-asg]').forEach(b=>b.onclick=()=>{
     const id=b.dataset.asg, u=UNASSIGNED.find(x=>x.id===id); if(!u) return;
     const ti=Number($('ut-'+id).value), di=Number($('ud-'+id).value);
@@ -4933,8 +4965,20 @@ function renderNewMenu(){
 function panelExtras(it){
   const root=rootOf(it); let h='';
   if(root && root.kind==='deal' && root.open && state.role!=='koji'){
-    const btns=[['ringi','稟議を起票'],['buy','購買申請'],['quote','見積を作成']].map(([k,l])=>`<button type="button" class="sp-act" data-cform="${k}">＋ ${l}</button>`).join('');
+    const btns=[
+      ['quote','見積を作成'],
+      ['report','調査報告を作成'],
+      ['ringi','稟議を起票'],
+      ['buy','購買申請'],
+      ['contract','契約書類へ'],
+      ['schedule','施工予定へ'],
+    ].map(([k,l])=>`<button type="button" class="sp-act" data-cact="${k}">＋ ${l}</button>`).join('');
     h+=`<div class="ctx-new"><span>この案件（${root.ref}）で:</span>${btns}</div>`;
+  }
+  if(root && root.kind==='deal' && root.open && state.role==='koji'){
+    h+=`<div class="ctx-new"><span>施工（${root.ref}）:</span>
+      <button type="button" class="sp-act" data-cact="schedule">施工予定・アサイン</button>
+      <button type="button" class="sp-act" data-cact="kojiv">施工ビュー</button></div>`;
   }
   if(['ringi','buy'].includes(it.kind)){
     const by=it.by||'sales', ap=it.approver||it.own, applicant=it.applicant||by;
@@ -4953,8 +4997,37 @@ function panelExtras(it){
 function bindPanelExtras(root, it){
   const r=rootOf(it);
   root.querySelectorAll('[data-cform]').forEach(b=>b.onclick=()=>openFormModal(b.dataset.cform, {deal:r.id}, {from:`${r.ref} の詳細パネル`}));
+  root.querySelectorAll('[data-cact]').forEach(b=>{
+    const k=b.dataset.cact;
+    b.onclick=()=>{
+      if(k==='quote'||k==='ringi'||k==='buy'){ openFormModal(k, {deal:r.id}, {from:`${r.ref} の詳細パネル`}); return; }
+      if(k==='report'){ createSurveyReport(r); return; }
+      if(k==='contract'){ go('mgmt',{mgmt:'contracts'}); return; }
+      if(k==='schedule'){ go('mgmt',{mgmt:'schedule'}); return; }
+      if(k==='kojiv'){ state.view='kojiv'; go('board'); return; }
+    };
+  });
   const docs=docsOf(it);
   root.querySelectorAll('[data-doc]').forEach(b=>b.onclick=()=>openDoc(docs[Number(b.dataset.doc)], it));
+}
+function todayShort(){ const d=new Date(); return `${d.getMonth()+1}/${d.getDate()}`; }
+const DEAL_DOCS={}; /* dealId -> extra docs created in-session */
+/** 調査報告を案件に紐づけて作成（モック: 書類＋タイムライン） */
+function createSurveyReport(deal){
+  if(!deal) return;
+  const name=`調査報告書（${todayShort()}）`;
+  DEAL_DOCS[deal.id]=DEAL_DOCS[deal.id]||[];
+  DEAL_DOCS[deal.id].unshift({name, kind:'report', at:todayShort(), by:meShort()});
+  addEvent(deal, ev('sys', meShort(), `調査報告書を作成: ${name}`));
+  /* 商談工程の子タスクがあれば完了寄りに */
+  const ph=kids(deal.id).find(k=>k.kind==='phase' && /商談|見積|調査/.test(k.title));
+  if(ph){
+    const t=kids(ph.id).find(x=>/調査|報告/.test(x.title) && x.status!=='Done');
+    if(t){ t.status='Done'; addEvent(t, ev('sys', meShort(), '調査報告を作成したので完了')); }
+  }
+  notify(state.role, `調査報告を作成しました（${deal.ref}）`, deal.id);
+  audit('調査報告', name, deal.ref);
+  openDoc({name, kind:'report'}, deal);
 }
 function docsOf(it){
   const r=rootOf(it); if(!r) return [];
@@ -4962,6 +5035,7 @@ function docsOf(it){
   if(r.id==='841'){ list.push({name:'調査報告書（9/19）', kind:'report'},{name:'見積書 v1（¥1,500,000）', kind:'quote'}); }
   if(r.id==='2103') list.push({name:'前回点検報告書（2025-10）', kind:'report'});
   if(r.id==='44') list.push({name:'完了報告書', kind:'report'},{name:'10年保証書', kind:'warranty'});
+  (DEAL_DOCS[r.id]||[]).forEach(d=>list.unshift(d));
   issues.filter(i=>rootOf(i)===r && i.kind==='task' && i.title.startsWith('見積 ')).forEach((q,n)=>list.push({name:`見積書 v${n+2}（${q.title.replace('見積 ','')}）`, kind:'quote', it:q}));
   return list;
 }
@@ -5272,7 +5346,16 @@ Object.assign(MGMT, {
       const n=nextOf(CT_FLOW,r.status); if(!n) return a;
       const label={'署名待ち':'契約書を作成','受注登録待ち':'署名を確認','完了':'受注登録'}[n];
       a.push({l:label, c:'bp', f:()=>{ r.status=n; mlog(r,label);
-        if(n==='完了' && r.dealId==='841'){ const j=byId('841-j1'); if(j && j.status!=='Done'){ j.status='Done'; addEvent(j, ev('sys', meShort(), '契約書類整備・受注登録 完了')); } }
+        if(n==='完了'){
+          if(r.dealId==='841'){ const j=byId('841-j1'); if(j && j.status!=='Done'){ j.status='Done'; addEvent(j, ev('sys', meShort(), '契約書類整備・受注登録 完了')); } }
+          const deal=r.dealId?byId(r.dealId):null;
+          const title=(deal&&deal.title)||(`${r.cust} 施工`);
+          if(!UNASSIGNED.some(u=>u.deal===String(r.dealId||'') || u.t===title)){
+            UNASSIGNED.push({id:'u'+Date.now(), t:title.replace(/^ES-\d+-/,'').slice(0,40), ref:r.deal, deal:String(r.dealId||''), gate:true});
+          }
+          notify('koji', `受注登録完了 → 施工予定の未割当へ: ${r.deal}`, r.dealId||null);
+          toast('受注登録完了。施工予定・人員アサインの未割当に追加しました');
+        }
       }});
       return a;
     },
