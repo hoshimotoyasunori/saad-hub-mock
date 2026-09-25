@@ -61,23 +61,18 @@ body.is-mobile .shell{height:auto;min-height:100%}
 .notif .empty{padding:14px 12px;font-size:12px;color:var(--muted)}
 
 /* portal — GitHubダッシュボード型: 左=自分の道具箱 / 中央=仕事と共有 / 右=今日と導線（Primer調） */
-.portal{display:grid;grid-template-columns:232px minmax(0,1fr) 260px;background:#fff;min-height:100%}
-.portal.side-collapsed{grid-template-columns:44px minmax(0,1fr) 260px}
-@media(max-width:960px){.portal{grid-template-columns:1fr}.portal.side-collapsed{grid-template-columns:1fr}.db-main{order:1}.db-side{order:2}.db-rail{order:3}.db-side,.db-rail{border-right:0;border-left:0;border-top:1px solid var(--line)}}
+.portal{display:grid;grid-template-columns:minmax(0,1fr) 260px;background:#fff;min-height:100%}
+@media(max-width:960px){.portal{grid-template-columns:1fr}.db-main{order:1}.db-rail{order:2}.db-rail{border-right:0;border-left:0;border-top:1px solid var(--line)}}
 .db-side{padding:16px 14px;border-right:1px solid var(--line);background:#fff;position:relative;min-width:0}
-.portal.side-collapsed .db-side{padding:10px 6px;overflow:hidden}
-.portal.side-collapsed .db-side-body{display:none}
-.db-side-toggle{position:absolute;top:10px;right:8px;border:1px solid var(--line);background:#fff;border-radius:6px;width:26px;height:26px;font-size:12px;line-height:1;color:var(--muted);padding:0;z-index:1}
-.db-side-toggle:hover{border-color:var(--teal);color:var(--teal-deep)}
-.portal.side-collapsed .db-side-toggle{position:static;width:100%;height:32px;margin:0}
-.nav-drawer{position:absolute;inset:0;z-index:40;pointer-events:none;opacity:0;visibility:hidden;transition:opacity .15s,visibility .15s}
-.nav-drawer.open{pointer-events:auto;opacity:1;visibility:visible}
-.nav-drawer .nav-scrim{position:absolute;inset:0;background:rgba(12,18,34,.35);border:0;width:100%;height:100%;cursor:pointer;padding:0}
-.nav-drawer .nav-panel{position:absolute;left:0;top:0;bottom:0;width:min(280px,88%);background:#fff;border-right:1px solid var(--line);box-shadow:8px 0 28px rgba(12,18,34,.14);padding:14px 12px 18px;overflow:auto;transform:translateX(-104%);transition:transform .18s ease}
-.nav-drawer.open .nav-panel{transform:translateX(0)}
-.nav-panel .nav-top{display:flex;align-items:center;gap:8px;margin-bottom:12px}
-.nav-panel .nav-top h3{margin:0;font-size:13.5px;flex:1}
-.nav-panel .nav-x{border:0;background:#eff1f3;border-radius:6px;width:28px;height:28px;font-size:16px;line-height:1;color:var(--muted)}
+/* 全画面共通サイドバー（ポータル左欄と同じ中身を案件台帳・マスタ等でも開閉） */
+.body-row{flex:1;min-height:0;display:flex;overflow:hidden;position:relative}
+.global-side{flex:none;width:0;overflow:hidden;opacity:0;border-right:0;background:#fff;padding:0;transition:width .16s ease,opacity .12s,padding .16s}
+.app.side-open .global-side{width:232px;opacity:1;border-right:1px solid var(--line);padding:14px 12px 18px;overflow:auto}
+.global-side .side-head{display:flex;align-items:center;gap:8px;margin:0 0 10px}
+.global-side .side-head h3{margin:0;font-size:13px;flex:1}
+.global-side .side-x{border:1px solid var(--line);background:#fff;border-radius:6px;width:26px;height:26px;font-size:12px;line-height:1;color:var(--muted);padding:0}
+.global-side .side-x:hover{border-color:var(--teal);color:var(--teal-deep)}
+.app.mobile .global-side,.app.mobile.side-open .global-side{display:none;width:0;padding:0;border:0}
 .gheader .menubtn{border:0;background:#243049;color:#c5d0e0;border-radius:8px;padding:6px 10px;font-size:14px;flex:none;line-height:1}
 .gheader .menubtn[aria-expanded="true"]{background:var(--teal);color:#fff}
 .db-me{display:flex;align-items:center;gap:9px;margin-bottom:16px}
@@ -505,11 +500,10 @@ tr.is-picked{background:#f0faf9}
     </div>
     <div class="notif" id="notif"></div>
     <div class="notif" id="newMenu"></div>
-    <div class="nav-drawer" id="navDrawer" aria-hidden="true">
-      <button type="button" class="nav-scrim" id="navScrim" aria-label="閉じる"></button>
-      <aside class="nav-panel" id="navPanel"></aside>
+    <div class="body-row" id="bodyRow">
+      <aside class="global-side" id="globalSide" aria-label="道具箱" hidden></aside>
+      <div class="main" id="main"></div>
     </div>
-    <div class="main" id="main"></div>
   </div>
 
   <div class="cov" id="cov"></div>
@@ -784,7 +778,7 @@ const BOARD_NEW={
 };
 
 let state = { role:'sales', screen:'portal', view:'all', sel:null, repo:null, wipKey:null, mScreen:'mhome', customer:null, property:null, crmAxis:'customer', crmQ:'', crmDomain:'', crmBranch:'', crmRegi:'', crmFilterOpen:false, crmPage:0,
-  navOpen:false, portalSideCollapsed:false,
+  sideOpen:false,
   picked:new Set(),
   sortKey:'upd', sortDir:'desc',
   scope:'role', /* role | self | branch | all */
@@ -1033,7 +1027,7 @@ function go(screen, opts={}){
   if(opts.repo!==undefined) state.repo=opts.repo;
   if(opts.wip!==undefined) state.wipKey=opts.wip;
   if(screen!=='board' && screen!=='repo') state.sel=null;
-  $('notif').classList.remove('open'); $('newMenu').classList.remove('open'); closeNavDrawer();
+  $('notif').classList.remove('open'); $('newMenu').classList.remove('open');
   render();
   const main=$('main'); if(main) main.scrollTop=0;
 }
@@ -1057,7 +1051,9 @@ function render(){
   $('app').classList.toggle('mobile', mobile);
   if(mobile){
     $('app').classList.remove('has-panel');
+    $('app').classList.remove('side-open');
     $('notif').classList.remove('open');
+    const gs=$('globalSide'); if(gs){ gs.hidden=true; gs.innerHTML=''; }
     renderMobile();
     renderCov();
     return;
@@ -1081,6 +1077,7 @@ function render(){
   else if(s==='myreq') renderMyReq();
   else if(s==='bi') renderBI();
   const mc=myPendingCount(); $('myCount').style.display=mc?'':'none'; $('myCount').textContent=mc;
+  syncGlobalSide();
   renderCov();
 }
 function renderRoleBadges(){
@@ -1288,29 +1285,34 @@ function navSideBodyHtml(){
 }
 function bindNavSide(root){
   if(!root) return;
-  const closeThen=fn=>{ closeNavDrawer(); fn(); };
-  root.querySelectorAll('[data-repo]').forEach(b=>b.onclick=()=>closeThen(()=>go('repo',{repo:b.dataset.repo})));
-  root.querySelectorAll('[data-screen]').forEach(b=>b.onclick=()=>closeThen(()=>go(b.dataset.screen, b.dataset.screen==='mgmt'?{mgmt:null}:{})));
-  root.querySelectorAll('[data-ext]').forEach(b=>b.onclick=()=>closeThen(()=>openShortcut(b.dataset.ext)));
-  root.querySelectorAll('[data-navgo]').forEach(b=>b.onclick=()=>closeThen(()=>go(b.dataset.navgo)));
+  root.querySelectorAll('[data-repo]').forEach(b=>b.onclick=()=>go('repo',{repo:b.dataset.repo}));
+  root.querySelectorAll('[data-screen]').forEach(b=>b.onclick=()=>go(b.dataset.screen, b.dataset.screen==='mgmt'?{mgmt:null}:{}));
+  root.querySelectorAll('[data-ext]').forEach(b=>b.onclick=()=>openShortcut(b.dataset.ext));
+  root.querySelectorAll('[data-navgo]').forEach(b=>b.onclick=()=>go(b.dataset.navgo));
 }
-function openNavDrawer(){
-  state.navOpen=true;
-  const d=$('navDrawer'), p=$('navPanel'), btn=$('navBtn');
-  if(!d||!p) return;
-  p.innerHTML=`<div class="nav-top"><h3>道具箱</h3><button type="button" class="nav-x" id="navClose" aria-label="閉じる">×</button></div>${navSideBodyHtml()}`;
-  d.classList.add('open'); d.setAttribute('aria-hidden','false');
-  if(btn) btn.setAttribute('aria-expanded','true');
-  bindNavSide(p);
-  const cx=$('navClose'); if(cx) cx.onclick=closeNavDrawer;
+function syncGlobalSide(){
+  const side=$('globalSide'), btn=$('navBtn'), app=$('app');
+  if(!side||!app) return;
+  const open=!!state.sideOpen && !isMobile();
+  app.classList.toggle('side-open', open);
+  if(btn){
+    btn.setAttribute('aria-expanded', open?'true':'false');
+    btn.setAttribute('aria-label', open?'道具箱を閉じる':'道具箱を開く');
+    btn.title=open?'道具箱を閉じる':'道具箱（アプリ・ショートカット）';
+  }
+  if(!open){
+    side.hidden=true;
+    side.innerHTML='';
+    return;
+  }
+  side.hidden=false;
+  side.innerHTML=`<div class="side-head"><h3>道具箱</h3><button type="button" class="side-x" id="sideClose" title="閉じる" aria-label="サイドバーを閉じる">«</button></div>${navSideBodyHtml()}`;
+  bindNavSide(side);
+  const cx=$('sideClose'); if(cx) cx.onclick=()=>{ state.sideOpen=false; syncGlobalSide(); };
 }
-function closeNavDrawer(){
-  state.navOpen=false;
-  const d=$('navDrawer'), btn=$('navBtn');
-  if(d){ d.classList.remove('open'); d.setAttribute('aria-hidden','true'); }
-  if(btn) btn.setAttribute('aria-expanded','false');
-}
-function toggleNavDrawer(){ state.navOpen?closeNavDrawer():openNavDrawer(); }
+function openNavDrawer(){ state.sideOpen=true; syncGlobalSide(); }
+function closeNavDrawer(){ state.sideOpen=false; syncGlobalSide(); }
+function toggleNavDrawer(){ state.sideOpen=!state.sideOpen; syncGlobalSide(); }
 
 function renderWip(){
   const w=WIP[state.wipKey]||{
@@ -1444,12 +1446,9 @@ function renderPortal(){
   issues.forEach(i=>(i.tl||[]).forEach(e=>{ if(e.t==='sys') recent.push({id:i.id, ref:i.ref, text:e.text}); }));
   const rec=recent.slice(-4).reverse().map(e=>`<li><button type="button" data-open="${e.id}"><b>${e.ref}</b><br>${e.text}</button></li>`).join('');
 
-  const sideCollapsed=!!state.portalSideCollapsed;
-  $('main').innerHTML=`<div class="portal${sideCollapsed?' side-collapsed':''}">
-    <aside class="db-side">
-      <button type="button" class="db-side-toggle" id="portalSideToggle" title="${sideCollapsed?'サイドバーを開く':'サイドバーを閉じる'}" aria-label="サイドバー開閉">${sideCollapsed?'»':'«'}</button>
-      <div class="db-side-body">${navSideBodyHtml()}</div>
-    </aside>
+  /* 左の道具箱はグローバルサイドバー（☰）で全画面共通。ポータルでは自動で開く */
+  if(!state._sideTouched) state.sideOpen=true;
+  $('main').innerHTML=`<div class="portal">
     <div class="db-main">
       <div class="sec-h"><h3>自分の申請・登録</h3><button type="button" class="more" id="goMy">すべて →</button></div>
       <div class="my-sum">${(()=>{ const rs=myReqRows(); const n=s=>rs.filter(r=>r.st===s).length;
@@ -1494,9 +1493,6 @@ function renderPortal(){
   $('portalNew').onclick=()=>{ renderNewMenu(); $('newMenu').classList.add('open'); };
   $('main').querySelectorAll('[data-myg]').forEach(b=>b.onclick=()=>{ state.myTab=b.dataset.myg; go('myreq'); });
   $('goMine').onclick=()=>{ state.view='mine'; go('board'); };
-  const pst=$('portalSideToggle');
-  if(pst) pst.onclick=()=>{ state.portalSideCollapsed=!state.portalSideCollapsed; render(); };
-  bindNavSide($('main').querySelector('.db-side-body'));
   $('main').querySelectorAll('.db-rail [data-ext], .db-main [data-ext]').forEach(b=>b.onclick=()=>openShortcut(b.dataset.ext));
   $('main').querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>openIssue(b.dataset.open));
   const ara=$('annReadAll'); if(ara) ara.onclick=()=>{ ANNOUNCEMENTS.forEach(a=>a.read=true); audit('通達','全部既読'); render(); };
@@ -4742,12 +4738,15 @@ Object.entries(ROLES).forEach(([id,r])=>{
   const b=document.createElement('button'); b.type='button'; b.className='role'; b.textContent=r.label; b.dataset.role=id;
   b.onclick=()=>setRole(id); $('roles').appendChild(b);
 });
-$('bellBtn').onclick=()=>{ closeNavDrawer(); $('newMenu').classList.remove('open'); $('notif').classList.toggle('open'); };
-$('newBtn').onclick=()=>{ closeNavDrawer(); $('notif').classList.remove('open'); renderNewMenu(); $('newMenu').classList.toggle('open'); };
-$('myBtn').onclick=()=>{ closeNavDrawer(); $('newMenu').classList.remove('open'); go('myreq'); };
-$('navBtn').onclick=()=>{ $('notif').classList.remove('open'); $('newMenu').classList.remove('open'); toggleNavDrawer(); };
-$('navScrim').onclick=closeNavDrawer;
-document.addEventListener('keydown',e=>{ if(e.key==='Escape' && state.navOpen) closeNavDrawer(); });
+$('bellBtn').onclick=()=>{ $('newMenu').classList.remove('open'); $('notif').classList.toggle('open'); };
+$('newBtn').onclick=()=>{ $('notif').classList.remove('open'); renderNewMenu(); $('newMenu').classList.toggle('open'); };
+$('myBtn').onclick=()=>{ $('newMenu').classList.remove('open'); go('myreq'); };
+$('navBtn').onclick=()=>{
+  state._sideTouched=true;
+  $('notif').classList.remove('open'); $('newMenu').classList.remove('open');
+  toggleNavDrawer();
+};
+document.addEventListener('keydown',e=>{ if(e.key==='Escape' && state.sideOpen){ state._sideTouched=true; closeNavDrawer(); } });
 $('search').addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); state.searchQ=e.target.value; go('search'); }});
 $('app').addEventListener('wheel', e=>{
   const main=$('main'); if(!main) return;
