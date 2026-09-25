@@ -96,11 +96,19 @@ button.card{display:block;width:100%;text-align:left;cursor:pointer;font:inherit
 /* 予定（時間軸） */
 .tl-row{display:flex;gap:12px;padding:9px 2px;align-items:flex-start}
 .tl-row time{flex:0 0 44px;font-size:15px;font-weight:700;color:var(--ink);padding-top:2px}
-.tl-row .body{flex:1;background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.tl-row .body{flex:1;background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px 12px;text-align:left;font:inherit;color:inherit;cursor:pointer;width:100%}
+button.tl-row{width:100%;border:0;background:transparent;padding:9px 2px;cursor:pointer}
+button.tl-row:active .body,button.tl-row:hover .body{border-color:var(--accent);background:#f3f8fd}
 .tl-row .body .tt{font-size:15.6px;font-weight:700}
 .tl-row .body .ts{font-size:13.8px;color:var(--muted);margin-top:2px}
+.tl-row .body .acthint{margin-top:6px;font-size:12.6px;font-weight:700;color:var(--accent)}
+.tl-row.arrived:not(.done) .body{border-color:#7eb8a0;background:#f3faf6}
 .tl-row.done .body{opacity:.55}
 .tl-row.done .tt{text-decoration:line-through}
+.tl-row .stpill{display:inline-block;border-radius:6px;padding:1px 7px;font-size:11.4px;font-weight:700;margin-right:4px}
+.tl-row .stpill.wait{background:var(--warn-bg);color:var(--warn)}
+.tl-row .stpill.on{background:#e8f1fb;color:var(--accent)}
+.tl-row .stpill.ok{background:var(--ok-bg);color:var(--ok)}
 
 /* ステッパー */
 .stepper{display:flex;align-items:center;margin:12px 0 4px}
@@ -421,6 +429,34 @@ const DEALS={
     ]},
 };
 
+/* 今日の予定（PC CAL_EVENTS と同じ・タップで到着→活動報告） */
+const TODAY_EV=[
+  {id:'e1', tm:'9:00', title:'横浜支店ビル 現地調査', sub:'sfa#841 · 株式会社サンプル', deal:'d1', kind:'visit', addr:'横浜市西区みなとみらい1-1', prop:'横浜支店ビル', cust:'株式会社サンプル'},
+  {id:'e2', tm:'13:30', title:'藤沢 定期点検の訪問', sub:'佐藤さま · 戸建（藤沢・木造2F）', deal:'d2', kind:'visit', addr:'藤沢市鵠沼3-2', prop:'戸建（藤沢・木造2F）', cust:'佐藤 一郎'},
+  {id:'e3', tm:'終日', title:'見積提示期限（佐藤さま）', sub:'sfa#2103 · 今日まで', deal:'d2', kind:'deadline', addr:'', prop:'', cust:'佐藤 一郎'},
+];
+function evById(id){ return TODAY_EV.find(e=>e.id===id); }
+function evStatus(e){
+  if(!e) return 'none';
+  if(e.kind==='deadline') return state.reported[e.id]?'done':'todo';
+  if(state.reported[e.id]) return 'done';
+  if(state.arrived[e.id]) return 'arrived';
+  return 'todo';
+}
+function schedRows(list){
+  return list.map(e=>{
+    const st=evStatus(e);
+    const cls=st==='done'?' done':st==='arrived'?' arrived':'';
+    const pill=st==='done'?'<span class="stpill ok">報告済</span>'
+      :st==='arrived'?'<span class="stpill on">到着済</span>'
+      :e.kind==='visit'?'<span class="stpill wait">未到着</span>':'<span class="stpill wait">未報告</span>';
+    const hint=st==='done'?'タップで内容を確認'
+      :st==='arrived'?'▶ 活動を報告する'
+      :e.kind==='visit'?'▶ 現場到着から始める':'▶ 報告する';
+    return `<button type="button" class="tl-row${cls}" data-ev="${e.id}"><time>${e.tm}</time><div class="body"><div class="tt">${pill}${e.title}</div><div class="ts">${e.sub}</div><div class="acthint">${hint}</div></div></button>`;
+  }).join('');
+}
+
 /* ============ 機能カタログ（未実装＝今後実装予定画面へ） ============ */
 const WIPS={
   ringi:{ic:'🧾',t:'稟議を申請',what:['値引き・特価・契約着手の申請をスマホから出す','金額で承認ルート（拠点長→管理部）が自動で決まる','結果は通知に届き、案件の履歴に残る'],ph:'P1 — 最初の実装段階',now:'PC版の稟議View、または営業所で申請'},
@@ -495,8 +531,9 @@ const state={
   propDom:'', propBr:'', propRegi:'', propFilt:false,
   ringi:'pending',            // pending → ok / back
   gateD1:false,               // #841 横浜支店ビルの着工OK
-  entered:{}, done:{},        // dealId → bool（現場ごとの入場・完了）
-  sheetDeal:null,
+  entered:{}, done:{},        // dealId → bool（施工入場・完了）
+  arrived:{}, reported:{},    // eventId → bool（顧客・物件活動: 到着→報告）
+  sheetEv:null, sheetDeal:null,
   notifs:{
     sales:[{ic:'⏰',tt:'見積提示の期限が今日です（9/25）',ss:'佐藤 一郎 — HS-2026-2103 定期点検更新',when:'9:05',go:{deal:'d2'},unread:true},
            {ic:'🔔',tt:'値引起案（12%）は拠点長の承認待ち',ss:'sfa#841 株式会社サンプル / 横浜支店ビル',when:'8:50',go:{deal:'d1'},unread:true}],
@@ -570,15 +607,19 @@ function effStage(id){
 /* ================= ホーム ================= */
 function homeSales(){
   const focus = state.ringi==='back' ? '差戻しが1件（サンプル社 値引12%）。見直して再申請しましょう。'
-    : '今日は横浜支店ビルの現地調査と、佐藤さまの見積提示。稟議の結果は通知に届きます。';
+    : '今日は横浜支店ビルの現地調査と、佐藤さまの訪問。現場到着→活動報告の順です。';
+  const focusEv=TODAY_EV.find(e=>e.kind==='visit'&&evStatus(e)!=='done')||TODAY_EV[1];
+  const fst=evStatus(focusEv);
+  const cta=fst==='arrived'?'✏️ 活動を報告する':'📍 現場到着を報告する';
+  const ctaSub=fst==='arrived'?'到着済み — 活動の結果を残しましょう':'顧客・物件の活動は到着報告から始まります';
   return `<div class="hgreet"><h2>おはようございます、星本さん</h2><p>${focus}</p></div>
 
   <div class="sec">いまやること</div>
-  <button class="card hero" data-sheet="report">
-    <div class="k">13:30 訪問 · 佐藤 一郎さま宅（藤沢）</div>
-    <div class="t">定期点検の訪問 — 終わったらその場で報告</div>
-    <div class="s">住所: 藤沢市鵠沼3-2 · HS-2026-2103</div>
-    <div class="btnrow"><span class="abtn p">✏️ 報告する（3タップ）</span></div>
+  <button class="card hero" data-ev="${focusEv.id}">
+    <div class="k">${focusEv.tm} · ${focusEv.cust||''}</div>
+    <div class="t">${focusEv.title}</div>
+    <div class="s">${focusEv.addr?`住所: ${focusEv.addr} · `:''}${ctaSub}</div>
+    <div class="btnrow"><span class="abtn p">${cta}</span></div>
   </button>
   <button class="card" data-deal="d2">
     <div class="k"><span class="tagP">今日 期限</span> sfa#2103</div>
@@ -596,10 +637,9 @@ function homeSales(){
     <div class="s">田中拠点長: 値引き幅の再検討を。−8%なら即決します</div>
   </button>`:''}
 
-  <div class="sec">今日の予定（PCカレンダーと同じ）</div>
-  <div class="tl-row"><time>9:00</time><div class="body"><div class="tt">横浜支店ビル 現地調査</div><div class="ts">sfa#841 · 株式会社サンプル</div></div></div>
-  <div class="tl-row"><time>13:30</time><div class="body"><div class="tt">藤沢 定期点検の訪問</div><div class="ts">佐藤さま — 上のカードから報告</div></div></div>
-  <div class="tl-row"><time>終日</time><div class="body"><div class="tt">見積提示期限（佐藤さま）</div><div class="ts">sfa#2103 · 今日まで</div></div></div>
+  <div class="sec">今日の予定（タップで到着・報告）</div>
+  ${schedRows(TODAY_EV)}
+  <div class="note" style="margin-top:4px">顧客・物件の活動は <b>現場到着 → 活動報告</b> の順。タップすると次の一手が出ます。</div>
 
   <div class="sec">申請の進み <button data-sub="myreq" style="margin-left:auto;border:0;background:none;color:var(--accent);font-size:13.8px;font-weight:700;cursor:pointer">自分の申請 ›</button></div>
   ${state.ringi==='pending'?`<div class="card"><div class="k">値引起案（サンプル社 12% · ringi#12）</div><div class="wait" style="margin-top:8px">⏳ 田中拠点長の承認待ち — 結果は通知に届きます</div></div>`:''}
@@ -701,9 +741,19 @@ function dealDetail(id){
   if(id==='d44') next='Close済の対比用。請求・入金まで完了しています';
 
   const acts=[];
-  if(state.role==='sales') acts.push(`<button class="abtn p" data-sheet="report">✏️ 報告する</button>`);
+  if(state.role==='sales'){
+    const visitEv=TODAY_EV.find(e=>e.deal===id&&e.kind==='visit');
+    if(visitEv){
+      const st=evStatus(visitEv);
+      if(st==='todo') acts.push(`<button class="abtn p" data-ev="${visitEv.id}">📍 現場到着を報告</button>`);
+      else if(st==='arrived') acts.push(`<button class="abtn p" data-ev="${visitEv.id}">✏️ 活動を報告</button>`);
+      else acts.push(`<button class="abtn g" data-ev="${visitEv.id}">✓ 到着・報告済み</button>`);
+    } else {
+      acts.push(`<button class="abtn p" data-sheet="report">✏️ 活動を報告</button>`);
+    }
+  }
   if(state.role==='koji'&&(id==='d3'||(id==='d1'&&state.gateD1))){
-    if(!state.entered[id]) acts.push(`<button class="abtn p" data-enter="${id}">📍 入場を報告</button>`);
+    if(!state.entered[id]) acts.push(`<button class="abtn p" data-enter="${id}">📍 現場到着（入場）を報告</button>`);
     else if(!state.done[id]) acts.push(`<button class="abtn g" data-sheet="done">📷 完了を報告</button>`);
   }
   if(state.role==='boss'&&id==='d1'&&state.ringi==='pending') acts.push(`<button class="abtn p" data-approve="r1">承認画面を開く</button>`);
@@ -824,11 +874,12 @@ function menuView(){
 function helpView(){
   return `<div class="dethead"><button class="backbtn" data-back="1">‹ 戻る</button><h2>使い方（3分）</h2></div>
   ${[['🏠 ホーム＝今日やること','開いた瞬間に「次の一手」が出ます。迷ったらホームに戻る'],
-     ['✏️ 報告は3タップ','結果を選ぶ→ひとことを選ぶ→送信。文章を書かなくていい（あとから追記も可能）'],
+     ['📍 活動は到着から','顧客・物件の予定はタップ → 現場到着 → 活動報告の順。期限タスクは報告のみ'],
+     ['✏️ 活動報告は3タップ','結果を選ぶ→ひとことを選ぶ→送信。文章を書かなくていい（あとから追記も可能）'],
      ['⏳ 待ちが見える','各案件に「いま誰待ちか」が出ます。あなたの番なら青、待ちなら黄色'],
      ['🔔 通知＝あなた宛だけ','承認された・着工OK・差戻し。タップでその仕事に飛べます'],
      ['☰ メニュー＝道具箱','顧客・物件台帳は「検索」と「絞り込み」が別。迷ったら ☰'],
-     ['💻 PCと同じデータ','ここでの報告はPC版台帳の同じ案件に載ります。二重入力はありません']]
+     ['💻 PCと同じデータ','ここでの到着・報告はPC版台帳の同じ案件に載ります。二重入力はありません']]
     .map(([t,s])=>`<div class="card"><div class="t" style="margin-top:0">${t}</div><div class="s">${s}</div></div>`).join('')}`;
 }
 /* ---- 今後実装予定（WIP）画面 ---- */
@@ -1176,9 +1227,12 @@ function docsView(){
   ${docs.map(([n,dt],i)=>`<button class="card" data-mdoc="${i}" style="width:100%;text-align:left"><div class="k">📄 ${dt}</div><div class="t">${n}</div>${state.mdoc===i?`<div class="ann-body">（PDFプレビュー）${n} — ${d?d.cust:''}。お客さまにこの画面を見せる／メールで送る。</div>`:'<div class="s">タップでプレビュー</div>'}</button>`).join('')}`;
 }
 function calView(){
-  const days=[['9/25(木)',['9:00 横浜支店ビル 現地調査','13:30 藤沢 定期点検の訪問','終日 見積提示期限（佐藤さま）']],['9/26(金)',['10:00 拠点会議','16:00 SAADモック説明会']],['9/29(月)',['9:00 相模原 定期点検 3件']]];
+  const later=[['9/26(金)',[{tm:'10:00',t:'拠点会議',note:'社内'},{tm:'16:00',t:'SAADモック説明会',note:'全社'}]],['9/29(月)',[{tm:'9:00',t:'相模原 定期点検 3件',note:'施工スケジュール'}]]];
   return `<div class="dethead"><button class="backbtn" data-back="1">‹ 戻る</button><h2>カレンダー・予定</h2><div class="sub">Googleカレンダーと同期（予定はPCと共通）</div></div>
-  ${days.map(([d,es])=>`<div class="sec">${d}</div>${es.map(e=>`<div class="tl-row"><time>${e.split(' ')[0]}</time><div class="body"><div class="tt">${e.split(' ').slice(1).join(' ')}</div></div></div>`).join('')}`).join('')}`;
+  <div class="sec">今日 9/25(木) — タップで到着・報告</div>
+  ${schedRows(TODAY_EV)}
+  ${later.map(([d,es])=>`<div class="sec">${d}</div>${es.map(e=>`<div class="tl-row"><time>${e.tm}</time><div class="body"><div class="tt">${e.t}</div><div class="ts">${e.note}</div></div></div>`).join('')}`).join('')}
+  <div class="note">顧客・物件に紐づく予定は現場到着から始まり、活動後に報告します。</div>`;
 }
 function biView(){
   const k=[['今月の売上','812万円'],['成約','14件'],['訪問','63件'],['未回収','238万円'],['承認待ち','2件'],['点検の未実施','4件']];
@@ -1234,11 +1288,19 @@ function doMSend2(kind){
 }
 
 /* ================= シート（報告・ランチャー） ================= */
-function openSheet(kind){
+function openSheet(kind, opts){
+  opts=opts||{};
   state.sheet=kind; state.pick={};
-  if(kind==='done') state.sheetDeal=state.deal||'d3';
+  if(opts.ev){ state.sheetEv=opts.ev; const e=evById(opts.ev); if(e){ state.pick.deal=e.deal; state.sheetDeal=e.deal; } }
+  if(kind==='done') state.sheetDeal=state.deal||state.sheetDeal||'d3';
+  if(kind==='report' && state.sheetEv){ const e=evById(state.sheetEv); if(e) state.pick.deal=e.deal; }
   renderSheet();
   $('ovl').classList.add('show'); $('sheet').classList.add('show');
+}
+function openEvSheet(evId){
+  const e=evById(evId); if(!e) return;
+  state.sheetEv=evId;
+  openSheet('actmenu', {ev:evId});
 }
 function closeSheet(){
   state.sheet=null;
@@ -1251,25 +1313,73 @@ function renderSheet(){
   if(state.sheet==='launcher'){
     title='何をしますか？';
     const items = state.role==='koji'
-      ? [['📍','入場を報告','現場に着いたらワンタップ','enter'],['📷','写真・完了を報告','作業前後の写真とチェック','done'],['📦','資材を注文','現場からワンタップ発注','sub:buyForm'],['⚠️','ヒヤリハット報告','安全衛生へ共有','wip:anzen'],['🧑‍💼','休暇・勤怠','打刻・休暇申請','wip:jinji']]
+      ? [['📍','現場到着（入場）を報告','現場に着いたらワンタップ','enter'],['📷','写真・完了を報告','作業前後の写真とチェック','done'],['📦','資材を注文','現場からワンタップ発注','sub:buyForm'],['⚠️','ヒヤリハット報告','安全衛生へ共有','wip:anzen'],['🧑‍💼','休暇・勤怠','打刻・休暇申請','wip:jinji']]
       : state.role==='boss'
-      ? [['✅','承認する','待ちキューを開く','goboss'],['📊','拠点の数字を見る','売上・成約・訪問','wip:bi'],['✏️','訪問を報告','自分の同行分','report'],['🚗','経費を申請','出張・車両','wip:keihi']]
-      : [['📞','問い合わせを登録','受けたその場で1件','sub:leadForm'],['✏️','訪問を報告','結果チップで3タップ','report'],['📷','写真を報告','調査・現場の写真','wip:photo'],['🧾','稟議を申請','値引き・特価・着手','sub:ringiForm'],['🧮','見積を作る','標準単価から自動計算','wip:quote'],['📦','資材を注文','施工前の手配','sub:buyForm'],['👤','顧客を登録','その場で仮登録（30秒）','sub:custreg'],['🚗','経費を申請','出張・立替','wip:keihi']];
+      ? [['✅','承認する','待ちキューを開く','goboss'],['📊','拠点の数字を見る','売上・成約・訪問','wip:bi'],['📍','現場到着を報告','同行訪問の開始','arrive-pick'],['✏️','活動を報告','到着後に結果を残す','report'],['🚗','経費を申請','出張・車両','wip:keihi']]
+      : [['📍','現場到着を報告','顧客・物件活動の開始','arrive-pick'],['✏️','活動を報告','到着後に結果を残す','report'],['📞','問い合わせを登録','受けたその場で1件','sub:leadForm'],['📷','写真を報告','調査・現場の写真','wip:photo'],['🧾','稟議を申請','値引き・特価・着手','sub:ringiForm'],['🧮','見積を作る','標準単価から自動計算','wip:quote'],['📦','資材を注文','施工前の手配','sub:buyForm'],['👤','顧客を登録','その場で仮登録（30秒）','sub:custreg'],['🚗','経費を申請','出張・立替','wip:keihi']];
     body=items.map(([ic,tt,ss,act])=>`<button class="launch" data-launch="${act}"><span class="ic">${ic}</span><span><div class="tt">${tt}</div><div class="ss">${ss}</div></span></button>`).join('')
       +`<p class="note" style="margin-top:4px">🚧 マークのない項目は今すぐ使えます。準備中の項目は「今後実装予定」の画面が開きます。</p>`;
   }
+  if(state.sheet==='actmenu'){
+    const e=evById(state.sheetEv)||TODAY_EV[0];
+    const st=evStatus(e);
+    const d=DEALS[e.deal];
+    title=e.title;
+    const items=[];
+    if(e.kind==='visit'){
+      if(st==='todo') items.push(['📍','現場到着を報告','GPS・時刻を残して活動を開始','arrive']);
+      else items.push(['✓','現場到着済み', state.arrived[e.id]?'到着報告済み — 履歴に記録済':'','arrived-done']);
+      if(st!=='done') items.push(['✏️','活動を報告', st==='todo'?'先に到着報告が必要です':'結果チップで残す（3タップ）', st==='todo'?'report-locked':'report']);
+      else items.push(['✓','活動報告済み','PC版のタイムラインに載っています','reported-done']);
+    } else {
+      items.push(['✏️','活動を報告','期限対応の結果を残す','report']);
+      if(st==='done') items.push(['✓','報告済み','','reported-done']);
+    }
+    items.push(['📁','案件の詳細を見る', d?`${d.cust} · ${d.ref||''}`:'', 'opendeal']);
+    body=`<p class="quiet" style="margin:0 0 10px">${e.tm} · ${e.sub}${e.addr?`<br>📍 ${e.addr}`:''}</p>
+      <div class="wait${st==='todo'&&e.kind==='visit'?'':' ok'}" style="margin-bottom:12px">${
+        e.kind==='visit'
+          ?(st==='todo'?'① 現場到着 → ② 活動報告 の順で進めます'
+            :st==='arrived'?'到着済み。次は活動報告です'
+            :'この予定の到着・報告は完了しています')
+          :(st==='done'?'報告済み':'期限対応の報告ができます')
+      }</div>
+      ${items.map(([ic,tt,ss,act])=>`<button class="launch" data-launch="${act}" ${act.includes('locked')||act.endsWith('-done')?'disabled style="opacity:.55"':''}><span class="ic">${ic}</span><span><div class="tt">${tt}</div><div class="ss">${ss}</div></span></button>`).join('')}`;
+  }
+  if(state.sheet==='arrive'){
+    const e=evById(state.sheetEv)||TODAY_EV[0];
+    const d=DEALS[e.deal];
+    title='現場到着を報告';
+    body=`<div class="card" style="margin:0 0 12px">
+      <div class="k"><span class="tagDom">${d?d.dom:''}</span> ${e.tm}</div>
+      <div class="t" style="margin-top:4px">${e.title}</div>
+      <div class="s">${e.cust||''}${e.prop?' · '+e.prop:''}<br>📍 ${e.addr||'（住所未設定）'}</div>
+    </div>
+    <div class="wait ok">到着時刻は端末の現在時刻で記録されます（モック: いま）</div>
+    <div class="slabel">ひとこと（任意）</div>
+    <div class="chips">${['間に合った','少し遅れ','先方待ち'].map(c=>`<button class="chip" data-pk="arrNote:${c}" aria-pressed="${state.pick.arrNote===c}">${c}</button>`).join('')}</div>
+    <button class="abtn p" style="margin-top:14px" data-send="arrive">📍 到着したことを報告する</button>
+    <p class="note">顧客・物件の活動は到着報告から始まります。このあと活動報告が出せるようになります。PC版の同じ案件タイムラインにも載ります。</p>`;
+  }
   if(state.sheet==='report'){
-    title='訪問を報告';
+    title='活動を報告';
     const p=state.pick;
-    body=`<div class="slabel">① どの予定？</div>
-      <button class="pick" data-pk="deal:d2" aria-pressed="${p.deal==='d2'}"><span>🕑</span><span><div class="tt">13:30 佐藤さま宅 — 定期点検訪問</div><div class="ss">sfa#2103 · 藤沢</div></span></button>
-      <button class="pick" data-pk="deal:d1" aria-pressed="${p.deal==='d1'}"><span>🕙</span><span><div class="tt">9:00 横浜支店ビル — 現地調査</div><div class="ss">sfa#841 · サンプル社</div></span></button>
+    const e=state.sheetEv&&evById(state.sheetEv);
+    /* 訪問予定のみ到着必須。期限タスク（見積提示など）は到着不要 */
+    const visitForDeal=(e&&e.kind==='visit')?e:(!e?TODAY_EV.find(x=>x.deal===(state.pick.deal)&&x.kind==='visit'):null);
+    const needArrive=!!(visitForDeal&&!state.arrived[visitForDeal.id]);
+    const visitEvList=TODAY_EV.filter(x=>x.kind==='visit');
+    body=`${needArrive?`<div class="wait" style="margin-bottom:10px">⚠ 先に現場到着を報告してください<button class="abtn p" style="margin-top:8px" data-goarrive="${visitForDeal.id}">📍 到着報告へ</button></div>`:''}
+      <div class="slabel">① どの予定・案件？</div>
+      ${visitEvList.map(x=>`<button class="pick" data-pk="deal:${x.deal}" data-setev="${x.id}" aria-pressed="${p.deal===x.deal}"><span>🕑</span><span><div class="tt">${x.tm} ${x.title}</div><div class="ss">${x.sub}${state.arrived[x.id]?' · 到着済':''}</div></span></button>`).join('')}
+      ${e&&e.kind==='deadline'?`<button class="pick" data-pk="deal:${e.deal}" aria-pressed="${p.deal===e.deal}"><span>⏰</span><span><div class="tt">${e.title}</div><div class="ss">${e.sub}</div></span></button>`:''}
       <div class="slabel">② 結果は？</div>
-      <div class="chips">${['説明完了','成約','再訪が必要','不在'].map(c=>`<button class="chip" data-pk="result:${c}" aria-pressed="${p.result===c}">${c}</button>`).join('')}</div>
+      <div class="chips">${(e&&e.kind==='deadline'?['見積送付済','電話で提示','延期','失注']:['説明完了','成約','再訪が必要','不在']).map(c=>`<button class="chip" data-pk="result:${c}" aria-pressed="${p.result===c}">${c}</button>`).join('')}</div>
       <div class="slabel">③ ひとこと（任意）</div>
       <div class="chips">${['次回見積提示','写真あり','要フォロー'].map(c=>`<button class="chip" data-pk="memo:${c}" aria-pressed="${p.memo===c}">${c}</button>`).join('')}</div>
       <textarea placeholder="補足があれば（なくてもOK）" id="repTxt"></textarea>
-      <button class="abtn p" style="margin-top:12px" data-send="report" ${p.deal&&p.result?'':'disabled style="margin-top:12px;opacity:.4"'}>送信する</button>`;
+      <button class="abtn p" style="margin-top:12px" data-send="report" ${p.deal&&p.result&&!needArrive?'':'disabled style="margin-top:12px;opacity:.4"'}>送信する</button>
+      <p class="note">活動報告はPC版の同じ案件タイムラインに載ります。訪問系は到着報告が前提です。</p>`;
   }
   if(state.sheet==='done'){
     title='完了を報告';
@@ -1295,17 +1405,28 @@ function wireSheet(){
   sh.querySelectorAll('[data-close]').forEach(b=>b.onclick=closeSheet);
   sh.querySelectorAll('[data-launch]').forEach(b=>b.onclick=()=>{
     const a=b.dataset.launch;
+    if(!a||a.endsWith('-done')||a==='report-locked') return;
     if(a.startsWith('wip:')){closeSheet();state.mf={};state.mDraftId=null;state.sub={wip:a.slice(4)};render();return;}
     if(a.startsWith('sub:')){closeSheet();state.deal=null;state.approving=null;state.mf={};state.sub=a.slice(4);render();return;}
     if(a==='goboss'){closeSheet();state.sub=null;state.tab='home';render();return;}
     if(a==='enter'){closeSheet();doEnter(state.deal||'d3');return;}
+    if(a==='opendeal'){ const e=evById(state.sheetEv); closeSheet(); if(e){ state.deal=e.deal; state.tab='deals'; state.sub=null; } render(); return; }
+    if(a==='arrive-pick'){
+      const next=TODAY_EV.find(e=>e.kind==='visit'&&evStatus(e)==='todo')||TODAY_EV.find(e=>e.kind==='visit');
+      if(!next){ toast('到着できる予定がありません'); return; }
+      openSheet('arrive',{ev:next.id}); return;
+    }
+    if(a==='arrive'){ openSheet('arrive',{ev:state.sheetEv}); return; }
+    if(a==='report'){ openSheet('report',{ev:state.sheetEv}); return; }
     openSheet(a);
   });
+  sh.querySelectorAll('[data-goarrive]').forEach(b=>b.onclick=()=>openSheet('arrive',{ev:b.dataset.goarrive}));
   sh.querySelectorAll('[data-pk]').forEach(b=>b.onclick=()=>{
     const [k,v]=b.dataset.pk.split(':');
     if(k==='chk'){state.pick.chk=state.pick.chk||[];const i=state.pick.chk.indexOf(v);i>=0?state.pick.chk.splice(i,1):state.pick.chk.push(v);}
     else if(k==='ph'){state.pick['ph'+v]=!state.pick['ph'+v];}
     else state.pick[k]=state.pick[k]===v?null:v;
+    if(b.dataset.setev) state.sheetEv=b.dataset.setev;
     renderSheet();
   });
   const pad=$('signPad');
@@ -1322,14 +1443,31 @@ function wireSheet(){
   }
   const sc=sh.querySelector('[data-signclr]'); if(sc) sc.onclick=()=>{ state.pick.signed=false; renderSheet(); };
   sh.querySelectorAll('[data-send]').forEach(b=>b.onclick=()=>{
+    if(b.dataset.send==='arrive'){
+      const e=evById(state.sheetEv); if(!e){toast('予定を選べません');return;}
+      doArriveEv(e.id, state.pick.arrNote);
+      closeSheet(); render(); return;
+    }
     if(b.dataset.send==='report'){
       const p=state.pick; if(!p.deal||!p.result){toast('予定と結果を選んでください');return;}
+      const e=state.sheetEv&&evById(state.sheetEv);
+      const visitGate=(e&&e.kind==='visit')?e:(!e?TODAY_EV.find(x=>x.deal===p.deal&&x.kind==='visit'):null);
+      if(visitGate&&!state.arrived[visitGate.id]){toast('先に現場到着を報告してください'); openSheet('arrive',{ev:visitGate.id}); return;}
+      if(visitGate) state.sheetEv=visitGate.id;
+      else if(e) state.sheetEv=e.id;
       const tx=($('repTxt')||{}).value||'';
+      const who=ROLES[state.role].name.slice(0,1);
       state._extra=state._extra||{}; state._extra[p.deal]=state._extra[p.deal]||[];
       const extra=[p.memo,tx].filter(Boolean).join(' / ');
-      state._extra[p.deal].unshift({d:nowD(),who:'星',t:`<b>訪問を報告 — ${p.result}</b>${extra?`<div class="m">${extra}</div>`:''}`});
-      closeSheet(); toast('✓ 報告しました — PC版の履歴にも載りました');
-      render();
+      const label=e&&e.kind==='deadline'?'期限対応を報告':'活動を報告';
+      state._extra[p.deal].unshift({d:nowD(),who,t:`<b>${label} — ${p.result}</b>${extra?`<div class="m">${extra}</div>`:''}`});
+      if(e) state.reported[e.id]=true;
+      else {
+        const hit=TODAY_EV.find(x=>x.deal===p.deal&&x.kind==='visit'&&state.arrived[x.id]&&!state.reported[x.id]);
+        if(hit) state.reported[hit.id]=true;
+      }
+      closeSheet(); state.sheetEv=null; toast('✓ 活動を報告しました — PC版の履歴にも載りました');
+      render(); return;
     }
     if(b.dataset.send==='done'){
       const p=state.pick; const pn=[0,1,2].filter(i=>p['ph'+i]).length;
@@ -1359,7 +1497,7 @@ function aiReplyM(q){
     return '稟議の進みは案件詳細のステッパーと通知で確認できます。差戻しがあればホームに戻ります。';
   }
   if(/宿題|今日|報告/.test(t)){
-    return `${r.name}さん（${r.label}）向け: ホームの「今日やること」から報告・入場・承認ができます。下部＋からも起票できます。`;
+    return `${r.name}さん（${r.label}）向け: ホームの「今日の予定」をタップし、現場到着→活動報告の順で進めます。下部＋からも起票できます。`;
   }
   if(/使い方|ヘルプ|どうやって/.test(t)){
     return '下部タブ「メニュー」→「このアプリの使い方」に手順があります。顧客さがしは右上🔍、通知は🔔です。';
@@ -1447,9 +1585,27 @@ function PEOPLE_NAME(r){ return r.name+'さん'; }
 
 /* ================= アクション ================= */
 function doEnter(id){
-  state.entered[id||'d3']=true;
-  toast('📍 入場を報告しました（9:02）');
+  const did=id||'d3';
+  state.entered[did]=true;
+  /* 施工現場も「到着」と同じ語彙で履歴に残す */
+  const who=ROLES[state.role].name.slice(0,1);
+  state._extra=state._extra||{}; (state._extra[did]=state._extra[did]||[]).unshift({d:nowD(),who,t:'<b>現場到着（入場）を報告</b><div class="m">作業を開始します</div>'});
+  toast('📍 現場到着を報告しました');
   render();
+}
+function doArriveEv(evId, note){
+  const e=evById(evId); if(!e) return;
+  if(state.arrived[evId]){ toast('すでに到着報告済みです'); return; }
+  state.arrived[evId]=true;
+  state.entered[e.deal]=true;
+  const who=ROLES[state.role].name.slice(0,1);
+  const when=new Date();
+  const hm=`${String(when.getHours()).padStart(2,'0')}:${String(when.getMinutes()).padStart(2,'0')}`;
+  state._extra=state._extra||{}; (state._extra[e.deal]=state._extra[e.deal]||[]).unshift({
+    d:nowD(), who,
+    t:`<b>現場到着を報告</b><div class="m">${hm} · ${e.prop||e.title}${note?' · '+note:''}${e.addr?'<br>'+e.addr:''}</div>`
+  });
+  toast(`📍 現場到着を報告しました（${hm}）`);
 }
 function doApprove(rid){
   if(rid==='r1'){
@@ -1543,6 +1699,7 @@ function wireView(){
   v.querySelectorAll('[data-ok]').forEach(b=>b.onclick=()=>doApprove(b.dataset.ok));
   v.querySelectorAll('[data-sendback]').forEach(b=>b.onclick=()=>doSendback(b.dataset.sendback));
   v.querySelectorAll('[data-sheet]').forEach(b=>b.onclick=e=>{e.stopPropagation();openSheet(b.dataset.sheet);});
+  v.querySelectorAll('[data-ev]').forEach(b=>b.onclick=e=>{e.stopPropagation();openEvSheet(b.dataset.ev);});
   v.querySelectorAll('[data-enter]').forEach(b=>b.onclick=()=>doEnter(b.dataset.enter));
   v.querySelectorAll('[data-notif]').forEach(b=>b.onclick=()=>{
     const nn=state.notifs[state.role][+b.dataset.notif];
