@@ -1783,25 +1783,40 @@ function renderKnowledge(){
   </button>`).join('');
   const feed=ANNOUNCEMENTS.map((a,i)=>`<button type="button" class="know-card" data-ai="${i}">
     <span class="ktag">${a.tag}</span><b>${a.title}</b>
-    <small>${a.when}${a.wip?' · 本文は外部（開発中ページ）':a.go?` · 内部: ${a.go}`:''}</small>
+    <small>${a.when}${a.body?' · 本文あり':a.wip?' · 本文は外部（開発中ページ）':a.go?` · 内部: ${a.go}`:''}</small>
+    ${state.annOpen===i&&a.body?`<div class="note" style="margin:8px 0 0;text-align:left">${a.body}</div>`:''}
   </button>`).join('');
+  if(state.annOpen===undefined) state.annOpen=-1;
   $('main').innerHTML=`<div class="pad">
     <button type="button" class="m-back" id="knowBack">← ポータル</button>
-    <h2 class="page">ナレッジ・通達アーカイブ</h2>
-    <p class="quiet">Hub内で開けるものは遷移、外部掲載の通達は「開発中」ページで接続先を明示します。</p>
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px">
+      <h2 class="page" style="margin:0;flex:1">ナレッジ・通達アーカイブ</h2>
+      <button type="button" class="bp" id="knowCreate">＋ 通達を作成</button>
+    </div>
+    <p class="quiet">Hub内で開けるものは遷移、外部掲載の通達は「開発中」ページで接続先を明示します。通達の新規作成は右上から。</p>
     <h3 class="m-h">ナレッジ</h3>
     <div class="know-list">${cards}</div>
     <h3 class="m-h" style="margin-top:18px">通達・共有（ポータルと同じ一覧）</h3>
     <div class="know-list">${feed}</div>
   </div>`;
   $('knowBack').onclick=()=>go('portal');
-  const openAnn=a=>{ if(a.go){ if(a.view) state.view=a.view; go(a.go); } else if(a.wip) goWip(a.wip); else goWip('ann-gws'); };
+  $('knowCreate').onclick=()=>openFormModal('announce',{},{from:'ナレッジ・通達'});
+  const openAnn=a=>{
+    if(a.go){ if(a.view) state.view=a.view; go(a.go); }
+    else if(a.wip) goWip(a.wip);
+    else if(a.body){ /* expand handled by click index */ }
+    else goWip('ann-gws');
+  };
   $('main').querySelectorAll('[data-ki]').forEach(b=>b.onclick=()=>{
     const k=KNOWLEDGE[Number(b.dataset.ki)];
     if(k.wip) goWip(k.wip);
     else { if(k.view) state.view=k.view; go(k.go); }
   });
-  $('main').querySelectorAll('[data-ai]').forEach(b=>b.onclick=()=>openAnn(ANNOUNCEMENTS[Number(b.dataset.ai)]));
+  $('main').querySelectorAll('[data-ai]').forEach(b=>b.onclick=()=>{
+    const i=Number(b.dataset.ai); const a=ANNOUNCEMENTS[i]; a.read=true;
+    if(a.body && !a.go && !a.wip){ state.annOpen=state.annOpen===i?-1:i; renderKnowledge(); return; }
+    openAnn(a);
+  });
 }
 
 const PIN_BY_ROLE={
@@ -1889,12 +1904,12 @@ function renderPortal(){
       <div class="my-sum"><button type="button" id="portalDrafts">途中の入力 <b>${myDraftRows().length}</b></button>
         <span class="quiet" style="font-size:11px;align-self:center">顧客・物件・活動予定などの未送信はここ（申請とは別）</span></div>
       <div class="db-sec">
-        <div class="sec-h"><h3>自分宛</h3><span class="cnt">${mine.length}</span><button type="button" class="more" id="goMine">宿題View →</button></div>
-        <div class="wk-list">${wkRows}</div>
+        <div class="sec-h"><h3>社内共有・通達</h3><span class="cnt">未読 ${unread}</span>${unread?`<button type="button" class="more" id="annReadAll">全部既読</button>`:''}<button type="button" class="more" id="annCreate">＋ 作成</button><button type="button" class="more" data-ext="know">アーカイブ →</button></div>
+        <div class="feed-list">${feed}</div>
       </div>
       <div class="db-sec">
-        <div class="sec-h"><h3>社内共有・通達</h3><span class="cnt">未読 ${unread}</span>${unread?`<button type="button" class="more" id="annReadAll">全部既読</button>`:''}<button type="button" class="more" data-ext="know">アーカイブ →</button></div>
-        <div class="feed-list">${feed}</div>
+        <div class="sec-h"><h3>自分宛</h3><span class="cnt">${mine.length}</span><button type="button" class="more" id="goMine">宿題View →</button></div>
+        <div class="wk-list">${wkRows}</div>
       </div>
     </div>
     <aside class="db-rail">
@@ -1931,9 +1946,14 @@ function renderPortal(){
   $('main').querySelectorAll('.db-rail [data-ext], .db-main [data-ext]').forEach(b=>b.onclick=()=>openShortcut(b.dataset.ext));
   $('main').querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>openIssue(b.dataset.open));
   const ara=$('annReadAll'); if(ara) ara.onclick=()=>{ ANNOUNCEMENTS.forEach(a=>a.read=true); audit('通達','全部既読'); render(); };
+  const ac=$('annCreate'); if(ac) ac.onclick=()=>openFormModal('announce',{},{from:'ポータルの通達'});
   $('main').querySelectorAll('[data-ai]').forEach(b=>b.onclick=()=>{
     const a=ANNOUNCEMENTS[Number(b.dataset.ai)];
     a.read=true;
+    if(a.body && !a.go && !a.wip){
+      /* 本文ありの新着通達はアーカイブで見えるようナレッジへ */
+      go('knowledge'); return;
+    }
     if(a.go){ if(a.view) state.view=a.view; go(a.go); }
     else if(a.wip) goWip(a.wip); else openShortcut('know');
   });
@@ -4145,7 +4165,8 @@ function renderMgmt(){
 
 /* 管理一覧 — できることを1行ずつ（カテゴリでまとめない） */
 const CAPS=[
-  {l:'通達一覧', t:'一覧', asis:'メール・紙・拠点掲示の通達', plan:'残す', st:'ok', go:()=>go('portal')},
+  {l:'通達一覧', t:'一覧', asis:'メール・紙・拠点掲示の通達', plan:'残す', st:'ok', go:()=>go('knowledge')},
+  {l:'通達・社内お知らせを作成', t:'登録', asis:'メール文面を作成し各拠点へ回覧', plan:'残す（ポータル／スマホへ即反映）', st:'ok', go:()=>openFormModal('announce',{},{from:'台帳・登録'})},
   {l:'顧客一覧（検索）', t:'一覧', asis:'eSM 顧客検索', plan:'残す', st:'ok', go:()=>{ state.crmAxis='customer'; state.customer=null; state.property=null; go('crm'); }},
   {l:'顧客新規登録（仮登録→本登録）', t:'登録', asis:'eSMへ仮登録し、受注時に事務が本登録', plan:'残す（重複チェック付き）', st:'ok', go:()=>go('form',{form:'cust'})},
   {l:'物件一覧', t:'一覧', asis:'eSM 物件顧客マスタ・建物情報', plan:'残す', st:'ok', go:()=>{ state.crmAxis='property'; state.customer=null; state.property=null; go('crm'); }},
@@ -4478,6 +4499,42 @@ const FORMS={
         open:()=>{ state.mgmtTab=state.mgmtTab||{}; state.mgmtTab.vendors='req'; go('mgmt',{mgmt:'vendors'}); }};
     },
   },
+  announce:{
+    title:'通達・社内お知らせを作成', submitLabel:'通達を公開する',
+    asis:'メール・紙・拠点掲示で通達を作成し各拠点へ回覧', why:'社内のお知らせを1か所で公開し、ポータルとスマホの通達一覧に届ける',
+    stop:'メール文面の個別作成と、掲示板・LINEへの二重投稿', who:'総務・管理部・拠点長・事務（起票可）',
+    fields:[
+      {k:'tag', l:'種類', t:'select', opts:()=>[['通達','通達'],['共有','共有'],['ナレッジ','ナレッジ']]},
+      {k:'urgent', l:'重要度', t:'select', opts:()=>[['normal','通常'],['urgent','要既読（緊急）']]},
+      {k:'audience', l:'宛先', t:'select', opts:()=>[['全社','全社'],['営業','営業向け'],['施工','施工向け'],['管理部','管理部向け'],['自拠点','自拠点のみ']]},
+      {k:'title', l:'見出し', req:true, full:true},
+      {k:'body', l:'本文', t:'textarea', full:true, req:true},
+      {k:'fromDept', l:'発信元（部署名）', def:'', full:true},
+    ],
+    preview:v=>{
+      const t=(v.title||'').trim();
+      if(!t) return '<div class="note">見出しを入れると、ポータルの通達一覧にどう見えるか確認できます。</div>';
+      const dept=v.fromDept||({sales:'営業',leader:'拠点長',kanri:'管理部',jimu:'事務',buy:'購買',koji:'施工'}[state.role]||'総務');
+      return `<div class="note">公開後の見え方: <b>【${v.audience||'全社'}】${t}</b><br>発信: ${dept} ／ 種類: ${v.tag||'通達'}${v.urgent==='urgent'?' ／ <span style="color:#cf222e">要既読</span>':''}</div>`;
+    },
+    submit:v=>{
+      const title=(v.title||'').trim(); const body=(v.body||'').trim();
+      if(!title) return {err:'見出しは必須です'};
+      if(!body) return {err:'本文は必須です'};
+      const dept=v.fromDept||({sales:'営業',leader:'拠点長',kanri:'管理部',jimu:'事務',buy:'購買',koji:'施工'}[state.role]||'総務');
+      const aud=v.audience&&v.audience!=='全社'?`【${v.audience}】`:'【全社】';
+      const fullTitle=title.startsWith('【')?title:`${aud}${title}`;
+      const today=(()=>{ const d=new Date(); return `${d.getMonth()+1}/${d.getDate()}`; })();
+      ANNOUNCEMENTS.unshift({
+        tag:v.tag||'通達', cls:v.urgent==='urgent'?'urgent':'', title:fullTitle,
+        when:`${today} · ${dept}`, go:null, read:false, mustRead:v.urgent==='urgent', posted:today, body
+      });
+      Object.keys(ROLES).forEach(r=>{ if(r!==state.role) notify(r, `新着通達: ${fullTitle}`); });
+      audit('通達',`公開: ${fullTitle}`);
+      return {msg:`「${fullTitle}」を公開しました。ポータルとナレッジ・通達に表示されます。`, openLabel:'ポータルの通達を見る',
+        open:()=>go('portal')};
+    },
+  },
 };
 function fieldHtml(f, pre){
   const val=k=>pre[k]!==undefined?pre[k]:'';
@@ -4797,7 +4854,7 @@ function renderForm(){
 }
 
 /* ---- ヘッダ「＋ 新規」 ---- */
-const NEW_MENU=[['deal','活動予定を立てる'],['ringi','稟議を起票'],['buy','購買申請（資材）'],['quote','見積を作成'],['cust','顧客を登録（仮）'],['prop','物件を登録'],['expense','経費を申請'],['safety','ヒヤリハット・事故を報告'],['vendor','外注・仕入先の登録申請']];
+const NEW_MENU=[['deal','活動予定を立てる'],['ringi','稟議を起票'],['buy','購買申請（資材）'],['quote','見積を作成'],['cust','顧客を登録（仮）'],['prop','物件を登録'],['announce','通達・お知らせを作成'],['expense','経費を申請'],['safety','ヒヤリハット・事故を報告'],['vendor','外注・仕入先の登録申請']];
 function renderNewMenu(){
   $('newMenu').innerHTML='<h4>新しく始める（ポップアップ）</h4>'+NEW_MENU.filter(([k])=>FORMS[k]).map(([k,l])=>`<button type="button" class="n" data-nf="${k}">${l}<small>${FORMS[k].why?FORMS[k].why.slice(0,36):FORMS[k].asis.slice(0,34)}…</small></button>`).join('')
     +`<button type="button" class="n" data-nmy="1"><b>自分の申請を見る</b></button><button type="button" class="n" data-ndraft="1"><b>下書きを見る</b></button>`;

@@ -1079,6 +1079,7 @@ function menuView(){
   ${mItem('📊','拠点の数字（BI）','data-subwip="bi"')}
   <div class="sec">会社の情報</div>
   ${mItem('📢','お知らせ・通達','data-sub="ann"',`未読 ${ANNS.length} 件`)}
+  ${canCreateAnn()?mItem('✍️','通達・お知らせを作成','data-sub="annForm"','ポータルと同じ一覧へ公開'):''}
   ${mItem('📚','社内ナレッジ（手順書・FAQ）','data-subwip="knowledge"')}
   ${mItem('⚠️','安全衛生・ヒヤリハット','data-subwip="anzen"')}
   <div class="sec">ヘルプ・設定</div>
@@ -1104,7 +1105,7 @@ function helpView(){
      ['⏳ 待ちが見える','各案件に「いま誰待ちか」。あなたの番なら青、待ちなら黄色'],
      ['💻 PCと同じデータ','到着・報告はPC版台帳の同じ案件に載ります']];
   return `<div class="dethead"><button class="backbtn" data-back="1">‹ 戻る</button><h2>マニュアル（PDF）</h2></div>
-  <div class="sec">ダウンロード</div>${dl}
+  <div class="sec">ブラウザで開く</div>${dl}
   <div class="sec">スマホの要点</div>
   ${tips.map(([t,s])=>`<div class="card"><div class="t" style="margin-top:0">${t}</div><div class="s">${s}</div></div>`).join('')}`;
 }
@@ -1122,15 +1123,35 @@ function wipView(key){
   <div class="note">入口だけ先に固定しています（PC版Hubと同じ方針）。道具箱のどこに何が入るかを先に決めることで、実装後も迷わない構成にします。</div>`;
 }
 /* ---- お知らせ・通達 ---- */
+function canCreateAnn(){
+  return ['boss','sales','leader','kanri','jimu'].includes(state.role);
+}
 function annView(){
+  const createBtn=canCreateAnn()?`<button class="abtn p" data-sub="annForm" style="margin:0 0 12px;width:100%">＋ 通達・お知らせを作成</button>`:'';
   return `<div class="dethead"><button class="backbtn" data-back="1">‹ 戻る</button><h2>お知らせ・通達</h2>
   <div class="sub">全社・拠点宛。人事・経理・安全衛生の締切もここに届きます。</div></div>
+  ${createBtn}
   ${ANNS.map((a,i)=>`<button class="card" data-ann="${i}" style="width:100%;text-align:left">
     <div class="ann-from"><span>${a.from}</span><span style="margin-left:auto;font-weight:600">${a.d}</span></div>
     <div class="t" style="margin:4px 0 0;font-size:16.2px">${a.t}</div>
     ${state.annOpen===i?`<div class="ann-body">${a.body}</div>`:''}
   </button>`).join('')}
-  <div class="note">タップで本文を開閉。実装版では未読管理と「自分の拠点宛」フィルタが付きます。</div>`;
+  <div class="note">タップで本文を開閉。作成は上のボタン（拠点長・管理部・事務・営業）。</div>`;
+}
+function annFormView(){
+  if(!mfv('tag')) state.mf.tag='通達';
+  if(!mfv('aud')) state.mf.aud='全社';
+  const ok=(mfv('title')||'').trim().length>=2 && (mfv('body')||'').trim().length>=2;
+  return `<div class="dethead"><button class="backbtn" data-back="1">‹ 戻る</button><h2>通達を作成</h2>
+  <div class="sub">公開するとホームと通達一覧にすぐ出ます（デモ）。</div></div>
+  <div class="slabel">種類</div>${mchips('tag', ['通達','共有','ナレッジ'])}
+  <div class="slabel">宛先</div>${mchips('aud', ['全社','営業','施工','管理部','自拠点'])}
+  <div class="slabel">見出し</div>
+  <input class="fin" data-mfi="title" value="${mfv('title')}" placeholder="例: 10月の経費締切について">
+  <div class="slabel">本文</div>
+  <textarea class="fin" data-mfi="body" placeholder="通達の本文">${mfv('body')}</textarea>
+  <button class="abtn p" style="margin-top:12px;${ok?'':'opacity:.4'}" data-msend="ann">公開する</button>
+  <div class="note">PC版の「通達・社内お知らせを作成」と同じ用途です。このモックではスマホ側の一覧に載ります。</div>`;
 }
 /* ---- 顧客・物件台帳（検索と絞り込みを分離） ---- */
 function ledgerHitCust(){
@@ -1304,18 +1325,26 @@ function propDetailView(pid){
   <div class="note">PC版の物件詳細と同じ軸です。管理台帳では案件行としても見えます。</div>`;
 }
 function pcInfoView(){
-  const rows=[['ホーム「今日やること」','ポータル「自分宛」'],['案件タブ','案件台帳（自分のView）'],['報告・履歴','同じ行のタイムライン（Comment）'],['承認（拠点長）','稟議View'],['通知','Inbox'],['業務アプリ一覧','業務アプリ一覧']];
+  const rows=[['ホーム「今日やること」','ポータル「自分宛」'],['案件タブ','案件台帳（自分のView）'],['報告・履歴','同じ行のタイムライン（Comment）'],['承認（拠点長）','稟議View'],['通知','Inbox'],['お知らせ・通達','ポータルの通達'],['マニュアル（PDF）','マニュアル']];
   return `<div class="dethead"><button class="backbtn" data-back="1">‹ 戻る</button><h2>PC版でできること</h2>
   <div class="sub">同じデータを別の窓で見ています。二重入力はありません。</div></div>
   <div class="card">${rows.map(([a,b])=>`<div class="kvrow"><span class="kt" style="flex-basis:130px">${a}</span><span>⇄ ${b}</span></div>`).join('')}</div>
-  <div class="sec">PC版が得意なこと</div>
+  <div class="sec">スマホでも操作できること</div>
   <div class="card"><ul class="wlist">
-    <li>大量の案件を表・Viewで一覧して捌く（管理部・事務・拠点長）</li>
-    <li>マスタ管理（顧客・物件の本登録、組織・商品）</li>
-    <li>請求発行・締め・分析（BI）</li>
-    <li>構成ページ・マニュアル（PDF）</li>
+    <li>ホーム／案件／通知／メニューでの日次業務</li>
+    <li>問い合わせ・稟議・購買・顧客仮登録・活動報告</li>
+    <li>通達の閲覧と作成（拠点長・管理部・事務・営業）</li>
+    <li>マニュアル（スライドPDFをブラウザで開く）</li>
+    <li>顧客・物件台帳の検索と絞り込み</li>
   </ul></div>
-  <div class="note">スマホは「今日やること・報告・承認」に絞り、重い業務はPCへ。役割と場面で窓を使い分けます。</div>`;
+  <div class="sec">PCが得意（スマホは入口のみ／準備中）</div>
+  <div class="card"><ul class="wlist">
+    <li>台帳・登録の重い一覧（保証書・入金消込・施工予定アサインなど）</li>
+    <li>業務アプリ一覧のフルカタログ</li>
+    <li>請求発行・締め・BIの横断確認</li>
+    <li>構成ページ・大量Viewでの承認捌き</li>
+  </ul></div>
+  <div class="note">スマホは「今日やること・報告・承認・通達」に絞り、重い台帳業務はPCへ。役割と場面で窓を使い分けます。</div>`;
 }
 
 /* ================= 申請・登録（スマホ実装） ================= */
@@ -1455,6 +1484,19 @@ function _doMSendBody(kind){
     if(total>=50000) pushNotif('boss',{ic:'📦',tt:`承認依頼: 資材カート ${lines.length}品目`,ss:`${total.toLocaleString()}円`,go:{deal:mfv('deal')}});
     state.mf={}; state.sub=null;
     toast('✓ 申請しました — 購買（鈴木さん）へ届きました'); render(); return;
+  }
+  if(kind==='ann'){
+    const title=(mfv('title')||'').trim(); const body=(mfv('body')||'').trim();
+    if(title.length<2||body.length<2){ toast('見出しと本文を入れてください'); return; }
+    const aud=mfv('aud')||'全社';
+    const tag=mfv('tag')||'通達';
+    const from=ROLES[state.role].label.replace(/（.*）/,'')||'社内';
+    const full=title.startsWith('【')?title:`【${aud}】${title}`;
+    ANNS.unshift({d:nowD(), from, t:full, body:`（${tag}）\n${body}`});
+    pushNotif('sales',{ic:'📢',tt:`新着通達: ${full}`,ss:from,go:{sub:'ann'}});
+    pushNotif('koji',{ic:'📢',tt:`新着通達: ${full}`,ss:from,go:{sub:'ann'}});
+    state.mf={}; state.sub='ann'; state.annOpen=0;
+    toast('✓ 通達を公開しました'); render(); return;
   }
 }
 
@@ -1912,7 +1954,7 @@ function aiReplyM(q){
     return `${r.name}さん（${r.label}）向け: ホームの「今日の予定」をタップし、現場到着→活動報告の順で進めます。下部＋からも起票できます。`;
   }
   if(/使い方|マニュアル|ヘルプ|どうやって/.test(t)){
-    return 'メニュー→「マニュアル（PDF）」から手順書をダウンロードできます。顧客さがしは右上🔍、通知は🔔です。';
+    return 'メニュー→「マニュアル（PDF）」から手順書をブラウザで開けます。顧客さがしは右上🔍、通知は🔔です。';
   }
   if(/顧客|物件/.test(t)) return '右上の🔍、またはメニューの「顧客台帳／物件台帳」から開けます。';
   if(!t) return `こんにちは。SAAD AI です（モック）。\n未読通知は ${n} 件。承認・今日の宿題・画面の使い方などを聞いてください。`;
@@ -1969,6 +2011,7 @@ function openDrawer(){
       ${dItem('📊','拠点の数字（BI）','wip:bi')}
       <div class="d-sec">会社の情報</div>
       ${dItem('📢','お知らせ・通達','sub:ann',ANNS.length+'件')}
+      ${canCreateAnn()?dItem('✍️','通達を作成','sub:annForm'):''}
       ${dItem('📚','社内ナレッジ','wip:knowledge')}
       ${dItem('⚠️','安全衛生・ヒヤリハット','wip:anzen')}
       <div class="d-sec">ヘルプ・設定</div>
@@ -2047,7 +2090,7 @@ function render(){
   let html='';
   if(state.sub){
     const s=state.sub;
-    html = s.wip?(IMPL_WIPS[s.wip]?IMPL_WIPS[s.wip]():wipView(s.wip)) : s==='mydraft'?myDraftView() : s==='myreq'?myReqView() : s==='help'?helpView() : s==='ann'?annView() : s==='cust'?custView() : s==='pcinfo'?pcInfoView()
+    html = s.wip?(IMPL_WIPS[s.wip]?IMPL_WIPS[s.wip]():wipView(s.wip)) : s==='mydraft'?myDraftView() : s==='myreq'?myReqView() : s==='help'?helpView() : s==='ann'?annView() : s==='annForm'?annFormView() : s==='cust'?custView() : s==='pcinfo'?pcInfoView()
       : s==='custreg'?custRegView() : s==='leadForm'?leadFormView() : s==='ringiForm'?ringiFormView() : s==='buyForm'?buyFormView() : s==='past'?pastView() : s==='prop'?propView() : s==='ai'?aiView() : '';
   }
   else if(state.approving) html=approveView(state.approving);
