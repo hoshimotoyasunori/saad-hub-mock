@@ -1097,8 +1097,8 @@ function helpView(){
     ['06-daicho.pdf','案件台帳・フィルタ'],
   ];
   const base=(location.pathname.replace(/[^/]+$/,'')||'./')+'manuals/';
-  const dl=pdfs.map(([f,t])=>`<a class="card" href="${base+f}" download="${f}" style="display:block;text-decoration:none;color:inherit">
-    <div class="t" style="margin-top:0">📄 ${t}</div><div class="s">PDFをダウンロード（デモ）</div></a>`).join('');
+  const dl=pdfs.map(([f,t])=>`<a class="card" href="${base+f}" target="_blank" rel="noopener" style="display:block;text-decoration:none;color:inherit">
+    <div class="t" style="margin-top:0">📄 ${t}</div><div class="s">ブラウザで開く（スライドPDF・デモ）</div></a>`).join('');
   const tips=[['🏠 ホーム＝今日やること','開いた瞬間に「次の一手」が出ます。迷ったらホームに戻る'],
      ['📍 活動は到着から','顧客・物件の予定はタップ → 現場到着 → 活動報告の順'],
      ['⏳ 待ちが見える','各案件に「いま誰待ちか」。あなたの番なら青、待ちなら黄色'],

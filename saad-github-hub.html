@@ -2647,12 +2647,12 @@ function renderCov(){ /* デモ説明帯は廃止（モック画面のみ） */ 
 
 /* ================= manual（PDFマニュアル） ================= */
 const MANUAL_PDFS = [
-  {file:'01-hajimete.pdf', title:'はじめての方へ — 全体の流れ', who:'全社員', blurb:'台帳の約束と、依頼〜請求までの9ステップ概要。最初に読む1冊。'},
-  {file:'02-eigyo.pdf', title:'営業向け操作マニュアル', who:'営業・拠点事務', blurb:'活動・リード・見積・稟議、顧客マスタ、催促のしかた。'},
-  {file:'03-koji.pdf', title:'施工向け操作マニュアル', who:'施工リーダー・技術', blurb:'予定確認、現場着手、完了報告、必須写真3枚。'},
-  {file:'04-kanri.pdf', title:'管理部向け操作マニュアル', who:'管理部・拠点長', blurb:'二次承認、請求・入金、部門／拠点横断の見方。'},
-  {file:'05-mobile.pdf', title:'スマホ操作ガイド', who:'営業・施工（外出先）', blurb:'ホーム／Inbox／台帳の使い分け。'},
-  {file:'06-daicho.pdf', title:'案件台帳・フィルタの使い方', who:'全員', blurb:'View・部門／拠点フィルタ、行タイトルと待ち表示の読み方。'},
+  {file:'01-hajimete.pdf', title:'はじめての方へ — 全体の流れ', who:'全社員', blurb:'スライド4枚。台帳の約束と流れのイメージ。最初に開く1冊。'},
+  {file:'02-eigyo.pdf', title:'営業向け操作マニュアル', who:'営業・拠点事務', blurb:'スライド3枚。活動予定・見積・稟議の流れ。'},
+  {file:'03-koji.pdf', title:'施工向け操作マニュアル', who:'施工リーダー・技術', blurb:'スライド3枚。ゲート解除・着手・写真3枚の完了報告。'},
+  {file:'04-kanri.pdf', title:'管理部向け操作マニュアル', who:'管理部・拠点長', blurb:'スライド3枚。承認キュー・請求・入金。'},
+  {file:'05-mobile.pdf', title:'スマホ操作ガイド', who:'営業・施工（外出先）', blurb:'スライド3枚。ホーム／Inbox／現場報告。'},
+  {file:'06-daicho.pdf', title:'案件台帳・フィルタの使い方', who:'全員', blurb:'スライド3枚。View切替・行タイトルの読み方。'},
 ];
 const MANUAL_STEPS = [
   {n:1, scene:'依頼受付', asis:'管理会社→紙/FAX/電話→営業→メールでES管理部→eSM登録＋Excel3種（進捗表/販路日報/日次管理表）転記→振り分け（ES_001）', saad:'[リード] 行が1本立つだけ。転記ゼロ。振り分け＝担当', who:'営業', where:'スマホ: ホーム', wait:'営業の対応待ち'},
@@ -2687,15 +2687,15 @@ function manualTable(){
   </table></div>`;
 }
 function renderManual(){
-  const cards=MANUAL_PDFS.map(m=>`<a class="man-card" href="${manualPdfHref(m.file)}" download="${m.file}" target="_blank" rel="noopener">
+  const cards=MANUAL_PDFS.map(m=>`<a class="man-card" href="${manualPdfHref(m.file)}" target="_blank" rel="noopener">
     <div><b>${m.title}</b><div class="who">対象: ${m.who}</div></div>
-    <span class="dl-btn">PDF ↓</span>
+    <span class="dl-btn">ブラウザで開く</span>
     <p class="blurb">${m.blurb}</p>
   </a>`).join('');
   $('main').innerHTML=`<div class="pad">
-    <h2 class="page">マニュアル — 操作手順書（PDF）</h2>
-    <p class="quiet" style="max-width:70ch">各種操作の手順はここに置きます。<strong>PDFをダウンロード</strong>して手元で読めます（下はデモ用サンプル。正式版は今後差し替え）。画面上の要約も残しています。</p>
-    <h3 class="man-sec">PDFダウンロード</h3>
+    <h2 class="page">マニュアル — 操作手順書（スライドPDF）</h2>
+    <p class="quiet" style="max-width:70ch">各種操作の手順はここに置きます。カードをクリックすると<strong>ブラウザでPDFが開きます</strong>（ダウンロード不要。下はデモ用のスライド形式サンプル。正式版は今後差し替え）。</p>
+    <h3 class="man-sec">マニュアルを開く</h3>
     <div class="man-dl">${cards}</div>
     <h3 class="man-sec">画面上の要約 — 最初に覚える約束（5つ）</h3>
     <div class="man-words">${MANUAL_WORDS.map(([b,p])=>`<div><b>${b}</b><p>${p}</p></div>`).join('')}</div>
@@ -2706,15 +2706,15 @@ function renderManual(){
   $('tryDemo').onclick=()=>go('board',{view:'all'});
 }
 function mManualHtml(){
-  const cards=MANUAL_PDFS.map(m=>`<a class="m-card" href="${manualPdfHref(m.file)}" download="${m.file}" target="_blank" rel="noopener" style="display:block;text-decoration:none;color:inherit">
+  const cards=MANUAL_PDFS.map(m=>`<a class="m-card" href="${manualPdfHref(m.file)}" target="_blank" rel="noopener" style="display:block;text-decoration:none;color:inherit">
     <div class="m-title">${m.title}</div>
-    <div class="m-sub">${m.who} · PDFダウンロード</div></a>`).join('');
+    <div class="m-sub">${m.who} · ブラウザで開く</div></a>`).join('');
   return `<button type="button" class="m-back" data-m="mhome">← ホーム</button>
-    <h3 style="margin:0 0 8px;font-size:16px">マニュアル（PDF）</h3>
+    <h3 style="margin:0 0 8px;font-size:16px">マニュアル（スライドPDF）</h3>
     ${cards}
     <h4 class="m-h" style="margin-top:12px">約束（要約）</h4>
     ${MANUAL_WORDS.map(([b,p])=>`<div class="m-card"><div class="m-title">${b}</div><div class="m-sub">${p}</div></div>`).join('')}
-    <div class="note">正式な手順書は上記PDF。デモデータです。</div>`;
+    <div class="note">正式な手順書は上記PDF。デモのスライドです。</div>`;
 }
 
 /* ================= CRM（顧客レコード＝リポの正本データ相当） ================= */
