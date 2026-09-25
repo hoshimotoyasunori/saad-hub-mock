@@ -727,7 +727,7 @@ function progressOf(it){ const k=kids(it.id); if(!k.length) return null; return 
 function gateDone(){ return kids('841-gate').filter(i=>i.status!=='取り下げ').every(i=>i.status==='Done'); }
 function kojiDone(){ return ['841-k1','841-k2'].every(id=>byId(id).status==='Done'); }
 function allKidsDone(id){ return kids(id).every(i=>i.status==='Done' && (!kids(i.id).length || allKidsDone(i.id))); }
-function pill(s){ const c = s==='承認待ち'?'wait': s==='In Progress'?'prog': s==='Done'?'done': (s==='Blocked'||s==='取り下げ')?'block': s==='差戻し'?'back':''; return `<span class="pill ${c}">${s}</span>`; }
+function pill(s){ const c = s==='承認待ち'?'wait': s==='In Progress'?'prog': s==='Done'?'done': (s==='Blocked'||s==='取り下げ'||s==='停止')?'block': (s==='差戻し'||s==='失注'||s==='解約')?'back':''; return `<span class="pill ${c}">${s}</span>`; }
 function orgOf(it){
   let cur=it;
   while(cur && !cur.division){ cur = cur.parent ? byId(cur.parent) : null; }
@@ -795,6 +795,7 @@ function act(kindA, id){
     addEvent(it, ev('sys', me, `${me} が承認 — Status: 承認待ち → Done（Issueは Open のまま）`));
     recordChg(it, '状態', '承認待ち', 'Done', '承認');
     notify('sales', `${it.ref}（${it.title}）が承認されました`, it.id);
+    if(it.cancelRoot) applyCancelDeal(it);
   }
   if(kindA==='reject'){
     rememberPrev(it); it.status='差戻し'; it.own='sales';
@@ -2403,7 +2404,7 @@ function chgBarForIssue(it){
   const canUndo=['leader','kanri'].includes(state.role) && it._prev;
   const canAssign=['leader','jimu','kanri'].includes(state.role) && it.open && ['deal','lead','task','support','ringi','buy','bill'].includes(it.kind);
   if(it.kind==='deal' && it.open){
-    btns.push(['editDeal','編集','bg'],['corrRingi','訂正稟議を起票','bg']);
+    btns.push(['editDeal','編集','bg'],['corrRingi','訂正稟議を起票','bg'],['loseDeal','失注にする','bg'],['cancelDeal','解約の稟議','bg']);
   }
   if(it.kind==='lead' && it.open) btns.push(['editLead','編集','bg']);
   if(it.kind==='ringi' && it.status==='Done') btns.push(['corrRingi','訂正稟議を起票','bg']);
@@ -2458,7 +2459,93 @@ function bindChgBar(root, it){
     } else if(a==='undo') openUndoModal(it);
     else if(a==='assign') openAssignModal([it.id]);
     else if(a==='acceptHO'){ acceptHandover(it); render(); }
+    else if(a==='loseDeal') openLoseDeal(it);
+    else if(a==='cancelDeal') openCancelDeal(it);
   });
+}
+function openLoseDeal(it){
+  const root=rootOf(it)||it;
+  openSimpleModal('失注にする — '+root.ref, `
+    <p class="quiet">調査〜見積段階の案件を失注にします。見積は残し、申請中の稟議は自動で取消します。理由はBIの元になります（必須）。</p>
+    <form class="form-grid" onsubmit="return false">
+      <div class="full"><label>失注理由<span class="req">*</span></label>
+        <select name="why"><option value="">選ぶ</option><option>価格</option><option>競合</option><option>時期</option><option>その他</option></select></div>
+      <div class="full"><label>補足</label><textarea name="memo" placeholder="詳細があれば"></textarea></div>
+    </form>
+    <div class="actions" style="margin-top:12px"><button class="bp" type="button" data-ok>失注にする</button><button class="bg" type="button" data-cx>キャンセル</button></div>`,
+  (box, close)=>{
+    box.querySelector('[data-cx]').onclick=close;
+    box.querySelector('[data-ok]').onclick=()=>{
+      const why=box.querySelector('[name=why]').value; const memo=box.querySelector('[name=memo]').value.trim();
+      if(!why){ box.querySelector('[name=why]').focus(); return; }
+      loseDeal(root, why, memo); closeModal(); render();
+    };
+  });
+}
+function loseDeal(root, why, memo){
+  const cancelled=[];
+  issues.filter(i=>rootOf(i)===root && i.open && ['ringi','buy'].includes(i.kind) && !['Done','取り下げ'].includes(i.status)).forEach(i=>{
+    rememberPrev(i); i.status='取り下げ'; i.open=false;
+    addEvent(i, ev('sys', meShort(), `失注に伴い自動取消（${root.ref}）`));
+    cancelled.push(i.ref);
+  });
+  rememberPrev(root); root.open=false; root.status='失注'; root.loseReason=why; root.loseMemo=memo;
+  recordChg(root,'状態',root._prev?root._prev.status:'In Progress','失注','失注');
+  addEvent(root, ev('cm', meShort(), '# 失注', `理由: ${why}${memo?` / ${memo}`:''}${cancelled.length?`\n取消した申請: ${cancelled.join('、')}`:''}`));
+  notify(root.own, `失注: ${root.title}（${root.ref}）— ${why}`, root.id);
+}
+function openCancelDeal(it){
+  const root=rootOf(it)||it;
+  const impact=cancelImpact(root);
+  openSimpleModal('解約の稟議 — '+root.ref, `
+    <p class="quiet">受注後の中止は解約の稟議（管理部）です。承認されると下の関連をまとめて止めます。</p>
+    <div class="note warn" style="margin:0 0 10px"><b>承認後に止まるもの</b><ul style="margin:6px 0 0;padding-left:18px">${impact.map(x=>`<li>${x}</li>`).join('')||'<li>（関連する進行中の行はありません）</li>'}</ul></div>
+    <form class="form-grid" onsubmit="return false">
+      <div class="full"><label>解約理由<span class="req">*</span></label><textarea name="reason" placeholder="お客さま都合・クーリングオフ・当社都合など"></textarea></div>
+    </form>
+    <div class="actions" style="margin-top:12px"><button class="bp" type="button" data-ok>解約の稟議を起票</button><button class="bg" type="button" data-cx>キャンセル</button></div>`,
+  (box, close)=>{
+    box.querySelector('[data-cx]').onclick=close;
+    box.querySelector('[data-ok]').onclick=()=>{
+      const reason=box.querySelector('[name=reason]').value.trim(); if(!reason) return;
+      const id=nextId();
+      const impactList=cancelImpact(root);
+      insertIssue({id, ref:nextRef('ringi'), repo:'ringi', kind:'ringi', parent:root.id, title:'解約の稟議', status:'承認待ち', open:true, own:'kanri', by:state.role, approver:'kanri',
+        formKey:'ringi', formVals:{type:'解約', deal:root.id, amount:'', reason}, cancelRoot:root.id, cancelImpact:impactList,
+        body:{'種類':'解約','案件':root.ref,'波及':impactList.join('、')||'なし','理由':reason},
+        tl:[ev('cm', meShort(), '# 起票', `解約理由: ${reason}\n承認後に止まるもの: ${impactList.join('、')||'なし'}`), ev('sys','system','管理部キューへ — Assignees: 佐藤')]});
+      notify('kanri', `解約の稟議: ${root.title}（${root.ref}）`, id);
+      closeModal(); openIssue(id);
+    };
+  });
+}
+function cancelImpact(root){
+  const list=[];
+  issues.filter(i=>rootOf(i)===root && i.open).forEach(i=>{
+    if(i.kind==='buy' && i.status!=='Done') list.push(`購買 ${i.ref}（${i.status}）を取消`);
+    if(i.kind==='bill' && i.status!=='Done') list.push(`請求 ${i.ref} を発行停止`);
+    if(i.repo==='koji' && i.status!=='Done') list.push(`施工 ${i.ref} を停止`);
+  });
+  const po=(typeof PORDERS!=='undefined'?PORDERS:[]).filter(p=>p.deal===root.ref && !['支払済','取消'].includes(p.status));
+  po.forEach(p=>list.push(`外注注文書 ${p.no||'（作成中）'} を取消`));
+  const w=(typeof WARRANTIES!=='undefined'?WARRANTIES:[]).filter(w=>w.deal===root.ref || (w.cid && w.cid===root.customer));
+  /* 保証は案件紐づけが弱いので物件ベースで注意書き */
+  if(root.property) list.push(`保証書（物件側）は発行・送付を停止（解約後に無効化）`);
+  return [...new Set(list)];
+}
+function applyCancelDeal(ringi){
+  const root=byId(ringi.cancelRoot); if(!root) return;
+  const stopped=[];
+  issues.filter(i=>rootOf(i)===root && i.open && i.id!==ringi.id).forEach(i=>{
+    if(['buy','ringi'].includes(i.kind) && i.status!=='Done'){ rememberPrev(i); i.status='取り下げ'; i.open=false; stopped.push(i.ref); addEvent(i, ev('sys','system',`解約承認により自動取消（${ringi.ref}）`)); }
+    else if(i.repo==='koji' || i.kind==='bill'){ rememberPrev(i); i.status='停止'; i.blocked=true; stopped.push(i.ref); addEvent(i, ev('sys','system',`解約承認により停止（${ringi.ref}）`)); }
+  });
+  (typeof PORDERS!=='undefined'?PORDERS:[]).filter(p=>p.deal===root.ref && !['支払済','取消'].includes(p.status)).forEach(p=>{ p.status='取消'; mlog(p,`解約承認により取消（${ringi.ref}）`); stopped.push(p.no||'注文書'); });
+  rememberPrev(root); root.open=false; root.status='解約'; root.cancelRef=ringi.ref;
+  recordChg(root,'状態',root._prev?root._prev.status:'In Progress','解約','解約承認');
+  addEvent(root, ev('cm', meShort(), '# 解約', `稟議 ${ringi.ref} 承認。停止・取消: ${stopped.join('、')||'なし'}`));
+  ringi.body=ringi.body||{}; ringi.body['実行結果']=`停止・取消 ${stopped.length} 件: ${stopped.join('、')||'なし'}`;
+  notify(ringi.by||'sales', `解約が承認され、関連を停止しました: ${root.ref}`, root.id);
 }
 
 function mpill(s){
