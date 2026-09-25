@@ -13,6 +13,23 @@
 - **要件定義**: [requirements.md](./requirements.md)
 - **ASIS由来の導入状況（必読）**: [asis-capability-coverage.md](./asis-capability-coverage.md) — 何が導入済／未導入か、なぜASISで要ったか、無駄な管理をやめる方針
 - **利用者目線の想定要望台帳**: [user-journey-requirements.md](./user-journey-requirements.md) — どこから起票するか・ポップアップか・下書きはどこか など操作の流れの問いと対応状況
+- **システム文書一式（拡張前提）**: [docs/DOC-INDEX.md](./docs/DOC-INDEX.md) — システム要件定義・機能／非機能・データ・連携・権限・UI・ロードマップ等
+
+---
+
+## システム要件・開発文書（生きた文書）
+
+現行UIモックを入力に、**本番開発にもつなぐ文書群**を `docs/` に置いています。いずれも **今後も拡張する**前提です。
+
+| 入り口 | 内容 |
+| --- | --- |
+| **[docs/DOC-INDEX.md](./docs/DOC-INDEX.md)** | 文書体系の目次（必ずここから） |
+| [docs/system-requirements.md](./docs/system-requirements.md) | **システム要件定義書（SRS）** |
+| [docs/functional-requirements.md](./docs/functional-requirements.md) | 機能要件（✅／今後⬜） |
+| [docs/roadmap.md](./docs/roadmap.md) | **今後の開発予定・フェーズ** |
+| [docs/development-guide.md](./docs/development-guide.md) | 文書・機能の増やし方 |
+
+非機能・データ・連携・セキュリティ・UI・用語・受け入れも同フォルダにあります（DOC-INDEX参照）。
 
 ---
 
@@ -21,8 +38,9 @@
 このリポジトリだけで開発を続行できます。手順は次のとおりです。
 
 1. **最初に読む**: [HANDOFF.md](./HANDOFF.md) → [STATUS.md](./STATUS.md)（この2つで足ります）
-2. **必要なら続く**: [asis-capability-coverage.md](./asis-capability-coverage.md)（導入状況）／[user-journey-requirements.md](./user-journey-requirements.md) §12（残作業）／[requirements.md](./requirements.md)（モック要件ID）
-3. **チャットに渡す文**: [HANDOFF.md 末尾 §7「別AIへのプロンプト例」](./HANDOFF.md#7-別aiへのプロンプト例コピー用) をそのままコピーして使う
+2. **システム／本番寄りの要件**: [docs/DOC-INDEX.md](./docs/DOC-INDEX.md) → [docs/system-requirements.md](./docs/system-requirements.md) → [docs/roadmap.md](./docs/roadmap.md)
+3. **必要なら続く**: [asis-capability-coverage.md](./asis-capability-coverage.md)（導入状況）／[user-journey-requirements.md](./user-journey-requirements.md) §12（残作業）／[requirements.md](./requirements.md)（モック要件ID）
+4. **チャットに渡す文**: [HANDOFF.md 末尾 §7「別AIへのプロンプト例」](./HANDOFF.md#7-別aiへのプロンプト例コピー用) をそのままコピーして使う
 
 HTMLを変えたら docs も同じ作業で更新する（[HANDOFF.md §5](./HANDOFF.md#5-変更時の必須ルールドキュメント同期)／[requirements.md §12](./requirements.md)）。
 
@@ -45,6 +63,12 @@ saad-hub-mock/
 ├── saad-mobile-hub.html         ← スマホ版（ジョブ型）
 ├── HANDOFF.md                   ← 別担当／別AIの引き継ぎ正本（最初に読む）
 ├── STATUS.md                    ← 現状スナップショット（完了／未完了）
+├── docs/                        ← システム要件・開発文書（拡張前提）
+│   ├── DOC-INDEX.md             ← 文書目次
+│   ├── system-requirements.md   ← システム要件定義書（SRS）
+│   ├── functional-requirements.md
+│   ├── roadmap.md               ← 今後の開発予定
+│   └── …（非機能・データ・連携・権限・UI・用語・受入・開発ガイド）
 ├── requirements.md              ← 本モックの要件定義（HTML変更時は必ず更新）
 ├── asis-capability-coverage.md  ← ASIS由来機能の導入状況（正本コピー）
 ├── user-journey-requirements.md ← 利用者目線の想定要望台帳（正本コピー）

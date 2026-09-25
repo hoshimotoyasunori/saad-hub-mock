@@ -20,6 +20,9 @@
 | **操作の流れの正本** | [user-journey-requirements.md](./user-journey-requirements.md) |
 | **モック専用要件** | [requirements.md](./requirements.md) |
 | **現状スナップショット** | [STATUS.md](./STATUS.md) |
+| **システム文書目次** | [docs/DOC-INDEX.md](./docs/DOC-INDEX.md) |
+| **システム要件定義（SRS）** | [docs/system-requirements.md](./docs/system-requirements.md) |
+| **今後の開発予定** | [docs/roadmap.md](./docs/roadmap.md) |
 
 ---
 
@@ -174,9 +177,10 @@ HTML や挙動を変えたら、**同じコミット（または直後）で**:
 
 ```
 あなたは SAAD Hub モック（https://github.com/hoshimotoyasunori/saad-hub-mock）の続きを担当します。
-最初に HANDOFF.md と STATUS.md と asis-capability-coverage.md を読んでください。
+最初に HANDOFF.md と STATUS.md を読み、システム／今後の要件は docs/DOC-INDEX.md → docs/system-requirements.md → docs/roadmap.md を読んでください。
+docs/ 配下は今後も拡張する生きた文書です。欠ける論点は DOC-INDEX に行を足してから本文を書いてください。
 ASIS全業務の網羅は目的ではありません。型A〜FとHコアを残し、転記系は増やさない方針です。
-機能を足すときは coverage / user-journey / requirements を同じ作業で更新し、Pages の HTML と docs を整合させてください。
+機能を足すときは coverage / user-journey / requirements / docs の該当文書を同じ作業で更新し、Pages の HTML と docs を整合させてください。
 ```
 
 ---
@@ -186,3 +190,4 @@ ASIS全業務の網羅は目的ではありません。型A〜FとHコアを残�
 | 日付 | 内容 |
 | --- | --- |
 | 2026-09-25 | 初版。GitHub上で別AIが引き継げるよう意図・ASIS精査・現状・同期ルールを固定 |
+| 2026-09-25 | docs/ にシステム要件一式を追加。DOC-INDEX・SRS・roadmap を引き継ぎ経路に含める |

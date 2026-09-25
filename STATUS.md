@@ -3,8 +3,8 @@
 > **日付**: 2026-09-25  
 > **リポジトリ**: https://github.com/hoshimotoyasunori/saad-hub-mock  
 > **公開**: https://hoshimotoyasunori.github.io/saad-hub-mock/  
-> **詳細な正本**: [asis-capability-coverage.md](./asis-capability-coverage.md) ／ [user-journey-requirements.md](./user-journey-requirements.md) §12  
-> **引き継ぎ**: [HANDOFF.md](./HANDOFF.md)
+> **詳細な正本**: [asis-capability-coverage.md](./asis-capability-coverage.md) ／ [user-journey-requirements.md](./user-journey-requirements.md) §12 ／ [docs/roadmap.md](./docs/roadmap.md)  
+> **引き継ぎ**: [HANDOFF.md](./HANDOFF.md) ／ システム文書: [docs/DOC-INDEX.md](./docs/DOC-INDEX.md)
 
 このファイルは「いま何が終わっていて何が残っているか」を短く残す記録です。機能を大きく動かしたら日付を更新して書き直す。
 
@@ -104,6 +104,7 @@
 | `asis-capability-coverage.md` | 導入状況正本 |
 | `user-journey-requirements.md` | 操作の流れ・§12 作業リスト |
 | `requirements.md` | Hub公開モックの要件ID |
+| `docs/` | システム要件・開発文書（DOC-INDEX が目次） |
 
 ---
 
@@ -112,3 +113,4 @@
 | 日付 | 内容 |
 | --- | --- |
 | 2026-09-25 | 初版。GitHub上に現状とASIS精査の評価を固定 |
+| 2026-09-25 | システム文書群（docs/）追加。今後予定は docs/roadmap.md に集約 |
