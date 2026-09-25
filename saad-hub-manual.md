@@ -4,7 +4,7 @@
 > **対象**: [`mocks/saad-github-hub.html`](../mocks/saad-github-hub.html) を初めて触る人  
 > **構成の正本**: [`system-page-structure.md`](system-page-structure.md)  
 > **根拠**: ASIS業務詳細 ES_001・ES_010・ES_091、`persona-flows.md`  
-> **モック内**: ヘッダ「マニュアル」（PC）／ホームの「マニュアル（PDF）」（スマホ）から手順書をダウンロードできる
+> **モック内**: ヘッダ「マニュアル」（PC）／ホームの「マニュアル（PDF）」（スマホ）から**スライドPDFをブラウザで開く**（ダウンロード不要）
 
 
 ---
