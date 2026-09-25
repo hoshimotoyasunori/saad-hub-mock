@@ -1119,6 +1119,7 @@ function render(){
   else if(s==='myreq') renderMyReq();
   else if(s==='bi') renderBI();
   const mc=myPendingCount(); $('myCount').style.display=mc?'':'none'; $('myCount').textContent=mc;
+  const sh=$('search'); if(sh && document.activeElement!==sh) sh.value=state.searchQ||'';
   syncGlobalSide();
   renderCov();
 }
@@ -3966,8 +3967,8 @@ function renderSearch(){
   const liveRows=live.map(i=>`<tr data-oi="${i.id}" style="cursor:pointer"><td><span class="dot${i.open?'':' closed'}" style="display:inline-block;margin-right:6px"></span><span class="kind ${KC[i.kind]}">${KIND[i.kind]}</span> ${i.title} <span class="ref">${i.ref}</span></td><td>${custName(i)||'—'}</td><td>${pill(i.status)}</td><td>${i.open?'進行中':'Close済'}</td></tr>`).join('');
   const pastRows=past.map(p=>`<tr><td><span class="dot closed" style="display:inline-block;margin-right:6px"></span>${p.title} <span class="ref">${p.ref}</span></td><td>${p.cust}</td><td>${p.prop}</td><td>${p.closed}</td><td class="num-r">${state.role==='koji'?'（非表示）':yen(p.amount)}</td><td style="font-size:11.5px">${p.docs}</td><td><span class="ref">${p.src}</span></td></tr>`).join('');
   $('main').innerHTML=`<div class="pad">
-    <h2 class="page">横断検索（進行中＋過去案件＋マスタ）</h2>
-    <p class="quiet">ASISでは eSM・NEXT・Excel を別々に探していた過去案件を、1か所で探す。Close済みも対象。</p>
+    <h2 class="page">横断検索</h2>
+    <p class="quiet">ヘッダの検索と同じです。<b>顧客名・物件名・案件番号・案件タイトル</b>をまとめて探します（進行中・完了・過去案件・マスタ）。例: 「サンプル」「グリーンハイツ」「sfa#841」。</p>
     <input class="mg-q" id="sQ" value="${state.searchQ||''}" placeholder="顧客名・物件名・案件番号（例: サンプル / グリーンハイツ / sfa#841）" style="max-width:560px;width:100%;margin-bottom:12px">
     ${q?`<h3 class="m-h">台帳（進行中・Close済） <span class="ref">${live.length}</span></h3>
     <div class="table-wrap"><table class="ledger"><thead><tr><th>行</th><th>顧客</th><th>Status</th><th>状態</th></tr></thead><tbody>${liveRows||'<tr><td colspan="4" class="quiet">該当なし</td></tr>'}</tbody></table></div>`:''}
