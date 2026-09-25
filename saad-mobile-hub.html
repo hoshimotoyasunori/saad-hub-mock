@@ -42,7 +42,7 @@ body{background:linear-gradient(180deg,#dfe6f0,#eef1f6);color:var(--ink);
 .screen{position:relative;width:100%;height:100%;background:var(--bg);border-radius:42px;overflow:hidden;
   display:flex;flex-direction:column}
 .statusbar{flex:none;height:44px;display:flex;align-items:center;justify-content:space-between;
-  padding:0 26px;font-size:13px;font-weight:600;position:relative}
+  padding:0 26px;font-size:15.6px;font-weight:600;position:relative}
 .island{position:absolute;left:50%;top:11px;transform:translateX(-50%);width:112px;height:26px;background:#0b0f17;border-radius:14px}
 
 /* 画面本体 */
@@ -53,38 +53,38 @@ body{background:linear-gradient(180deg,#dfe6f0,#eef1f6);color:var(--ink);
 .tabbar{flex:none;position:absolute;left:0;right:0;bottom:0;height:78px;background:rgba(255,255,255,.96);
   backdrop-filter:blur(8px);border-top:1px solid var(--line);display:grid;grid-template-columns:1fr 1fr 78px 1fr 1fr;
   align-items:stretch;padding:6px 6px 18px;z-index:20}
-.tabbar button{border:0;background:transparent;font-size:10px;color:var(--muted);display:flex;flex-direction:column;
+.tabbar button{border:0;background:transparent;font-size:12px;color:var(--muted);display:flex;flex-direction:column;
   align-items:center;justify-content:center;gap:3px;cursor:pointer;border-radius:12px;font-weight:600}
-.tabbar button .ic{font-size:20px;line-height:1}
+.tabbar button .ic{font-size:24px;line-height:1}
 .tabbar button[aria-current="true"]{color:var(--accent)}
 .tabbar .plus{align-self:center;justify-self:center;width:56px;height:56px;margin-top:-26px;border-radius:50%;
-  background:var(--accent);color:#fff;font-size:26px;font-weight:400;box-shadow:0 8px 20px rgba(11,107,203,.4);
+  background:var(--accent);color:#fff;font-size:31.2px;font-weight:400;box-shadow:0 8px 20px rgba(11,107,203,.4);
   display:grid;place-items:center;border:4px solid var(--bg)}
 .badge-dot{position:relative}
 .badge-dot .n{position:absolute;top:-4px;right:-10px;min-width:16px;height:16px;border-radius:8px;background:var(--danger);
-  color:#fff;font-size:9.5px;font-weight:700;display:grid;place-items:center;padding:0 4px}
+  color:#fff;font-size:11.4px;font-weight:700;display:grid;place-items:center;padding:0 4px}
 
 /* 共通パーツ */
 .hgreet{padding:10px 2px 2px}
-.hgreet h2{margin:0;font-size:21px;letter-spacing:.01em}
-.hgreet p{margin:4px 0 0;font-size:12.5px;color:var(--muted)}
-.sec{margin:18px 0 8px;font-size:12px;font-weight:700;color:var(--muted);letter-spacing:.03em;display:flex;align-items:center;gap:6px}
-.sec .cnt{background:var(--ink);color:#fff;border-radius:9px;font-size:10px;padding:1px 7px}
+.hgreet h2{margin:0;font-size:25.2px;letter-spacing:.01em}
+.hgreet p{margin:4px 0 0;font-size:15px;color:var(--muted)}
+.sec{margin:18px 0 8px;font-size:14.4px;font-weight:700;color:var(--muted);letter-spacing:.03em;display:flex;align-items:center;gap:6px}
+.sec .cnt{background:var(--ink);color:#fff;border-radius:9px;font-size:12px;padding:1px 7px}
 .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px;margin-bottom:10px;
   box-shadow:0 1px 2px rgba(15,26,49,.04)}
 button.card{display:block;width:100%;text-align:left;cursor:pointer;font:inherit;color:inherit}
-.card .k{font-size:11px;font-weight:700;color:var(--muted);display:flex;gap:6px;align-items:center;flex-wrap:wrap}
-.card .t{font-size:15px;font-weight:700;margin:5px 0 2px;line-height:1.45}
-.card .s{font-size:12px;color:var(--muted);line-height:1.6}
+.card .k{font-size:13.2px;font-weight:700;color:var(--muted);display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.card .t{font-size:18px;font-weight:700;margin:5px 0 2px;line-height:1.45}
+.card .s{font-size:14.4px;color:var(--muted);line-height:1.6}
 .card.hero{border:0;background:linear-gradient(135deg,#0d63c0,#0a4f9c);color:#fff;box-shadow:0 10px 26px rgba(11,88,175,.35)}
 .card.hero .k,.card.hero .s{color:rgba(255,255,255,.82)}
-.card.hero .t{font-size:16.5px}
-.tagP{background:var(--warn-bg);color:var(--warn);border-radius:6px;padding:1px 7px;font-size:10.5px;font-weight:700}
-.tagOK{background:var(--ok-bg);color:var(--ok);border-radius:6px;padding:1px 7px;font-size:10.5px;font-weight:700}
-.tagNG{background:var(--danger-bg);color:var(--danger);border-radius:6px;padding:1px 7px;font-size:10.5px;font-weight:700}
-.tagDom{background:#eef2f7;color:var(--muted);border-radius:6px;padding:1px 7px;font-size:10.5px;font-weight:700}
+.card.hero .t{font-size:19.8px}
+.tagP{background:var(--warn-bg);color:var(--warn);border-radius:6px;padding:1px 7px;font-size:12.6px;font-weight:700}
+.tagOK{background:var(--ok-bg);color:var(--ok);border-radius:6px;padding:1px 7px;font-size:12.6px;font-weight:700}
+.tagNG{background:var(--danger-bg);color:var(--danger);border-radius:6px;padding:1px 7px;font-size:12.6px;font-weight:700}
+.tagDom{background:#eef2f7;color:var(--muted);border-radius:6px;padding:1px 7px;font-size:12.6px;font-weight:700}
 .abtn{display:flex;align-items:center;justify-content:center;gap:6px;border:0;border-radius:13px;
-  padding:13px;font-size:14.5px;font-weight:700;cursor:pointer;width:100%}
+  padding:13px;font-size:17.4px;font-weight:700;cursor:pointer;width:100%}
 .abtn.p{background:var(--accent);color:#fff}
 .abtn.w{background:#fff;color:var(--ink);border:1.5px solid var(--line)}
 .abtn.g{background:var(--ok);color:#fff}
@@ -95,10 +95,10 @@ button.card{display:block;width:100%;text-align:left;cursor:pointer;font:inherit
 
 /* 予定（時間軸） */
 .tl-row{display:flex;gap:12px;padding:9px 2px;align-items:flex-start}
-.tl-row time{flex:0 0 44px;font-size:12.5px;font-weight:700;color:var(--ink);padding-top:2px}
+.tl-row time{flex:0 0 44px;font-size:15px;font-weight:700;color:var(--ink);padding-top:2px}
 .tl-row .body{flex:1;background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px 12px}
-.tl-row .body .tt{font-size:13px;font-weight:700}
-.tl-row .body .ts{font-size:11.5px;color:var(--muted);margin-top:2px}
+.tl-row .body .tt{font-size:15.6px;font-weight:700}
+.tl-row .body .ts{font-size:13.8px;color:var(--muted);margin-top:2px}
 .tl-row.done .body{opacity:.55}
 .tl-row.done .tt{text-decoration:line-through}
 
@@ -108,45 +108,45 @@ button.card{display:block;width:100%;text-align:left;cursor:pointer;font:inherit
 .stp::before{content:"";position:absolute;top:7px;left:-50%;width:100%;height:2.5px;background:var(--line)}
 .stp:first-child::before{display:none}
 .stp .dot{width:15px;height:15px;border-radius:50%;background:#fff;border:2.5px solid var(--line);z-index:1}
-.stp .lb{font-size:9.5px;color:var(--muted);font-weight:600}
+.stp .lb{font-size:11.4px;color:var(--muted);font-weight:600}
 .stp.on::before{background:var(--accent)}
 .stp.on .dot{background:var(--accent);border-color:var(--accent)}
 .stp.cur .dot{background:#fff;border-color:var(--accent);box-shadow:0 0 0 3.5px rgba(11,107,203,.2)}
 .stp.cur .lb{color:var(--accent)}
 
 /* 待ちライン */
-.wait{display:flex;gap:7px;align-items:center;font-size:12px;font-weight:600;color:var(--warn);
+.wait{display:flex;gap:7px;align-items:center;font-size:14.4px;font-weight:600;color:var(--warn);
   background:var(--warn-bg);border-radius:10px;padding:8px 11px;margin-top:9px}
 .wait.ok{color:var(--ok);background:var(--ok-bg)}
 .wait.me{color:var(--accent);background:#e8f1fb}
 
 /* 詳細ヘッダ */
 .dethead{padding:6px 2px 0}
-.backbtn{border:0;background:transparent;color:var(--accent);font-size:14px;font-weight:600;padding:8px 0;cursor:pointer}
-.dethead h2{margin:2px 0 3px;font-size:20px}
-.dethead .sub{font-size:12.5px;color:var(--muted)}
+.backbtn{border:0;background:transparent;color:var(--accent);font-size:16.8px;font-weight:600;padding:8px 0;cursor:pointer}
+.dethead h2{margin:2px 0 3px;font-size:24px}
+.dethead .sub{font-size:15px;color:var(--muted)}
 .iconrow{display:flex;gap:8px;margin:12px 0 4px}
 .iconrow button{flex:1;border:1px solid var(--line);background:#fff;border-radius:12px;padding:9px 4px;
-  font-size:11.5px;font-weight:600;color:var(--accent);cursor:pointer;display:flex;flex-direction:column;gap:3px;align-items:center}
-.iconrow button .ic{font-size:17px}
+  font-size:13.8px;font-weight:600;color:var(--accent);cursor:pointer;display:flex;flex-direction:column;gap:3px;align-items:center}
+.iconrow button .ic{font-size:20.4px}
 
 /* 履歴（人の言葉） */
 .hist{list-style:none;margin:4px 0 0;padding:0}
-.hist li{display:flex;gap:10px;padding:9px 2px;border-bottom:1px solid #e6ebf2;font-size:12.5px;line-height:1.6}
+.hist li{display:flex;gap:10px;padding:9px 2px;border-bottom:1px solid #e6ebf2;font-size:15px;line-height:1.6}
 .hist li:last-child{border-bottom:0}
-.hist .hd{flex:0 0 40px;font-size:10.5px;color:var(--muted);font-weight:600;padding-top:2px}
-.hist .av{flex:0 0 26px;height:26px;border-radius:50%;background:var(--ink);color:#fff;font-size:10.5px;
+.hist .hd{flex:0 0 40px;font-size:12.6px;color:var(--muted);font-weight:600;padding-top:2px}
+.hist .av{flex:0 0 26px;height:26px;border-radius:50%;background:var(--ink);color:#fff;font-size:12.6px;
   display:grid;place-items:center;font-weight:700}
 .hist .av.sys{background:#c6d0dd;color:#425066}
 .hist .tx b{font-weight:700}
-.hist .tx .m{color:var(--muted);font-size:11.5px}
+.hist .tx .m{color:var(--muted);font-size:13.8px}
 
 /* 下部固定アクション（詳細） */
 .fixact{position:absolute;left:0;right:0;bottom:78px;padding:10px 16px 12px;z-index:15;
   background:linear-gradient(180deg,rgba(238,241,246,0),rgba(238,241,246,.94) 38%)}
 .fixact .inner{display:flex;gap:8px}
 .fixact .abtn{box-shadow:0 8px 20px rgba(11,107,203,.28)}
-.fixact .abtn.icon{flex:0 0 54px;background:#fff;border:1.5px solid var(--line);color:var(--ink);font-size:18px;box-shadow:none}
+.fixact .abtn.icon{flex:0 0 54px;background:#fff;border:1.5px solid var(--line);color:var(--ink);font-size:21.6px;box-shadow:none}
 
 /* シート */
 .overlay{position:absolute;inset:0;background:rgba(9,14,26,.45);z-index:30;opacity:0;pointer-events:none;transition:opacity .18s}
@@ -156,87 +156,87 @@ button.card{display:block;width:100%;text-align:left;cursor:pointer;font:inherit
 .sheet.show{transform:translateY(0)}
 .sheet .grab{flex:none;width:40px;height:4.5px;border-radius:3px;background:#d5dce6;margin:9px auto 2px}
 .sheet .shead{flex:none;display:flex;align-items:center;justify-content:space-between;padding:8px 18px 6px}
-.sheet .shead h3{margin:0;font-size:16px}
-.sheet .shead button{border:0;background:#eef1f6;border-radius:50%;width:30px;height:30px;font-size:13px;cursor:pointer;color:var(--muted)}
+.sheet .shead h3{margin:0;font-size:19.2px}
+.sheet .shead button{border:0;background:#eef1f6;border-radius:50%;width:30px;height:30px;font-size:15.6px;cursor:pointer;color:var(--muted)}
 .sheet .sbody{flex:1;min-height:0;overflow-y:auto;padding:6px 18px 26px}
 .launch{display:flex;align-items:center;gap:13px;width:100%;border:1px solid var(--line);background:#fff;
   border-radius:14px;padding:13px 14px;margin-bottom:9px;cursor:pointer;text-align:left;font:inherit}
-.launch .ic{flex:0 0 42px;height:42px;border-radius:12px;display:grid;place-items:center;font-size:20px;background:#e8f1fb}
-.launch .tt{font-size:14px;font-weight:700}
-.launch .ss{font-size:11.5px;color:var(--muted);margin-top:1px}
+.launch .ic{flex:0 0 42px;height:42px;border-radius:12px;display:grid;place-items:center;font-size:24px;background:#e8f1fb}
+.launch .tt{font-size:16.8px;font-weight:700}
+.launch .ss{font-size:13.8px;color:var(--muted);margin-top:1px}
 .chips{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 4px}
-.chip{border:1.5px solid var(--line);background:#fff;border-radius:999px;padding:9px 15px;font-size:13px;font-weight:600;cursor:pointer;color:var(--ink)}
+.chip{border:1.5px solid var(--line);background:#fff;border-radius:999px;padding:9px 15px;font-size:15.6px;font-weight:600;cursor:pointer;color:var(--ink)}
 .chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#fff}
-.sheet textarea{width:100%;border:1.5px solid var(--line);border-radius:12px;padding:10px 12px;font-size:13px;
+.sheet textarea{width:100%;border:1.5px solid var(--line);border-radius:12px;padding:10px 12px;font-size:15.6px;
   font-family:inherit;min-height:64px;resize:none;margin-top:6px}
-.slabel{font-size:12px;font-weight:700;color:var(--muted);margin:14px 0 2px}
-.fin{width:100%;border:1.5px solid var(--line);border-radius:12px;padding:11px 13px;font-size:14px;margin:4px 0 2px;background:#fff;font-family:inherit;box-sizing:border-box}
+.slabel{font-size:14.4px;font-weight:700;color:var(--muted);margin:14px 0 2px}
+.fin{width:100%;border:1.5px solid var(--line);border-radius:12px;padding:11px 13px;font-size:16.8px;margin:4px 0 2px;background:#fff;font-family:inherit;box-sizing:border-box}
 textarea.fin{min-height:64px;resize:vertical}
-.fsum{display:flex;justify-content:space-between;align-items:baseline;font-size:13px;margin:4px 0}
-.fsum b{font-size:18px}
+.fsum{display:flex;justify-content:space-between;align-items:baseline;font-size:15.6px;margin:4px 0}
+.fsum b{font-size:21.6px}
 .pick{display:flex;align-items:center;gap:10px;width:100%;border:1.5px solid var(--line);background:#fff;
   border-radius:12px;padding:11px 13px;margin-bottom:8px;cursor:pointer;text-align:left;font:inherit}
 .pick[aria-pressed="true"]{border-color:var(--accent);background:#e8f1fb}
-.pick .tt{font-size:13.5px;font-weight:700}
-.pick .ss{font-size:11px;color:var(--muted)}
+.pick .tt{font-size:16.2px;font-weight:700}
+.pick .ss{font-size:13.2px;color:var(--muted)}
 .photo-grid{display:flex;gap:8px;margin-top:6px}
 .sign-pad{margin-top:8px;border:1.5px solid var(--line);border-radius:12px;background:#fff;height:120px;touch-action:none;width:100%}
 .photo-grid button{flex:1;aspect-ratio:1;border:1.5px dashed var(--line);border-radius:12px;background:#fafbfd;
-  font-size:20px;color:var(--muted);cursor:pointer}
+  font-size:24px;color:var(--muted);cursor:pointer}
 .photo-grid button.has{border-style:solid;background:#e8f1fb;border-color:var(--accent)}
 
 /* 通知 */
 .ncard{display:flex;gap:11px;align-items:flex-start;width:100%;text-align:left;font:inherit;color:inherit;
   background:#fff;border:1px solid var(--line);border-radius:14px;padding:13px;margin-bottom:9px;cursor:pointer}
 .ncard.unread{border-left:4px solid var(--accent)}
-.ncard .ic{flex:0 0 36px;height:36px;border-radius:50%;display:grid;place-items:center;font-size:16px;background:#e8f1fb}
-.ncard .tt{font-size:13px;font-weight:700;line-height:1.5}
-.ncard .ss{font-size:11.5px;color:var(--muted);margin-top:2px}
-.ncard .when{margin-left:auto;flex:none;font-size:10.5px;color:var(--muted)}
+.ncard .ic{flex:0 0 36px;height:36px;border-radius:50%;display:grid;place-items:center;font-size:19.2px;background:#e8f1fb}
+.ncard .tt{font-size:15.6px;font-weight:700;line-height:1.5}
+.ncard .ss{font-size:13.8px;color:var(--muted);margin-top:2px}
+.ncard .when{margin-left:auto;flex:none;font-size:12.6px;color:var(--muted)}
 
 /* 承認画面 */
-.apr-amt{font-size:26px;font-weight:800;margin:2px 0}
-.apr-meta{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:12.5px;margin:10px 0}
+.apr-amt{font-size:31.2px;font-weight:800;margin:2px 0}
+.apr-meta{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:15px;margin:10px 0}
 .apr-meta dt{color:var(--muted)}
 .apr-meta dd{margin:0;font-weight:600}
 
 /* メニュー */
 .mrow{display:flex;align-items:center;gap:12px;width:100%;background:#fff;border:1px solid var(--line);
   border-radius:14px;padding:13px 14px;margin-bottom:8px;font:inherit;text-align:left;cursor:pointer}
-.mrow .ic{font-size:18px}
-.mrow .tt{font-size:13.5px;font-weight:600}
+.mrow .ic{font-size:21.6px}
+.mrow .tt{font-size:16.2px;font-weight:600}
 .mrow .arr{margin-left:auto;color:var(--muted)}
 .filtbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0 4px}
-.filtbar .fl{font-size:11px;font-weight:700;color:var(--muted)}
-.fchip{display:inline-flex;align-items:center;gap:4px;font-size:12px;padding:6px 10px;border-radius:999px;background:#fff;border:1.5px solid var(--line);font:inherit;cursor:pointer}
+.filtbar .fl{font-size:13.2px;font-weight:700;color:var(--muted)}
+.fchip{display:inline-flex;align-items:center;gap:4px;font-size:14.4px;padding:6px 10px;border-radius:999px;background:#fff;border:1.5px solid var(--line);font:inherit;cursor:pointer}
 .fchip.on{background:#e8f1fb;border-color:var(--accent);color:var(--accent);font-weight:700}
 .filt-sheet .slabel{margin-top:10px}
-.searchbox{width:100%;border:1.5px solid var(--line);border-radius:12px;padding:11px 13px;font-size:14px;
+.searchbox{width:100%;border:1.5px solid var(--line);border-radius:12px;padding:11px 13px;font-size:16.8px;
   font-family:inherit;background:#fff;margin:8px 0 10px}
 
 /* アプリヘッダ（常設: 検索・通知・メニュー） */
 .apphead{flex:none;display:flex;align-items:center;gap:6px;padding:2px 14px 8px}
-.ah-logo{font-weight:800;font-size:14.5px;letter-spacing:.02em;margin-right:auto;display:flex;align-items:center;gap:7px}
-.ah-logo .sq{width:24px;height:24px;border-radius:8px;background:var(--ink);color:#fff;display:grid;place-items:center;font-size:9px;font-weight:800}
-.apphead button{background:#fff;border:1px solid var(--line);width:34px;height:34px;border-radius:50%;font-size:14px;cursor:pointer;position:relative;display:grid;place-items:center}
-.apphead button .n{position:absolute;top:-4px;right:-4px;min-width:15px;height:15px;border-radius:8px;background:var(--danger);color:#fff;font-size:9px;font-weight:700;display:grid;place-items:center;padding:0 3px}
+.ah-logo{font-weight:800;font-size:17.4px;letter-spacing:.02em;margin-right:auto;display:flex;align-items:center;gap:7px}
+.ah-logo .sq{width:24px;height:24px;border-radius:8px;background:var(--ink);color:#fff;display:grid;place-items:center;font-size:10.8px;font-weight:800}
+.apphead button{background:#fff;border:1px solid var(--line);width:34px;height:34px;border-radius:50%;font-size:16.8px;cursor:pointer;position:relative;display:grid;place-items:center}
+.apphead button .n{position:absolute;top:-4px;right:-4px;min-width:15px;height:15px;border-radius:8px;background:var(--danger);color:#fff;font-size:10.8px;font-weight:700;display:grid;place-items:center;padding:0 3px}
 
 /* 今後実装予定（WIP）画面 */
 .wiphero{display:flex;flex-direction:column;align-items:center;text-align:center;padding:16px 8px 4px}
-.wiphero .big{width:64px;height:64px;border-radius:18px;background:#e8f1fb;display:grid;place-items:center;font-size:30px;margin-bottom:10px}
-.wiptag{display:inline-block;background:var(--warn-bg);color:var(--warn);border-radius:999px;padding:3px 12px;font-size:11px;font-weight:700;margin-bottom:6px}
-.wiphero h2{margin:0 0 2px;font-size:19px}
+.wiphero .big{width:64px;height:64px;border-radius:18px;background:#e8f1fb;display:grid;place-items:center;font-size:36px;margin-bottom:10px}
+.wiptag{display:inline-block;background:var(--warn-bg);color:var(--warn);border-radius:999px;padding:3px 12px;font-size:13.2px;font-weight:700;margin-bottom:6px}
+.wiphero h2{margin:0 0 2px;font-size:22.8px}
 .wlist{list-style:none;margin:2px 0 0;padding:0}
-.wlist li{display:flex;gap:9px;padding:8px 0;font-size:13px;line-height:1.55;border-bottom:1px solid #e6ebf2}
+.wlist li{display:flex;gap:9px;padding:8px 0;font-size:15.6px;line-height:1.55;border-bottom:1px solid #e6ebf2}
 .wlist li:last-child{border-bottom:0}
 .wlist li::before{content:"✓";color:var(--ok);font-weight:800;flex:0 0 auto}
-.kvrow{display:flex;gap:10px;font-size:12.5px;padding:8px 0;border-bottom:1px solid #e6ebf2}
+.kvrow{display:flex;gap:10px;font-size:15px;padding:8px 0;border-bottom:1px solid #e6ebf2}
 .kvrow:last-child{border-bottom:0}
 .kvrow .kt{flex:0 0 86px;color:var(--muted);font-weight:600}
 
 /* お知らせ */
-.ann-from{font-size:10.5px;font-weight:700;color:var(--muted);display:flex;gap:8px;align-items:center}
-.ann-body{font-size:12.5px;color:var(--ink);line-height:1.7;margin-top:8px;padding-top:8px;border-top:1px solid #e6ebf2}
+.ann-from{font-size:12.6px;font-weight:700;color:var(--muted);display:flex;gap:8px;align-items:center}
+.ann-body{font-size:15px;color:var(--ink);line-height:1.7;margin-top:8px;padding-top:8px;border-top:1px solid #e6ebf2}
 
 /* ドロワー（ハンバーガーメニュー） */
 .d-ovl{position:absolute;inset:0;background:rgba(9,14,26,.45);z-index:40;opacity:0;pointer-events:none;transition:opacity .2s}
@@ -246,23 +246,23 @@ textarea.fin{min-height:64px;resize:vertical}
   border-radius:24px 0 0 24px;box-shadow:-18px 0 50px rgba(10,18,35,.28)}
 .drawer.show{transform:translateX(0)}
 .d-head{flex:none;display:flex;align-items:center;gap:10px;padding:20px 16px 12px;border-bottom:1px solid var(--line)}
-.d-head .av{width:38px;height:38px;border-radius:50%;background:var(--ink);color:#fff;display:grid;place-items:center;font-size:16px}
-.d-head .nm{font-size:14px;font-weight:800}
-.d-head .rl{font-size:11px;color:var(--muted)}
-.d-head .x{margin-left:auto;border:0;background:#eef1f6;border-radius:50%;width:30px;height:30px;font-size:13px;cursor:pointer;color:var(--muted)}
+.d-head .av{width:38px;height:38px;border-radius:50%;background:var(--ink);color:#fff;display:grid;place-items:center;font-size:19.2px}
+.d-head .nm{font-size:16.8px;font-weight:800}
+.d-head .rl{font-size:13.2px;color:var(--muted)}
+.d-head .x{margin-left:auto;border:0;background:#eef1f6;border-radius:50%;width:30px;height:30px;font-size:15.6px;cursor:pointer;color:var(--muted)}
 .d-body{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:4px 10px 24px}
-.d-sec{font-size:10.5px;font-weight:700;color:var(--muted);letter-spacing:.04em;margin:14px 8px 4px}
+.d-sec{font-size:12.6px;font-weight:700;color:var(--muted);letter-spacing:.04em;margin:14px 8px 4px}
 .d-item{display:flex;align-items:center;gap:11px;width:100%;border:0;background:none;padding:10px 9px;border-radius:10px;
-  font:inherit;font-size:13.5px;font-weight:600;cursor:pointer;text-align:left;color:var(--ink)}
+  font:inherit;font-size:16.2px;font-weight:600;cursor:pointer;text-align:left;color:var(--ink)}
 .d-item:active,.d-item:hover{background:#eef2f7}
-.d-item .ic{width:24px;text-align:center;font-size:15px}
-.d-item .arr{margin-left:auto;color:var(--muted);font-size:12px}
-.d-item .mini{font-size:10px;color:var(--muted);font-weight:600;margin-left:auto;background:#f1f4f8;border-radius:6px;padding:1px 6px}
-.d-foot{flex:none;padding:10px 16px 18px;border-top:1px solid var(--line);font-size:10.5px;color:var(--muted);line-height:1.6}
+.d-item .ic{width:24px;text-align:center;font-size:18px}
+.d-item .arr{margin-left:auto;color:var(--muted);font-size:14.4px}
+.d-item .mini{font-size:12px;color:var(--muted);font-weight:600;margin-left:auto;background:#f1f4f8;border-radius:6px;padding:1px 6px}
+.d-foot{flex:none;padding:10px 16px 18px;border-top:1px solid var(--line);font-size:12.6px;color:var(--muted);line-height:1.6}
 
 /* トースト */
 .toast{position:absolute;left:50%;bottom:104px;transform:translate(-50%,16px);background:var(--ink);color:#fff;
-  border-radius:12px;padding:11px 18px;font-size:12.5px;font-weight:600;opacity:0;transition:all .22s;z-index:50;
+  border-radius:12px;padding:11px 18px;font-size:15px;font-weight:600;opacity:0;transition:all .22s;z-index:50;
   max-width:82%;text-align:center;pointer-events:none}
 .toast.show{opacity:1;transform:translate(-50%,0)}
 
@@ -271,18 +271,18 @@ textarea.fin{min-height:64px;resize:vertical}
 .apphead button.ai-ah svg{width:15px;height:15px;display:block}
 /* SAAD AI 画面（通常遷移） */
 .ai-page-msgs{display:flex;flex-direction:column;gap:9px;padding:4px 0 12px;min-height:42vh}
-.ai-page-msgs .bub{max-width:92%;padding:9px 11px;border-radius:12px;font-size:13px;line-height:1.55;white-space:pre-wrap}
+.ai-page-msgs .bub{max-width:92%;padding:9px 11px;border-radius:12px;font-size:15.6px;line-height:1.55;white-space:pre-wrap}
 .ai-page-msgs .bub.bot{align-self:flex-start;background:#fff;border:1px solid var(--line);border-radius:4px 12px 12px 12px}
 .ai-page-msgs .bub.me{align-self:flex-end;background:#e6f6f6;border:1px solid #b7e0e0;border-radius:12px 4px 12px 12px}
-.ai-page-msgs .bub .who{display:block;font-size:10px;font-weight:700;color:var(--muted);margin-bottom:3px}
+.ai-page-msgs .bub .who{display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:3px}
 .ai-page-sg{display:flex;flex-wrap:wrap;gap:6px;padding:4px 0 10px}
-.ai-page-sg button{border:1px solid var(--line);background:#fff;border-radius:999px;padding:6px 10px;font-size:11.5px;font:inherit}
+.ai-page-sg button{border:1px solid var(--line);background:#fff;border-radius:999px;padding:6px 10px;font-size:13.8px;font:inherit}
 .ai-page-f{display:flex;gap:8px;width:100%}
-.ai-page-f input{flex:1;border:1px solid var(--line);border-radius:12px;padding:11px 12px;font-size:14px;font:inherit}
-.ai-page-f button{border:0;background:var(--accent);color:#fff;border-radius:12px;padding:11px 14px;font-size:13px;font-weight:700;flex:none}
+.ai-page-f input{flex:1;border:1px solid var(--line);border-radius:12px;padding:11px 12px;font-size:16.8px;font:inherit}
+.ai-page-f button{border:0;background:var(--accent);color:#fff;border-radius:12px;padding:11px 14px;font-size:15.6px;font-weight:700;flex:none}
 
-.note{font-size:11px;color:var(--muted);line-height:1.7;margin-top:12px;padding:0 2px}
-.quiet{font-size:12.5px;color:var(--muted);padding:8px 2px}
+.note{font-size:13.2px;color:var(--muted);line-height:1.7;margin-top:12px;padding:0 2px}
+.quiet{font-size:15px;color:var(--muted);padding:8px 2px}
 
 @media(max-width:900px){
   body{padding:8px 6px 30px}
@@ -473,10 +473,10 @@ function pushNotif(role,n){state.notifs[role].unshift({...n,when:'たった今',
 
 /* ================= 部品 ================= */
 function annTeaser(){
-  return `<div class="sec">お知らせ・通達 <button data-sub="ann" style="margin-left:auto;border:0;background:none;color:var(--accent);font-size:11.5px;font-weight:700;cursor:pointer">すべて見る ›</button></div>
+  return `<div class="sec">お知らせ・通達 <button data-sub="ann" style="margin-left:auto;border:0;background:none;color:var(--accent);font-size:13.8px;font-weight:700;cursor:pointer">すべて見る ›</button></div>
   ${ANNS.slice(0,2).map((a,i)=>`<button class="card" data-sub="ann" style="width:100%;text-align:left">
     <div class="ann-from"><span>${a.from}</span><span style="margin-left:auto;font-weight:600">${a.d}</span></div>
-    <div class="t" style="margin:3px 0 0;font-size:13px">${a.t}</div>
+    <div class="t" style="margin:3px 0 0;font-size:15.6px">${a.t}</div>
   </button>`).join('')}`;
 }
 function stepper(stage){
@@ -544,7 +544,7 @@ function homeSales(){
   <div class="tl-row"><time>14:00</time><div class="body"><div class="tt">佐藤さま宅 契約前説明</div><div class="ts">シロアリ防除 — 上のカードから報告</div></div></div>
   <div class="tl-row"><time>17:00</time><div class="body"><div class="tt">見積提出期限（サンプル社）</div><div class="ts">高圧洗浄 250,000円</div></div></div>
 
-  <div class="sec">申請の進み <button data-sub="myreq" style="margin-left:auto;border:0;background:none;color:var(--accent);font-size:11.5px;font-weight:700;cursor:pointer">自分の申請 ›</button></div>
+  <div class="sec">申請の進み <button data-sub="myreq" style="margin-left:auto;border:0;background:none;color:var(--accent);font-size:13.8px;font-weight:700;cursor:pointer">自分の申請 ›</button></div>
   ${state.ringi==='pending'?`<div class="card"><div class="k">値引き申請（佐藤さま −8%）</div><div class="wait" style="margin-top:8px">⏳ 田中拠点長の承認待ち — 結果は通知に届きます</div></div>`:''}
   ${state.ringi==='ok'?`<div class="card"><div class="k">値引き申請（佐藤さま）</div><div class="wait ok" style="margin-top:8px">✓ 承認されました — 契約に進めます</div></div>`:''}
   ${state.ringi==='back'?`<div class="card"><div class="k">値引き申請（佐藤さま）</div><div class="wait" style="margin-top:8px;color:var(--danger);background:var(--danger-bg)">↩ 差戻し — ホーム上部から再申請</div></div>`:''}
@@ -603,9 +603,9 @@ function homeBoss(){
   ${q.join('')||'<p class="quiet">承認待ちはありません。</p>'}
   <div class="sec">拠点の今日</div>
   <button class="card" data-subwip="bi" style="width:100%"><div style="display:flex;text-align:center">
-    <div style="flex:1"><div style="font-size:20px;font-weight:800">6</div><div class="s">訪問予定</div></div>
-    <div style="flex:1;border-left:1px solid var(--line)"><div style="font-size:20px;font-weight:800">2</div><div class="s">成約</div></div>
-    <div style="flex:1;border-left:1px solid var(--line)"><div style="font-size:20px;font-weight:800">81万</div><div class="s">売上（日）</div></div>
+    <div style="flex:1"><div style="font-size:24px;font-weight:800">6</div><div class="s">訪問予定</div></div>
+    <div style="flex:1;border-left:1px solid var(--line)"><div style="font-size:24px;font-weight:800">2</div><div class="s">成約</div></div>
+    <div style="flex:1;border-left:1px solid var(--line)"><div style="font-size:24px;font-weight:800">81万</div><div class="s">売上（日）</div></div>
   </div><div class="s" style="margin-top:8px;text-align:center;color:var(--accent);font-weight:600">詳しい数字（BI）›</div></button>
   ${annTeaser()}
   <div class="note">一覧・分析・請求などの重い業務はPC版（台帳）で。スマホは「承認と確認」に絞っています。</div>`;
@@ -650,7 +650,7 @@ function dealDetail(id){
 
   return `<div class="dethead">
     <button class="backbtn" data-back="1">‹ 戻る</button>
-    <div class="k" style="font-size:11px;font-weight:700;color:var(--muted)"><span class="tagDom">${d.dom}</span> ${d.title}</div>
+    <div class="k" style="font-size:13.2px;font-weight:700;color:var(--muted)"><span class="tagDom">${d.dom}</span> ${d.title}</div>
     <h2>${d.cust}</h2>
     <div class="sub">${d.addr}${hideAmt?'':' · 契約金額 '+d.amount}</div>
     <div class="iconrow">
@@ -691,7 +691,7 @@ function approveView(rid){
   const isR1=rid==='r1';
   return `<div class="dethead">
     <button class="backbtn" data-back="1">‹ 戻る</button>
-    <div class="k" style="font-size:11px;font-weight:700;color:var(--muted)"><span class="tagP">承認待ち</span>${isR1?'値引き申請':'着手承認'} · 申請者 星本</div>
+    <div class="k" style="font-size:13.2px;font-weight:700;color:var(--muted)"><span class="tagP">承認待ち</span>${isR1?'値引き申請':'着手承認'} · 申請者 星本</div>
     <h2>${isR1?'佐藤 一郎さま — シロアリ防除':'株式会社サンプル — 高圧洗浄'}</h2>
   </div>
   <div class="card">
@@ -728,7 +728,7 @@ function notifView(){
 
 /* ================= メニュー（全機能の入口） ================= */
 function mItem(ic,tt,attr,sub){
-  return `<button class="mrow" ${attr}><span class="ic">${ic}</span><span><span class="tt">${tt}</span>${sub?`<br><span style="font-size:10.5px;color:var(--muted)">${sub}</span>`:''}</span><span class="arr">›</span></button>`;
+  return `<button class="mrow" ${attr}><span class="ic">${ic}</span><span><span class="tt">${tt}</span>${sub?`<br><span style="font-size:12.6px;color:var(--muted)">${sub}</span>`:''}</span><span class="arr">›</span></button>`;
 }
 function menuView(){
   return `<div class="hgreet"><h2>メニュー</h2><p>${ROLES[state.role].name}さん（${ROLES[state.role].label}） — どこに何があるかはここが正</p></div>
@@ -788,7 +788,7 @@ function annView(){
   <div class="sub">全社・拠点宛。人事・経理・安全衛生の締切もここに届きます。</div></div>
   ${ANNS.map((a,i)=>`<button class="card" data-ann="${i}" style="width:100%;text-align:left">
     <div class="ann-from"><span>${a.from}</span><span style="margin-left:auto;font-weight:600">${a.d}</span></div>
-    <div class="t" style="margin:4px 0 0;font-size:13.5px">${a.t}</div>
+    <div class="t" style="margin:4px 0 0;font-size:16.2px">${a.t}</div>
     ${state.annOpen===i?`<div class="ann-body">${a.body}</div>`:''}
   </button>`).join('')}
   <div class="note">タップで本文を開閉。実装版では未読管理と「自分の拠点宛」フィルタが付きます。</div>`;
@@ -824,7 +824,7 @@ function mFiltChips(kind){
   if(regi) chips.push(`<button class="fchip on" data-mfclr="${kind}:regi">${regi} ×</button>`);
   return `<div class="filtbar"><span class="fl">絞り込み</span>
     <button class="fchip${n?' on':''}" data-mfilt="${kind}">条件を選ぶ${n?`（${n}）`:''}</button>
-    ${chips.join('')||'<span class="s" style="font-size:11px">未設定</span>'}</div>`;
+    ${chips.join('')||'<span class="s" style="font-size:13.2px">未設定</span>'}</div>`;
 }
 function mFiltSheet(kind){
   const isC=kind==='cust';
@@ -961,7 +961,7 @@ function buyFormView(){
   return `<div class="dethead"><button class="backbtn" data-back="1">‹ 戻る</button><h2>資材を注文</h2>
   <div class="sub">複数品目をカートに入れて申請。よく使う資材を上に表示</div></div>
   <div class="slabel">① どの案件？</div>${mdealPick()}
-  <div class="slabel">② 品目（タップでカートへ · ★よく使う）</div><div class="chips">${ordered.map(([n,p])=>`<button class="chip" data-cartadd="${n}" aria-pressed="${cart.some(c=>c.n===n)}">${favNames.includes(n)?'★ ':''}${n}<br><span style="font-size:10.5px;font-weight:500">${p.toLocaleString()}円</span></button>`).join('')}</div>
+  <div class="slabel">② 品目（タップでカートへ · ★よく使う）</div><div class="chips">${ordered.map(([n,p])=>`<button class="chip" data-cartadd="${n}" aria-pressed="${cart.some(c=>c.n===n)}">${favNames.includes(n)?'★ ':''}${n}<br><span style="font-size:12.6px;font-weight:500">${p.toLocaleString()}円</span></button>`).join('')}</div>
   ${cart.length?`<div class="card" style="margin-top:8px">${cart.map((l,i)=>`<div class="kvrow"><span>${l.n} ×${l.q}</span><button class="abtn g" data-cartq="${i}" style="padding:4px 8px;min-height:0">数量</button><button class="abtn g" data-cartrm="${i}" style="padding:4px 8px;min-height:0">外す</button></div>`).join('')}</div>`:''}
   <div class="slabel">③ いつまでに？</div>${mchips('eta',['明日','3日後','来週'])}
   ${ok?`<div class="card" style="margin-top:10px"><div class="fsum"><span>合計（${lines.length}品目）</span><b>${total.toLocaleString()}円</b></div>
@@ -1070,7 +1070,7 @@ function quoteView(){
   const sub=picked.reduce((s,[,p])=>s+p,0), disc=Number(mfv('disc'))||0, tax=Math.round(sub*(1-disc/100)*1.1);
   return `<div class="dethead"><button class="backbtn" data-back="1">‹ 戻る</button><h2>見積を作る</h2><div class="sub">標準単価から自動計算。値引きはそのまま稟議へ</div></div>
   <div class="slabel">① どの案件？</div>${mdealPick()}
-  <div class="slabel">② 品目（複数選べます）</div><div class="chips">${Q_LINES.map(([n,p])=>`<button class="chip" data-mfm="lines:${n}" aria-pressed="${(state.mf.lines||[]).includes(n)}">${n}<br><span style="font-size:10.5px;font-weight:500">${p.toLocaleString()}円</span></button>`).join('')}</div>
+  <div class="slabel">② 品目（複数選べます）</div><div class="chips">${Q_LINES.map(([n,p])=>`<button class="chip" data-mfm="lines:${n}" aria-pressed="${(state.mf.lines||[]).includes(n)}">${n}<br><span style="font-size:12.6px;font-weight:500">${p.toLocaleString()}円</span></button>`).join('')}</div>
   <div class="slabel">③ 値引き</div>${mchips('disc',['0','3','5','8','12','15'])}
   <div class="card" style="margin-top:10px"><div class="fsum"><span>合計（税込）</span><b>${tax.toLocaleString()}円</b></div>
     <div class="s">${disc>12?'12%超 — 管理部の二次承認':disc>0?'値引きあり — 拠点長の承認が自動で付きます':'承認不要'} · ${tax>=300000?'工事申込書':'契約書作成依頼WF'}</div></div>
@@ -1120,7 +1120,7 @@ function calView(){
 function biView(){
   const k=[['今月の売上','812万円'],['成約','14件'],['訪問','63件'],['未回収','238万円'],['承認待ち','2件'],['点検の未実施','4件']];
   return `<div class="dethead"><button class="backbtn" data-back="1">‹ 戻る</button><h2>拠点の数字</h2><div class="sub">台帳からそのまま集計（転記していません）</div></div>
-  <div class="card"><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;text-align:center">${k.map(([l,v])=>`<div><div style="font-size:18px;font-weight:800">${v}</div><div class="s">${l}</div></div>`).join('')}</div></div>
+  <div class="card"><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;text-align:center">${k.map(([l,v])=>`<div><div style="font-size:21.6px;font-weight:800">${v}</div><div class="s">${l}</div></div>`).join('')}</div></div>
   <div class="note">詳しい分析はPC版の「経営・BI」で。</div>`;
 }
 function knowView(){
