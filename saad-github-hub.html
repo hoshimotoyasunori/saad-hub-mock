@@ -588,12 +588,12 @@ tr.is-picked{background:#f0faf9}
 /* ================= data ================= */
 const PEOPLE = {
   sales:'星本（横浜）', salesF:'加藤（藤沢）', salesS:'森（相模原）', salesK:'中村（川崎）', salesA:'井上（厚木）', salesN:'渡辺（横浜北）',
-  leader:'田中（拠点長・横浜）', kanri:'佐藤（管理部）', buy:'鈴木（購買）', koji:'山本（施工L・横浜）', jimu:'高橋（事務・横浜）'
+  leader:'田中（拠点長・横浜）', esadm:'東（ES管理部）', kanri:'佐藤（経理）', buy:'鈴木（購買）', koji:'山本（施工L・横浜）', jimu:'高橋（事務・横浜）'
 };
 /** 役割→自拠点（スコープ「拠点」用）。管理部・購買は全社 */
 const ROLE_HOME_BRANCH = {
   sales:'横浜営業所', salesF:'藤沢営業所', salesS:'相模原営業所', salesK:'川崎営業所', salesA:'厚木営業所', salesN:'横浜北営業所',
-  leader:'横浜営業所', koji:'横浜営業所', jimu:'横浜営業所', kanri:null, buy:null
+  leader:'横浜営業所', koji:'横浜営業所', jimu:'横浜営業所', esadm:null, kanri:null, buy:null
 };
 const SALES_ROLES = ['sales','salesF','salesS','salesK','salesA','salesN'];
 /* 不在・代理（チェック6）: 期間中は承認キューが代理者へ流れる */
@@ -635,7 +635,8 @@ const ROLES = {
   salesA:{label:'営業・厚木（井上）', short:'営厚', view:'mine', scope:'scope:self（担当の案件）', hint:'<strong>営業・厚木</strong> — SE部門の担当案件。'},
   salesN:{label:'営業・横浜北（渡辺）', short:'営北', view:'mine', scope:'scope:self（担当の案件）', hint:'<strong>営業・横浜北</strong> — 物件未定リードなど。'},
   leader:{label:'拠点長（横浜）', short:'長', view:'approvals', scope:'scope:branch（横浜営業所）', hint:'<strong>拠点長</strong> — 稟議キュー。スコープ「拠点」で横浜の案件に絞れる。'},
-  kanri:{label:'管理部（経理）', short:'管', view:'all', scope:'scope:all（部門・拠点で絞る）', hint:'<strong>管理部</strong> — 既定は「全体」。台帳の<strong>部門／拠点</strong>フィルタで横断確認。高額稟議は稟議View。'},
+  esadm:{label:'ES管理部', short:'E管', view:'all', scope:'scope:division（ES事業本部横断）', hint:'<strong>ES管理部</strong> — 依頼登録・振分・見積受付・受注確認・契約書。経理ロールとは別。'},
+  kanri:{label:'経理（管理部）', short:'経', view:'billingv', scope:'scope:all（部門・拠点で絞る）', hint:'<strong>経理</strong> — 請求・入金・売上。高額二次承認も稟議View。'},
   buy:{label:'購買物流', short:'購', view:'procurement', scope:'scope:all（全社・物流）', hint:'<strong>購買</strong> — 購買申請View。'},
   koji:{label:'施工リーダー（横浜）', short:'施', view:'kojiv', scope:'scope:branch（自拠点の現場）', hint:'<strong>施工</strong> — ゲート・現場。金額非表示。'},
   jimu:{label:'地区事務（横浜）', short:'事', view:'mine', scope:'scope:region（担当地区）', hint:'<strong>地区事務</strong> — 担当の案件は自分がownの行。'},
@@ -860,6 +861,8 @@ function ensurePropMaster(id){
 }
 
 const ACT_KINDS=['初回訪問','現地調査','見積提示','契約説明','定期点検','再アプローチ','問い合わせ対応','施工前打合せ','その他'];
+/* ES_010 活動ステータス（案件の進行語彙。転記せず案件に持つ） */
+const ACT_STATUS=['（未設定）','調査前キャンセル','調査予定','調査済み','報告前キャンセル','見積提示なし','見積提示済','受注報告済','受注確定'];
 function activityTargetLabel(v){
   const c=v.cust?ensureCustMaster(v.cust):null;
   const p=v.prop?ensurePropMaster(v.prop):null;
@@ -946,6 +949,7 @@ let issues = [
     tl:[ev('sys','system','施工 koji#55 完了までブロック')]},
 
   {id:'2103', ref:'sfa#2103', repo:'sfa', kind:'deal', depth:0, parent:null, customer:'c2', property:'p3', division:'HSE', branch:'藤沢営業所', title:'HS-2026-定期点検・保証更新（戸建（藤沢・木造2F））', status:'In Progress', open:true, own:'salesF',
+    contractWfOk:true, actStatus:'見積提示済', orderStatus:'確認待ち',
     body:{'顧客 / 物件':'既存顧客 / 戸建','用途':'商談中の2件目。ゲートはまだ作られていない。'}, tl:[ev('sys','system','Projectに追加')]},
   {id:'2103-p1', ref:'sfa#2104', repo:'sfa', kind:'phase', depth:1, parent:'2103', title:'商談・見積', status:'In Progress', open:true, own:'sales', body:{'用途':'工程'}, tl:[]},
   {id:'2103-t1', ref:'sfa#2105', repo:'sfa', kind:'task', depth:2, parent:'2103-p1', title:'初回訪問', status:'Done', open:true, own:'sales', body:{'メモ':'9/18 完了'}, tl:[]},
@@ -1047,7 +1051,9 @@ let issues = [
 
 let inbox = {
   sales:[{text:'見積提示の期限 9/25', ref:'2103-t2'}],
+  salesF:[], salesS:[], salesK:[], salesA:[], salesN:[],
   leader:[{text:'承認依頼: 値引起案（12%）', ref:'841-r1'},{text:'承認依頼: 施工着手承認', ref:'841-r2'}],
+  esadm:[{text:'調査依頼の登録待ち: 港商事 本社ビル', screen:'mgmt', opts:{mgmt:'intake'}},{text:'受注確認待ち: sfa#2103', screen:'mgmt', opts:{mgmt:'orderconfirm'}}],
   kanri:[{text:'承認依頼: 高額資材の特例', ref:'841-r3'}],
   buy:[{text:'購買申請: 資材発注（調査キット）', ref:'841-b1'}],
   koji:[],
@@ -1226,7 +1232,20 @@ function runAutoRemind(){
   notify(state.role, `自動催促を実行: リマインド ${n} 件 / エスカレ ${e} 件 / 通達再通知 ${annN} 件`);
   render();
 }
-function notify(to, text, ref, extra){ inbox[to].unshift(Object.assign({text, ref}, extra||{})); }
+function notify(to, text, ref, extra){
+  if(!inbox[to]) inbox[to]=[];
+  inbox[to].unshift(Object.assign({text, ref}, extra||{}));
+}
+function toast(msg){
+  let el=$('saadToast');
+  if(!el){
+    el=document.createElement('div'); el.id='saadToast';
+    el.style.cssText='position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:9999;background:#24292f;color:#fff;padding:10px 16px;border-radius:8px;font-size:13px;max-width:90vw;box-shadow:0 8px 24px rgba(0,0,0,.25)';
+    document.body.appendChild(el);
+  }
+  el.textContent=msg; el.style.display='block';
+  clearTimeout(toast._t); toast._t=setTimeout(()=>{ el.style.display='none'; }, 3200);
+}
 function addEvent(it, e){ it.tl.push(e); }
 
 function recalc(){
@@ -1276,6 +1295,13 @@ function act(kindA, id){
     notify(ap, `${it.ref}（${it.title}）が承認されました${wasProxy?'（代理承認）':''}`, it.id);
     if(it.by && it.by!==ap) notify(it.by, `${it.ref} が承認されました（代理起票の結果）`, it.id);
     if(it.cancelRoot) applyCancelDeal(it);
+    /* P1-2: 契約書作成依頼WF承認 → 案件にフラグ */
+    if((it.body&&it.body['種類'])==='契約書作成依頼' || /契約書作成依頼/.test(it.title||'')){
+      const root=rootOf(it); if(root){ root.contractWfOk=true; root.contractWfId=it.id;
+        addEvent(root, ev('sys', me, '契約書作成依頼WF 承認 — 契約書印刷・商談持参が可能'));
+        notify(applicantOf(it)||'sales', `契約書作成依頼が承認されました（${root.ref}）。契約書を印刷して商談へ`, root.id);
+      }
+    }
   }
   if(kindA==='reject'){
     rememberPrev(it); it.status='差戻し'; it.own='sales';
@@ -1826,7 +1852,13 @@ function renderKnowledge(){
 
 const PIN_BY_ROLE={
   sales:['sfa','ringi','order','koji'],
+  salesF:['sfa','ringi','order','koji'],
+  salesS:['sfa','ringi','order','koji'],
+  salesK:['sfa','ringi','order','koji'],
+  salesA:['sfa','ringi','order','koji'],
+  salesN:['sfa','ringi','order','koji'],
   leader:['ringi','sfa','billing','jimu'],
+  esadm:['sfa','jimu','ringi','billing'],
   kanri:['billing','ringi','sfa','jimu'],
   buy:['buy','order','stock','sfa'],
   koji:['koji','order','sfa','ringi'],
@@ -1886,6 +1918,11 @@ function renderPortal(){
       {tm:'15:00',t:'作業報告・写真アップ', view:'kojiv'},
     ],
     leader:[{tm:'10:00',t:'承認キューの確認', view:'approvals'},{tm:'16:00',t:'締め・進捗レビュー', view:'all'}],
+    esadm:[
+      {tm:'9:00',t:'調査依頼の登録・振分', screen:'mgmt', opts:{mgmt:'intake'}},
+      {tm:'11:00',t:'受注報告の確認・確定', screen:'mgmt', opts:{mgmt:'orderconfirm'}},
+      {tm:'15:00',t:'契約書類キュー', screen:'mgmt', opts:{mgmt:'contracts'}},
+    ],
     kanri:[{tm:'10:00',t:'高額稟議・請求キュー', view:'approvals'},{tm:'16:00',t:'請求Viewの確認', view:'billingv'}],
     buy:[{tm:'10:00',t:'購買申請キュー', view:'procurement'},{tm:'16:00',t:'発注進捗の確認', view:'procurement'}],
     jimu:[{tm:'10:00',t:'事務宿題の確認', view:'mine'},{tm:'16:00',t:'書類・契約の進捗', screen:'crm'}],
@@ -1967,7 +2004,7 @@ function renderPortal(){
   $('main').querySelectorAll('[data-ti]').forEach(b=>b.onclick=()=>{
     const x=todayList[Number(b.dataset.ti)];
     if(x.open) openIssue(x.open);
-    else if(x.screen){ if(x.axis) state.crmAxis=x.axis; go(x.screen); }
+    else if(x.screen){ if(x.axis) state.crmAxis=x.axis; go(x.screen, x.opts||{}); }
     else if(x.view){ state.view=x.view; go('board'); }
     else go('board');
   });
@@ -2037,7 +2074,7 @@ const APP_USERS={
   koji:'施工リーダー', jimu:'地区事務', billing:'管理部（経理）', bi:'経営・管理部',
 };
 const APP_ACTIONS={
-  sfa:[{l:'担当の案件', view:'mine'},{l:'顧客を探す', screen:'crm'},{l:'見積作成', form:'quote'},{l:'活動予定', form:'deal'},{l:'定期点検', mgmt:'inspect'}],
+  sfa:[{l:'担当の案件', view:'mine'},{l:'顧客を探す', screen:'crm'},{l:'見積作成', form:'quote'},{l:'依頼を報告', form:'intakeReport'},{l:'受注を報告', form:'orderReport'},{l:'活動予定', form:'deal'},{l:'定期点検', mgmt:'inspect'}],
   ringi:[{l:'承認キュー', view:'approvals'},{l:'＋ 申請する', form:'ringi'}],
   buy:[{l:'購買キュー', view:'procurement'},{l:'＋ 申請する', form:'buy'},{l:'外注・仕入先', mgmt:'vendors'}],
   order:[{l:'発注する', form:'buy'},{l:'商品マスタ', mgmt:'items'}],
@@ -2734,14 +2771,14 @@ function manualCardsHtml(list){
   </a>`).join('');
 }
 const MANUAL_STEPS = [
-  {n:1, scene:'依頼受付', asis:'管理会社→紙/FAX/電話→営業→メールでES管理部→eSM登録＋Excel3種（進捗表/販路日報/日次管理表）転記→振り分け（ES_001）', saad:'[リード] 行が1本立つだけ。転記ゼロ。振り分け＝担当', who:'営業', where:'スマホ: ホーム', wait:'営業の対応待ち'},
-  {n:2, scene:'案件化', asis:'eSMで案件登録（ES管理部）', saad:'リードを [案件] へ昇格（行を足す）', who:'営業', where:'台帳', wait:'営業の日程調整待ち'},
-  {n:3, scene:'調査・見積', asis:'電話でアポ→eSMスケジュール登録→現地で内視鏡調査・写真→Excel調査報告書→eSM活動登録「調査済み」→報告アポ→提示（ES_010）', saad:'[作業] にやることが並ぶ。アポ・調査結果は Comment、写真は添付。活動登録＝進捗の更新', who:'営業（＋技術）', where:'Issue詳細', wait:'拠点長の承認待ちへ'},
-  {n:4, scene:'決裁', asis:'税込30万円未満＝契約書作成依頼WF（NEXT・所属長承認）→iReporterで契約書印刷／30万円以上＝工事申込書（ES_091）', saad:'[稟議] をゲートの子として起票→金額で承認キューが自動で決まる', who:'営業→拠点長', where:'PC: 稟議View', wait:'高額なら管理部待ち'},
-  {n:5, scene:'高額特例', asis:'本部へFAX・電話伺い', saad:'同じ稟議行が管理部キューに出る（二次承認）', who:'管理部', where:'PC: 稟議View', wait:'購買の手配待ち'},
-  {n:6, scene:'資材手配', asis:'電話/FAX発注、納期は口頭', saad:'[購買申請] を処理。納期がフィールドに残る', who:'購買物流', where:'PC: 購買View', wait:'ゲート開通（施工解除）'},
-  {n:7, scene:'施工', asis:'紙の作業報告書・写真は後日', saad:'開通で「準備中」→「未着手」。Inboxに解除通知→現場で完了報告', who:'施工リーダー', where:'スマホ: Inbox/ホーム', wait:'管理部の請求待ちへ'},
-  {n:8, scene:'受注報告・請求', asis:'受注をLINE WORKSでES管理部へ→受注集計スプシ→毎日17:00に日報Excelへ転記→eSM受注登録（ES_091）。請求も手作業', saad:'受注＝進捗を変えるだけで台帳に即反映（17:00転記が消える）。[請求] は施工完了で解除→発行＝完了', who:'管理部', where:'PC: 請求View', wait:'入金待ち'},
+  {n:1, scene:'依頼受付', asis:'管理会社→紙/FAX/電話→営業→メールでES管理部→eSM登録＋Excel3種転記→振り分け（ES_001）', saad:'営業は「調査依頼を管理部へ報告」。ES管理部が登録・振分キューで仮登録し担当へ振分。Excel転記はしない', who:'営業→ES管理部→営業', where:'＋新規／台帳・登録', wait:'ES管理部の登録・振分待ち'},
+  {n:2, scene:'案件化', asis:'eSMで案件登録（ES管理部）', saad:'ES管理部が報告キューからリード／案件を起票し、営業へ振分（Assignees）', who:'ES管理部', where:'調査依頼の登録・振分', wait:'営業の日程調整待ち'},
+  {n:3, scene:'調査・見積', asis:'電話でアポ→eSMスケジュール→現地調査→Excel調査報告書→活動「調査済み」→報告アポ→提示（ES_010）', saad:'活動ステータス語彙（調査予定／調査済み／キャンセル等）＋調査報告・見積。材料・外注・差益はP2', who:'営業（＋技術）', where:'案件パネル', wait:'拠点長の承認待ちへ'},
+  {n:4, scene:'決裁', asis:'税込30万未満＝契約書作成依頼WF（所属長）→契約書印刷／30万以上＝工事申込書。値引は別稟議', saad:'見積＜30万で「契約書作成依頼」WFを値引稟議と別に自動起票。承認後に契約書ルート', who:'営業→拠点長', where:'稟議View', wait:'高額・契約稟議は管理部（P2）'},
+  {n:5, scene:'高額特例', asis:'本部へFAX・電話伺い', saad:'同じ稟議行が経理／管理部キューに出る（二次承認）', who:'経理・管理部', where:'稟議View', wait:'購買の手配待ち'},
+  {n:6, scene:'資材手配', asis:'電話/FAX発注、納期は口頭', saad:'[購買申請] を処理。納期がフィールドに残る', who:'購買物流', where:'購買View', wait:'ゲート開通（施工解除）'},
+  {n:7, scene:'施工', asis:'紙の作業報告書・写真は後日。技術は受注時に予定組→管理部報告', saad:'受注確定後に未割当へ。ゲート開通で着手。下請WFはP2', who:'施工リーダー', where:'施工予定／スマホ', wait:'管理部の請求待ちへ'},
+  {n:8, scene:'受注報告・請求', asis:'受注をLINE WORKSでES管理部へ→集計スプシ→17:00日報転記→eSM（ES_091）', saad:'営業が「受注を管理部へ報告」→ES管理部が確認・受注確定（転記はしない）。請求は施工完了後', who:'営業→ES管理部→経理', where:'受注確認キュー／請求View', wait:'入金待ち'},
   {n:9, scene:'完了', asis:'Excel進捗表から行を消す（履歴が散逸）', saad:'案件パネルで Close（紫）。履歴は全部残る', who:'管理部/拠点長', where:'案件パネル', wait:'—'},
 ];
 const MANUAL_WORDS = [
@@ -3971,9 +4008,129 @@ const UNASSIGNED=[
   {id:'u3', t:'グリーンハイツ 1年目 保証点検', ref:''},
 ];
 
+/* ===== P1: ES管理部キュー（転記はしない／確認・振分は残す） ===== */
+const INTAKE_Q=[
+  {id:'in1', status:'登録待ち', by:'sales', at:'9/26 08:05',
+    cust:'港商事', prop:'港商事 本社ビル', addr:'横浜市中区港町1-5', domain:'ES', branch:'横浜営業所',
+    via:'調査依頼の報告（メール模擬）', memo:'外壁劣化の調査依頼。管理会社経由。依頼書PDFあり（模擬）。',
+    assignTo:'', dealId:null, log:['9/26 星本: ES管理部へ報告']},
+];
+const ORDER_Q=[
+  {id:'or1', status:'確認待ち', by:'sales', at:'9/26 07:50', dealId:'2103', dealRef:'sfa#2103',
+    cust:'佐藤 一郎', amount:264000, docs:'工事申込書（署名画像・模擬）',
+    memo:'税込26.4万円。署名捺印済。', log:['9/26 星本: LINE WORKS相当で受注報告']},
+];
+function mlogQ(r, msg){ r.log=r.log||[]; r.log.unshift(`${todayShort()} ${meShort()}: ${msg}`); }
+
 /* ================= 管理: 台帳の定義 ================= */
 const orgTd=r=>`<span class="orgcell">${r.domain}・${String(r.branch).replace('営業所','')}</span>`;
 const MGMT={
+  intake:{
+    title:'調査依頼の登録・振分（ES管理部）',
+    asis:'営業がメールで報告→ES管理部がeSMに顧客・物件・案件登録→Excel3種転記→振分（ES_001）',
+    why:'依頼の正本登録と拠点への振分は管理部の仕事。転記Excelはやめるが、登録・振分・確認は残す',
+    stop:'進捗表・販路日報・日次管理表への手転記',
+    who:'ES管理部（登録・振分）／営業（報告）',
+    rows:()=>INTAKE_Q,
+    tools:[{l:'＋ 依頼を報告（営業）', f:()=>openFormModal('intakeReport',{},{from:'調査依頼キュー'})}],
+    tabs:[
+      {id:'open', label:'登録・振分待ち', f:r=>r.status==='登録待ち'||r.status==='振分待ち'},
+      {id:'done', label:'振分済', f:r=>r.status==='振分済'},
+      {id:'all', label:'すべて', f:r=>true},
+    ],
+    cols:[
+      {h:'報告', v:r=>`<span class="ref">${r.at}</span>`},
+      {h:'顧客／物件', v:r=>`<b>${r.cust}</b><br><span class="quiet">${r.prop}</span>`},
+      {h:'部門/拠点', v:r=>orgTd(r)},
+      {h:'経路', v:r=>r.via},
+      {h:'状態', v:r=>`<span class="pill ${r.status==='振分済'?'done':'wait'}">${r.status}</span>`},
+    ],
+    q:r=>r.cust+r.prop+r.status+r.memo+(r.branch||''),
+    acts:r=>{
+      const a=[];
+      if(r.status==='登録待ち'){
+        a.push({l:'仮登録して案件化', c:'bp', f:()=>{
+          const cid='c'+Date.now(), pid='p'+Date.now(), did=String(Date.now()+1);
+          CUSTOMERS[cid]={id:cid, name:r.cust, kind:'法人', domain:r.domain, branch:r.branch, addr:r.addr||'—', since:'—', contact:'—', last:todayShort(), regi:'仮', propertyIds:[pid], contracts:[{name:'（契約前）', until:'—', warn:false}], gen:true};
+          PROPERTIES[pid]={id:pid, name:r.prop, structure:'—', addr:r.addr||'—', domain:r.domain, branch:r.branch, use:'—', built:'—', units:'—', water:'—', customers:[{id:cid, role:'契約顧客'}], last:todayShort(), regi:'仮', contracts:[], gen:true};
+          insertIssue({id:did, ref:nextRef('sfa'), repo:'sfa', kind:'lead', depth:0, parent:null, customer:cid, property:pid, division:r.domain, branch:r.branch, title:`${r.domain}-2026-問い合わせ対応・調査相談（${r.prop}）`, status:'Todo', open:true, own:'esadm',
+            body:{'顧客 / 物件':`${r.cust} / ${r.prop}`,'用途':'ES管理部が依頼報告から登録（ES_001）','メモ':r.memo},
+            actStatus:'（未設定）',
+            tl:[ev('sys','system',`調査依頼キューから登録 — 報告者 ${PEOPLE[r.by]}`), ev('cm', meShort(), '# 登録', r.memo||'') ]});
+          r.dealId=did; r.status='振分待ち'; mlogQ(r, `仮登録・案件化 ${byId(did).ref}`);
+          notify(r.by, `依頼が登録されました（${byId(did).ref}）。振分待ちです`, did);
+          toast('顧客・物件を仮登録し、リードを起票しました。次に営業へ振り分けてください');
+        }});
+      }
+      if(r.status==='振分待ち' && r.dealId){
+        SALES_ROLES.forEach(sr=>{
+          a.push({l:`→ ${PEOPLE[sr].replace(/（.*/,'')}`, f:()=>{
+            const d=byId(r.dealId); if(!d) return;
+            d.own=sr; d.kind='deal'; d.status='In Progress'; d.actStatus='調査予定';
+            addEvent(d, ev('sys', meShort(), `ES管理部から振分 — 担当: ${PEOPLE[sr]}`));
+            insertIssue({id:nextId(), ref:nextRef('sfa'), repo:'sfa', kind:'phase', parent:d.id, title:'商談・見積', status:'In Progress', open:true, own:sr, body:{'用途':'工程'}, tl:[]});
+            r.status='振分済'; r.assignTo=sr; mlogQ(r, `振分 → ${PEOPLE[sr]}`);
+            notify(sr, `調査依頼が振り分けられました: ${d.title}`, d.id);
+            toast(`${PEOPLE[sr]} のInboxへ振分しました`);
+          }});
+        });
+      }
+      if(r.dealId) a.push({l:'案件を開く', f:()=>{ openIssue(r.dealId); return 'nav'; }});
+      return a;
+    },
+    foot:()=>'Excel進捗表への転記はしません。登録・振分の操作が台帳に残ります。営業はヘッダ「＋」またはここから「依頼を報告」します。',
+  },
+  orderconfirm:{
+    title:'受注報告の確認・確定（ES管理部）',
+    asis:'営業がLINE WORKSで書類画像報告→ES管理部が受注集計・日報転記→eSM受注登録（ES_091）',
+    why:'受注の検品・確定は管理部の仕事。17:00転記はやめるが、確認キューは残す',
+    stop:'受注集計スプシと毎日17:00の日報Excel転記',
+    who:'ES管理部（確認）／営業（報告）',
+    rows:()=>ORDER_Q,
+    tools:[{l:'＋ 受注を報告（営業）', f:()=>openFormModal('orderReport',{},{from:'受注確認キュー'})}],
+    tabs:[
+      {id:'open', label:'確認待ち', f:r=>r.status==='確認待ち'},
+      {id:'done', label:'受注確定', f:r=>r.status==='受注確定'},
+      {id:'back', label:'差戻し', f:r=>r.status==='差戻し'},
+      {id:'all', label:'すべて', f:r=>true},
+    ],
+    cols:[
+      {h:'報告', v:r=>`<span class="ref">${r.at}</span>`},
+      {h:'案件', v:r=>`<span class="ref">${r.dealRef||'—'}</span>`},
+      {h:'顧客', v:r=>`<b>${r.cust}</b>`},
+      {h:'金額', v:r=>`<span class="num-r">${yen(r.amount||0)}</span>`},
+      {h:'証憑', v:r=>r.docs||'—'},
+      {h:'状態', v:r=>`<span class="pill ${r.status==='受注確定'?'done':r.status==='差戻し'?'back':'wait'}">${r.status}</span>`},
+    ],
+    q:r=>(r.dealRef||'')+r.cust+r.status+(r.memo||''),
+    acts:r=>{
+      const a=[];
+      if(r.status==='確認待ち'){
+        a.push({l:'受注確定する', c:'bp', f:()=>{
+          const d=r.dealId?byId(r.dealId):null;
+          r.status='受注確定'; mlogQ(r, '受注確定（確認完了）');
+          if(d){
+            d.orderStatus='受注確定'; d.actStatus='受注確定'; d.status='In Progress';
+            addEvent(d, ev('sys', meShort(), `ES管理部が受注確定 — 証憑: ${r.docs||'—'}`));
+            if(!UNASSIGNED.some(u=>u.deal===String(d.id))){
+              UNASSIGNED.push({id:'u'+Date.now(), t:(d.title||'').replace(/^ES-\d+-/,'').slice(0,40), ref:d.ref, deal:String(d.id), gate:true});
+            }
+            notify('koji', `受注確定 → 施工予定の未割当へ: ${d.ref}`, d.id, {screen:'mgmt', opts:{mgmt:'schedule'}});
+            notify('jimu', `受注確定 → 契約書類の整備: ${d.ref}`, d.id, {screen:'mgmt', opts:{mgmt:'contracts'}});
+            notify(r.by, `受注が確定されました: ${d.ref}`, d.id);
+          }
+          toast('受注確定。施工リーダーと事務へ通知しました');
+        }});
+        a.push({l:'差戻し（証憑不備）', f:()=>{
+          r.status='差戻し'; mlogQ(r, '差戻し（証憑不備）');
+          notify(r.by, `受注報告が差戻されました: ${r.dealRef||''}`, r.dealId||null, {screen:'myreq'});
+        }});
+      }
+      if(r.dealId) a.push({l:'案件を開く', f:()=>{ openIssue(r.dealId); return 'nav'; }});
+      return a;
+    },
+    foot:()=>'Status更新だけでは受注確定しません。ES管理部の確認操作が必要です（転記は不要）。',
+  },
   inspect:{
     title:'定期点検リスト',
     asis:'定期点検対象リスト・点検ハガキ・未実施リストをExcelで作成（HS_001〜005）、法人は点検案内はがき（法人_043）',
@@ -4255,6 +4412,10 @@ const CAPS=[
   {l:'物件新規登録', t:'登録', asis:'eSM 物件登録', plan:'残す', st:'ok', go:()=>go('form',{form:'prop'})},
   {l:'案件一覧（台帳）', t:'一覧', asis:'進捗表・販路日報・日次管理表（Excel3種へ転記）', plan:'転記をやめ、同じ台帳のViewに', st:'ok', go:()=>{ state.view='all'; go('board'); }},
   {l:'見積作成', t:'登録', asis:'NEXT見積・Excel見積（税込30万円で契約書式が分岐）', plan:'残す（値引は稟議へ自動連携）', st:'ok', go:()=>go('form',{form:'quote'})},
+  {l:'調査依頼の登録・振分（ES管理部）', t:'管理', asis:'営業メール報告→eSM登録→Excel転記→振分（ES_001）', plan:'転記はやめ、登録・振分キューは残す', st:'ok', go:()=>go('mgmt',{mgmt:'intake'})},
+  {l:'調査依頼を管理部へ報告', t:'登録', asis:'営業が依頼書をメールでES管理部へ', plan:'残す（報告キュー）', st:'ok', go:()=>openFormModal('intakeReport',{},{from:'台帳・登録'})},
+  {l:'受注報告の確認・確定（ES管理部）', t:'管理', asis:'LINE WORKS報告→集計→17:00転記→eSM（ES_091）', plan:'転記はやめ、確認キューは残す', st:'ok', go:()=>go('mgmt',{mgmt:'orderconfirm'})},
+  {l:'受注を管理部へ報告', t:'登録', asis:'営業がLINE WORKSで書類画像を報告', plan:'残す（受注確認キュー）', st:'ok', go:()=>openFormModal('orderReport',{},{from:'台帳・登録'})},
   {l:'稟議一覧・承認', t:'一覧', asis:'NEXT ワークフロー', plan:'残す', st:'ok', go:()=>{ state.view='approvals'; go('board'); }},
   {l:'稟議起票', t:'登録', asis:'NEXT WF・紙の稟議書（売上訂正・解約・顧客情報変更など）', plan:'残す（種類と金額でルート自動）', st:'ok', go:()=>go('form',{form:'ringi'})},
   {l:'購買一覧・発注処理', t:'一覧', asis:'電話／FAX発注・手書きの材料発注', plan:'残す', st:'ok', go:()=>{ state.view='procurement'; go('board'); }},
@@ -4359,6 +4520,8 @@ function parentForQuote(dealId){
   return ph ? ph.id : dealId;
 }
 function ringiRoute(type, amount, disc){
+  if(type==='契約書作成依頼') return 'leader'; /* ES_091: 所属長。値引・着手とは別WF */
+  if(type==='契約稟議') return 'kanri'; /* ES_055 仮: 管理部／経理（P2で法務分岐） */
   if(disc>12 || amount>=1000000 || ['売上訂正','解約','顧客情報変更'].includes(type)) return 'kanri';
   return 'leader';
 }
@@ -4481,6 +4644,17 @@ const FORMS={
         const r=addRingi(v.deal,'値引',c.off,`見積 ${yen(c.tax)} に対し ${c.disc}% 値引。${v.memo||''}`, c.disc);
         extra=`値引の稟議 ${r.ref} を ${PEOPLE[r.own]} へ起票しました。`;
       }
+      /* P1-2: 税込30万未満は契約書作成依頼WFを値引とは別に起票（ES_091） */
+      if(c.tax>0 && c.tax<300000){
+        const deal=byId(v.deal);
+        if(deal && !deal.contractWfOk){
+          const cw=addRingi(v.deal,'契約書作成依頼',c.tax,`見積 ${yen(c.tax)}（税込30万円未満）のため、商談前に契約書作成依頼WFを申請。`, 0);
+          if(deal) deal.contractWfId=cw.id;
+          extra+=(extra?' ':'')+`契約書作成依頼 ${cw.ref} を ${PEOPLE[cw.own]} へ起票（値引稟議とは別）。`;
+        }
+      } else if(c.tax>=300000){
+        extra+=(extra?' ':'')+'税込30万円以上 → 工事申込書ルート（契約書作成依頼WFは署名後・ES_052）。';
+      }
       return {msg:`見積を登録しました（${yen(c.tax)}）。${extra}`, openLabel:'案件台帳で見る', open:()=>openIssue(id)};
     },
   },
@@ -4491,7 +4665,7 @@ const FORMS={
     fields:[
       {k:'deal', l:'案件', t:'select', opts:dealOpts, full:true},
       {k:'applicant', l:'申請者（誰の申請か）', t:'select', opts:applicantOpts, full:true},
-      {k:'type', l:'種類', t:'select', opts:()=>['値引','施工着手','高額資材','売上訂正','解約','顧客情報変更','クレーム・トラブル','販売先紹介'].map(x=>[x,x])},
+      {k:'type', l:'種類', t:'select', opts:()=>['値引','契約書作成依頼','施工着手','高額資材','契約稟議','売上訂正','解約','顧客情報変更','クレーム・トラブル','販売先紹介'].map(x=>[x,x])},
       {k:'amount', l:'金額（円）', t:'number', def:'0'},
       {k:'reason', l:'理由', t:'textarea', full:true},
     ],
@@ -4947,8 +5121,68 @@ function renderForm(){
   });
 }
 
+Object.assign(FORMS, {
+  intakeReport:{
+    title:'調査依頼を管理部へ報告', submitLabel:'ES管理部へ報告する',
+    asis:'営業が調査依頼書をメールでES管理部へ送る（ES_001-2）',
+    why:'依頼の正本登録は管理部が行う。営業は報告する',
+    stop:'営業が独自Excelにだけ書いて管理部へ共有しないこと',
+    who:'営業（報告）／ES管理部（登録）',
+    fields:[
+      {k:'cust', l:'顧客名（わかる範囲）', req:true, full:true},
+      {k:'prop', l:'物件名', req:true, full:true},
+      {k:'addr', l:'住所', full:true},
+      {k:'domain', l:'部門', t:'select', opts:()=>DOMAINS, def:'ES'},
+      {k:'branch', l:'希望拠点', t:'select', opts:()=>BRANCHES, def:'横浜営業所'},
+      {k:'memo', l:'依頼内容・添付メモ', t:'textarea', full:true, req:true},
+    ],
+    preview:v=>`<div class="note">報告先: <b>ES管理部</b>の「調査依頼の登録・振分」キュー。登録・振分は管理部が行います（営業が案件を自分で作るのではありません）。</div>`,
+    submit:v=>{
+      const id='in'+Date.now();
+      INTAKE_Q.unshift({id, status:'登録待ち', by:state.role, at:`${todayShort()} ${new Date().getHours()}:${String(new Date().getMinutes()).padStart(2,'0')}`,
+        cust:v.cust.trim(), prop:v.prop.trim(), addr:v.addr||'—', domain:v.domain||'ES', branch:v.branch||'横浜営業所',
+        via:'調査依頼の報告', memo:v.memo.trim(), assignTo:'', dealId:null, log:[`${todayShort()} ${meShort()}: 報告`]});
+      notify('esadm', `調査依頼の登録待ち: ${v.prop.trim()}`, null, {screen:'mgmt', opts:{mgmt:'intake'}});
+      audit('調査依頼報告', v.prop.trim(), v.cust.trim());
+      return {msg:`ES管理部へ報告しました。「調査依頼の登録・振分」キューに入ります。`, openLabel:'キューを開く（ES管理部）', open:()=>go('mgmt',{mgmt:'intake'})};
+    },
+  },
+  orderReport:{
+    title:'受注を管理部へ報告', submitLabel:'ES管理部へ受注報告する',
+    asis:'営業がLINE WORKSで契約書類の画像をES管理部へ送る（ES_091）',
+    why:'受注の検品・確定は管理部。Status更新だけでは確定しない',
+    stop:'17:00日報転記（確認キューは残す）',
+    who:'営業（報告）／ES管理部（確認・確定）',
+    fields:[
+      {k:'deal', l:'案件', t:'select', opts:dealOpts, full:true, req:true},
+      {k:'amount', l:'契約金額（税込・円）', t:'number', def:'0', req:true},
+      {k:'docs', l:'証憑（書類名）', def:'契約書／工事申込書（署名画像）', full:true},
+      {k:'memo', l:'メモ', t:'textarea', full:true},
+    ],
+    preview:v=>{
+      const d=v.deal&&byId(v.deal);
+      return `<div class="note">報告先: <b>ES管理部</b>の受注確認キュー。確定後に施工・事務へ波及します。${d&&d.contractWfOk===false&&(Number(v.amount)||0)<300000?' <span class="warn-badge">契約書作成依頼WF未承認の可能性</span>':''}</div>`;
+    },
+    submit:v=>{
+      if(!v.deal) return {err:'案件を選んでください'};
+      const d=byId(v.deal); if(!d) return {err:'案件が見つかりません'};
+      const amt=Number(v.amount)||0;
+      if(amt>0 && amt<300000 && !d.contractWfOk){
+        return {err:'税込30万円未満です。先に「契約書作成依頼」WFの承認を得てから受注報告してください（ES_091）。'};
+      }
+      const id='or'+Date.now();
+      ORDER_Q.unshift({id, status:'確認待ち', by:state.role, at:`${todayShort()} ${new Date().getHours()}:${String(new Date().getMinutes()).padStart(2,'0')}`,
+        dealId:d.id, dealRef:d.ref, cust:(d.body&&d.body['顧客 / 物件']||'').split(' / ')[0]||'—', amount:amt,
+        docs:v.docs||'署名書類', memo:v.memo||'', log:[`${todayShort()} ${meShort()}: 受注報告`]});
+      d.actStatus='受注報告済'; d.orderStatus='確認待ち';
+      addEvent(d, ev('sys', meShort(), `受注をES管理部へ報告 — ${v.docs||'証憑'} / ${yen(amt)}`));
+      notify('esadm', `受注確認待ち: ${d.ref}`, d.id, {screen:'mgmt', opts:{mgmt:'orderconfirm'}});
+      return {msg:`受注をES管理部へ報告しました。確認・確定を待ちます。`, openLabel:'受注確認キューへ', open:()=>go('mgmt',{mgmt:'orderconfirm'})};
+    },
+  },
+});
 /* ---- ヘッダ「＋ 新規」 ---- */
-const NEW_MENU=[['deal','活動予定を立てる'],['ringi','稟議を起票'],['buy','購買申請（資材）'],['quote','見積を作成'],['cust','顧客を登録（仮）'],['prop','物件を登録'],['announce','通達・お知らせを作成'],['expense','経費を申請'],['safety','ヒヤリハット・事故を報告'],['vendor','外注・仕入先の登録申請']];
+const NEW_MENU=[['deal','活動予定を立てる'],['intakeReport','調査依頼を管理部へ報告'],['orderReport','受注を管理部へ報告'],['ringi','稟議を起票'],['buy','購買申請（資材）'],['quote','見積を作成'],['cust','顧客を登録（仮）'],['prop','物件を登録'],['announce','通達・お知らせを作成'],['expense','経費を申請'],['safety','ヒヤリハット・事故を報告'],['vendor','外注・仕入先の登録申請']];
 function renderNewMenu(){
   $('newMenu').innerHTML='<h4>新しく始める（ポップアップ）</h4>'+NEW_MENU.filter(([k])=>FORMS[k]).map(([k,l])=>`<button type="button" class="n" data-nf="${k}">${l}<small>${FORMS[k].why?FORMS[k].why.slice(0,36):FORMS[k].asis.slice(0,34)}…</small></button>`).join('')
     +`<button type="button" class="n" data-nmy="1"><b>自分の申請を見る</b></button><button type="button" class="n" data-ndraft="1"><b>下書きを見る</b></button>`;
@@ -4965,15 +5199,29 @@ function renderNewMenu(){
 function panelExtras(it){
   const root=rootOf(it); let h='';
   if(root && root.kind==='deal' && root.open && state.role!=='koji'){
+    const actSt=root.actStatus||'（未設定）';
+    const wf=root.contractWfOk?'<span class="pill done">契約書WF済</span>':(root.contractWfId?'<span class="pill wait">契約書WF中</span>':'');
+    const ord=root.orderStatus?`<span class="pill ${root.orderStatus==='受注確定'?'done':'wait'}">${root.orderStatus}</span>`:'';
+    h+=`<div class="ctx-new" style="flex-wrap:wrap"><span>活動ステータス:</span>
+      <select id="actStatusSel" class="sch-sel" style="min-width:10rem">${ACT_STATUS.map(s=>`<option value="${s}" ${s===actSt?'selected':''}>${s}</option>`).join('')}</select>
+      <button type="button" class="sp-act" data-cact="actsave">反映</button>
+      ${wf}${ord}</div>`;
     const btns=[
       ['quote','見積を作成'],
       ['report','調査報告を作成'],
+      ['contractwf','契約書作成依頼WF'],
       ['ringi','稟議を起票'],
       ['buy','購買申請'],
+      ['orderrep','受注を管理部へ報告'],
       ['contract','契約書類へ'],
       ['schedule','施工予定へ'],
     ].map(([k,l])=>`<button type="button" class="sp-act" data-cact="${k}">＋ ${l}</button>`).join('');
     h+=`<div class="ctx-new"><span>この案件（${root.ref}）で:</span>${btns}</div>`;
+  }
+  if(root && (root.kind==='deal'||root.kind==='lead') && root.open && state.role==='esadm'){
+    h+=`<div class="ctx-new"><span>ES管理部:</span>
+      <button type="button" class="sp-act" data-cact="intake">依頼登録・振分</button>
+      <button type="button" class="sp-act" data-cact="orderq">受注確認</button></div>`;
   }
   if(root && root.kind==='deal' && root.open && state.role==='koji'){
     h+=`<div class="ctx-new"><span>施工（${root.ref}）:</span>
@@ -5000,11 +5248,30 @@ function bindPanelExtras(root, it){
   root.querySelectorAll('[data-cact]').forEach(b=>{
     const k=b.dataset.cact;
     b.onclick=()=>{
+      if(k==='actsave'){
+        const sel=document.getElementById('actStatusSel'); if(!sel||!r) return;
+        const prev=r.actStatus||'（未設定）'; r.actStatus=sel.value;
+        addEvent(r, ev('sys', meShort(), `活動ステータス: ${prev} → ${sel.value}`));
+        toast(`活動ステータスを「${sel.value}」に更新`); render(); return;
+      }
       if(k==='quote'||k==='ringi'||k==='buy'){ openFormModal(k, {deal:r.id}, {from:`${r.ref} の詳細パネル`}); return; }
+      if(k==='contractwf'){ openFormModal('ringi', {deal:r.id, type:'契約書作成依頼', amount:'', reason:'税込30万円未満の商談前・契約書作成依頼（ES_091）'}, {from:`${r.ref} 契約書WF`}); return; }
+      if(k==='orderrep'){ openFormModal('orderReport', {deal:r.id}, {from:`${r.ref} 受注報告`}); return; }
       if(k==='report'){ createSurveyReport(r); return; }
-      if(k==='contract'){ go('mgmt',{mgmt:'contracts'}); return; }
+      if(k==='contract'){
+        if(r && !r.contractWfOk){
+          const qTask=issues.find(i=>rootOf(i)===r && i.formKey==='quote');
+          const taxStr=qTask&&qTask.body&&qTask.body['合計（税込）'];
+          /* 工事申込書ルート（≥30万）はWF不要で契約書類へ。未見積は警告のみ */
+          const amt=Number(String(taxStr||'').replace(/[^\d]/g,''))||0;
+          if(amt>0 && amt<300000){ toast('契約書作成依頼WFの承認後に契約書類へ進めます（税込30万円未満）'); return; }
+        }
+        go('mgmt',{mgmt:'contracts'}); return;
+      }
       if(k==='schedule'){ go('mgmt',{mgmt:'schedule'}); return; }
       if(k==='kojiv'){ state.view='kojiv'; go('board'); return; }
+      if(k==='intake'){ go('mgmt',{mgmt:'intake'}); return; }
+      if(k==='orderq'){ go('mgmt',{mgmt:'orderconfirm'}); return; }
     };
   });
   const docs=docsOf(it);

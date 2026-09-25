@@ -3,8 +3,8 @@
 > **目的**: 「今までASISにあったもののうち、新システム（SAAD Hubモック含む）で何が導入できていて、何ができていないか」を常に分かるようにする。  
 > **対象**: モック／設計合意時点のカバレッジ。本番実装の完了定義ではない。  
 > **更新**: Hub・設計を変えたら、このファイルを同じPR／作業で更新する。  
-> **最終更新**: 2026-09-26（表記「営業支援」／稟議申請ボタン。**同日ASIS再監査**: 幹フロー連続性は未達 → [hub-asis-flow-gap-audit.md](./hub-asis-flow-gap-audit.md)。優先1〜12はモック導入済だが、それは例外操作側。GitHub引き継ぎは HANDOFF.md / STATUS.md）  
-> **関連（本リポ）**: [HANDOFF.md](./HANDOFF.md)／[STATUS.md](./STATUS.md)／[requirements.md](./requirements.md)／[user-journey-requirements.md](./user-journey-requirements.md)／[system-page-structure.md](./system-page-structure.md)／[saad-hub-manual.md](./saad-hub-manual.md)／[hub-end-to-end-flow-coverage.md](./hub-end-to-end-flow-coverage.md)／[hub-asis-flow-gap-audit.md](./hub-asis-flow-gap-audit.md)
+> **最終更新**: 2026-09-26（ASIS致命抜けP1実装開始: ES管理部キュー・契約書WF分離・受注確認。詳細は [hub-asis-critical-impl-plan.md](./hub-asis-critical-impl-plan.md)／[hub-asis-flow-gap-audit.md](./hub-asis-flow-gap-audit.md)）  
+> **関連（本リポ）**: [HANDOFF.md](./HANDOFF.md)／[STATUS.md](./STATUS.md)／[requirements.md](./requirements.md)／[user-journey-requirements.md](./user-journey-requirements.md)／[system-page-structure.md](./system-page-structure.md)／[saad-hub-manual.md](./saad-hub-manual.md)／[hub-end-to-end-flow-coverage.md](./hub-end-to-end-flow-coverage.md)／[hub-asis-flow-gap-audit.md](./hub-asis-flow-gap-audit.md)／[hub-asis-critical-impl-plan.md](./hub-asis-critical-impl-plan.md)
 
 ---
 
