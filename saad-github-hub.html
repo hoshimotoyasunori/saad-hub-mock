@@ -435,6 +435,11 @@ table.man .who{white-space:nowrap;font-weight:600}
 .man-dl .man-card .who{font-size:11px;color:var(--muted)}
 .man-dl .man-card .blurb{grid-column:1/-1;font-size:12px;color:var(--muted);line-height:1.45;margin:0}
 .man-dl .dl-btn{font-size:11.5px;font-weight:600;color:#fff;background:var(--teal);border-radius:7px;padding:6px 12px;white-space:nowrap}
+.man-dl .man-card .cat{display:inline-block;font-size:10.5px;font-weight:700;color:var(--teal-deep);background:#e8f5f1;border-radius:999px;padding:1px 8px;margin-right:6px}
+.man-tools{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:0 0 12px;max-width:820px}
+.man-tools .seg{flex-wrap:wrap}
+.man-tools .count{font-size:12px;color:var(--muted)}
+.man-tools input{flex:1;min-width:160px;max-width:280px;border:1px solid var(--line);border-radius:6px;padding:5px 10px;font-size:12.5px}
 .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px 14px;max-width:760px}
 .form-grid .full{grid-column:1/-1}
 .form-grid label{display:block;font-size:11px;color:var(--muted);margin-bottom:3px;font-weight:600}
@@ -2665,15 +2670,49 @@ function renderPanel(root){
 /* ================= coverage / demo ================= */
 function renderCov(){ /* デモ説明帯は廃止（モック画面のみ） */ }
 
-/* ================= manual（PDFマニュアル） ================= */
-const MANUAL_PDFS = [
-  {file:'01-hajimete.pdf', title:'はじめての方へ — 全体の流れ', who:'全社員', blurb:'スライド4枚。台帳の約束と流れのイメージ。最初に開く1冊。'},
-  {file:'02-eigyo.pdf', title:'営業向け操作マニュアル', who:'営業・拠点事務', blurb:'スライド3枚。活動予定・見積・稟議の流れ。'},
-  {file:'03-koji.pdf', title:'施工向け操作マニュアル', who:'施工リーダー・技術', blurb:'スライド3枚。ゲート解除・着手・写真3枚の完了報告。'},
-  {file:'04-kanri.pdf', title:'管理部向け操作マニュアル', who:'管理部・拠点長', blurb:'スライド3枚。承認キュー・請求・入金。'},
-  {file:'05-mobile.pdf', title:'スマホ操作ガイド', who:'営業・施工（外出先）', blurb:'スライド3枚。ホーム／Inbox／現場報告。'},
-  {file:'06-daicho.pdf', title:'案件台帳・フィルタの使い方', who:'全員', blurb:'スライド3枚。View切替・行タイトルの読み方。'},
+/* ================= manual（PDFマニュアル・種類別） ================= */
+const MANUAL_CATS = [
+  {id:'all', label:'すべて'},
+  {id:'saad', label:'SAAD操作'},
+  {id:'soumu', label:'総務'},
+  {id:'jinji', label:'人事'},
+  {id:'jigyo', label:'事業部'},
+  {id:'shinsei', label:'各種申請'},
+  {id:'keihi', label:'経費申請'},
 ];
+const MANUAL_PDFS = [
+  {file:'01-hajimete.pdf', cat:'saad', title:'はじめての方へ — 全体の流れ', who:'全社員', blurb:'台帳の約束と流れのイメージ。最初に開く1冊。'},
+  {file:'02-eigyo.pdf', cat:'saad', title:'営業向け操作マニュアル', who:'営業・拠点事務', blurb:'活動予定・見積・稟議の流れ。'},
+  {file:'03-koji.pdf', cat:'saad', title:'施工向け操作マニュアル', who:'施工リーダー・技術', blurb:'ゲート解除・着手・写真3枚の完了報告。'},
+  {file:'04-kanri.pdf', cat:'saad', title:'管理部向け操作マニュアル', who:'管理部・拠点長', blurb:'承認キュー・請求・入金。'},
+  {file:'05-mobile.pdf', cat:'saad', title:'スマホ操作ガイド', who:'営業・施工（外出先）', blurb:'ホーム／Inbox／現場報告。'},
+  {file:'06-daicho.pdf', cat:'saad', title:'案件台帳・フィルタの使い方', who:'全員', blurb:'View切替・行タイトルの読み方。'},
+  {file:'07-soumu.pdf', cat:'soumu', title:'総務マニュアル（備品・施設・社用車）', who:'全社員', blurb:'備品貸出・会議室・社用車など総務手続きの見本。'},
+  {file:'08-jinji.pdf', cat:'jinji', title:'人事マニュアル（休暇・勤怠）', who:'全社員', blurb:'休暇・勤怠申請から人事反映までの見本。'},
+  {file:'09-es.pdf', cat:'jigyo', title:'ES事業部マニュアル', who:'ES・拠点', blurb:'給排水・建物調査の現場の流れ（見本）。'},
+  {file:'10-hse.pdf', cat:'jigyo', title:'HSE事業部マニュアル', who:'HSE・拠点', blurb:'シロアリ・床下・保証の現場の流れ（見本）。'},
+  {file:'11-pcs.pdf', cat:'jigyo', title:'PCS事業部マニュアル', who:'PCS・拠点', blurb:'防水・貯水槽・改修の現場の流れ（見本）。'},
+  {file:'12-shinsei.pdf', cat:'shinsei', title:'各種申請の進め方', who:'全社員', blurb:'稟議・購買・外注登録など申請の共通の進め方。'},
+  {file:'13-keihi.pdf', cat:'keihi', title:'経費申請マニュアル', who:'全社員', blurb:'立替・交通費の申請と締切（毎月末営業日17:00）。'},
+];
+function manualCatLabel(id){ return (MANUAL_CATS.find(c=>c.id===id)||{}).label||id; }
+function manualsFiltered(){
+  const cat=state.manualCat||'all';
+  const q=(state.manualQ||'').trim();
+  return MANUAL_PDFS.filter(m=>{
+    if(cat!=='all' && m.cat!==cat) return false;
+    if(q && !(m.title+m.who+m.blurb+manualCatLabel(m.cat)).includes(q)) return false;
+    return true;
+  });
+}
+function manualCardsHtml(list){
+  if(!list.length) return '<div class="note">この種類・検索条件に該当するマニュアルはありません。</div>';
+  return list.map(m=>`<a class="man-card" href="${manualPdfHref(m.file)}" target="_blank" rel="noopener">
+    <div><b><span class="cat">${manualCatLabel(m.cat)}</span>${m.title}</b><div class="who">対象: ${m.who}</div></div>
+    <span class="dl-btn">ブラウザで開く</span>
+    <p class="blurb">${m.blurb}</p>
+  </a>`).join('');
+}
 const MANUAL_STEPS = [
   {n:1, scene:'依頼受付', asis:'管理会社→紙/FAX/電話→営業→メールでES管理部→eSM登録＋Excel3種（進捗表/販路日報/日次管理表）転記→振り分け（ES_001）', saad:'[リード] 行が1本立つだけ。転記ゼロ。振り分け＝担当', who:'営業', where:'スマホ: ホーム', wait:'営業の対応待ち'},
   {n:2, scene:'案件化', asis:'eSMで案件登録（ES管理部）', saad:'リードを [案件] へ昇格（行を足す）', who:'営業', where:'台帳', wait:'営業の日程調整待ち'},
@@ -2707,34 +2746,44 @@ function manualTable(){
   </table></div>`;
 }
 function renderManual(){
-  const cards=MANUAL_PDFS.map(m=>`<a class="man-card" href="${manualPdfHref(m.file)}" target="_blank" rel="noopener">
-    <div><b>${m.title}</b><div class="who">対象: ${m.who}</div></div>
-    <span class="dl-btn">ブラウザで開く</span>
-    <p class="blurb">${m.blurb}</p>
-  </a>`).join('');
+  const cat=state.manualCat||'all';
+  const list=manualsFiltered();
+  const seg=MANUAL_CATS.map(c=>{
+    const n=c.id==='all'?MANUAL_PDFS.length:MANUAL_PDFS.filter(m=>m.cat===c.id).length;
+    return `<button type="button" role="tab" data-mcat="${c.id}" aria-selected="${cat===c.id}">${c.label}<span class="ref" style="margin-left:4px">${n}</span></button>`;
+  }).join('');
   $('main').innerHTML=`<div class="pad">
-    <h2 class="page">マニュアル — 操作手順書（スライドPDF）</h2>
-    <p class="quiet" style="max-width:70ch">各種操作の手順はここに置きます。カードをクリックすると<strong>ブラウザでPDFが開きます</strong>（ダウンロード不要。下はデモ用のスライド形式サンプル。正式版は今後差し替え）。</p>
-    <h3 class="man-sec">マニュアルを開く</h3>
-    <div class="man-dl">${cards}</div>
+    <h2 class="page">マニュアル — 種類別に探す</h2>
+    <p class="quiet" style="max-width:72ch">総務・人事・事業部・申請・経費・SAAD操作など、<strong>種類を切り替えて一覧</strong>できます。カードをクリックするとブラウザでスライドPDFが開きます（デモ。正式版は今後差し替え）。</p>
+    <div class="man-tools">
+      <div class="seg" role="tablist" aria-label="マニュアルの種類">${seg}</div>
+      <input id="manQ" value="${(state.manualQ||'').replace(/"/g,'&quot;')}" placeholder="タイトル・対象で検索">
+      <span class="count">${list.length} / ${MANUAL_PDFS.length} 件</span>
+    </div>
+    <div class="man-dl" id="manList">${manualCardsHtml(list)}</div>
     <h3 class="man-sec">画面上の要約 — 最初に覚える約束（5つ）</h3>
     <div class="man-words">${MANUAL_WORDS.map(([b,p])=>`<div><b>${b}</b><p>${p}</p></div>`).join('')}</div>
     <h3 class="man-sec">案件の流れ（ES調査依頼の9ステップ）</h3>
     ${manualTable()}
     <div class="actions"><button class="bp" type="button" id="tryDemo">台帳でこの流れを試す →</button></div>
   </div>`;
+  $('main').querySelectorAll('[data-mcat]').forEach(b=>b.onclick=()=>{ state.manualCat=b.dataset.mcat; renderManual(); });
+  const qi=$('manQ');
+  qi.addEventListener('input',e=>{ state.manualQ=e.target.value; $('manList').innerHTML=manualCardsHtml(manualsFiltered()); const c=$('main').querySelector('.man-tools .count'); if(c) c.textContent=`${manualsFiltered().length} / ${MANUAL_PDFS.length} 件`; qi.focus(); const L=qi.value.length; qi.setSelectionRange(L,L); });
   $('tryDemo').onclick=()=>go('board',{view:'all'});
 }
 function mManualHtml(){
-  const cards=MANUAL_PDFS.map(m=>`<a class="m-card" href="${manualPdfHref(m.file)}" target="_blank" rel="noopener" style="display:block;text-decoration:none;color:inherit">
-    <div class="m-title">${m.title}</div>
-    <div class="m-sub">${m.who} · ブラウザで開く</div></a>`).join('');
+  const cat=state.manualCat||'all';
+  const list=manualsFiltered();
+  const seg=MANUAL_CATS.map(c=>`<button type="button" class="chip" data-mcat="${c.id}" aria-pressed="${cat===c.id}" style="margin:0 4px 6px 0">${c.label}</button>`).join('');
+  const cards=list.map(m=>`<a class="m-card" href="${manualPdfHref(m.file)}" target="_blank" rel="noopener" style="display:block;text-decoration:none;color:inherit">
+    <div class="m-title">${manualCatLabel(m.cat)} · ${m.title}</div>
+    <div class="m-sub">${m.who} · ブラウザで開く</div></a>`).join('')||'<div class="note">該当なし</div>';
   return `<button type="button" class="m-back" data-m="mhome">← ホーム</button>
-    <h3 style="margin:0 0 8px;font-size:16px">マニュアル（スライドPDF）</h3>
+    <h3 style="margin:0 0 8px;font-size:16px">マニュアル（種類別）</h3>
+    <div>${seg}</div>
     ${cards}
-    <h4 class="m-h" style="margin-top:12px">約束（要約）</h4>
-    ${MANUAL_WORDS.map(([b,p])=>`<div class="m-card"><div class="m-title">${b}</div><div class="m-sub">${p}</div></div>`).join('')}
-    <div class="note">正式な手順書は上記PDF。デモのスライドです。</div>`;
+    <div class="note">種類を切り替えて探せます。デモのスライドPDFです。</div>`;
 }
 
 /* ================= CRM（顧客レコード＝リポの正本データ相当） ================= */
@@ -3266,7 +3315,7 @@ function mHomeHtml(){
   return `<div class="m-hero"><h3>SAAD</h3><p>${PEOPLE[state.role]}さん — ${
     state.role==='sales' ? '今日は訪問と見積。申請の進捗は Inbox に届きます。' : 'ゲートが開いたら現場報告。金額は出ません。'
   }</p></div>
-  <button type="button" class="m-card" data-m="mman" style="margin-bottom:10px"><div class="m-title">📖 マニュアル（PDF）</div><div class="m-sub">役割別の手順書をダウンロード</div></button>
+  <button type="button" class="m-card" data-m="mman" style="margin-bottom:10px"><div class="m-title">📖 マニュアル（種類別）</div><div class="m-sub">総務・人事・事業部・申請など</div></button>
   ${gateCard}
   <h4 class="m-h">自分宛 <span class="ftoken">assignee:@me is:open</span></h4>
   ${mine.length? mine.map(mCard).join('') : '<p class="quiet">未完了の自分宛はありません。</p>'}
@@ -3403,6 +3452,7 @@ function renderMobile(){
   </div>
   <p class="phone-note">営業・施工はスマホ完結 — 同じIssue・同じタイムライン・同じ連携。他役割（PC台帳）での承認がこの画面の Inbox とロック解除に反映される。</p></div>`;
   $('main').querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>{ state.mScreen=b.dataset.m; state.sel=null; state.customer=null; render(); });
+  $('main').querySelectorAll('[data-mcat]').forEach(b=>b.onclick=()=>{ state.manualCat=b.dataset.mcat; render(); });
   $('main').querySelectorAll('[data-cust]').forEach(b=>b.onclick=()=>{ state.customer=b.dataset.cust; render(); });
   $('main').querySelectorAll('[data-gocust]').forEach(b=>b.onclick=()=>renderCustomer(b.dataset.gocust));
   $('main').querySelectorAll('[data-goprop]').forEach(b=>b.onclick=()=>renderProperty(b.dataset.goprop));

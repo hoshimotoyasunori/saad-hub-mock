@@ -1089,23 +1089,36 @@ function menuView(){
   <div class="note">「›」の先が準備中の機能は<b>今後実装予定</b>の画面が開き、できるようになること・提供段階・それまでの代替が見られます（PC版と同じ方針）。</div>`;
 }
 function helpView(){
-  const pdfs=[
-    ['01-hajimete.pdf','はじめての方へ'],
-    ['02-eigyo.pdf','営業向け'],
-    ['03-koji.pdf','施工向け'],
-    ['04-kanri.pdf','管理部向け'],
-    ['05-mobile.pdf','スマホ操作ガイド'],
-    ['06-daicho.pdf','案件台帳・フィルタ'],
+  const cats=[['all','すべて'],['saad','SAAD操作'],['soumu','総務'],['jinji','人事'],['jigyo','事業部'],['shinsei','各種申請'],['keihi','経費申請']];
+  const cat=state.helpCat||'all';
+  const all=[
+    {f:'01-hajimete.pdf',c:'saad',t:'はじめての方へ'},
+    {f:'02-eigyo.pdf',c:'saad',t:'営業向け'},
+    {f:'03-koji.pdf',c:'saad',t:'施工向け'},
+    {f:'04-kanri.pdf',c:'saad',t:'管理部向け'},
+    {f:'05-mobile.pdf',c:'saad',t:'スマホ操作ガイド'},
+    {f:'06-daicho.pdf',c:'saad',t:'案件台帳・フィルタ'},
+    {f:'07-soumu.pdf',c:'soumu',t:'総務（備品・施設）'},
+    {f:'08-jinji.pdf',c:'jinji',t:'人事（休暇・勤怠）'},
+    {f:'09-es.pdf',c:'jigyo',t:'ES事業部'},
+    {f:'10-hse.pdf',c:'jigyo',t:'HSE事業部'},
+    {f:'11-pcs.pdf',c:'jigyo',t:'PCS事業部'},
+    {f:'12-shinsei.pdf',c:'shinsei',t:'各種申請の進め方'},
+    {f:'13-keihi.pdf',c:'keihi',t:'経費申請'},
   ];
+  const list=all.filter(x=>cat==='all'||x.c===cat);
   const base=(location.pathname.replace(/[^/]+$/,'')||'./')+'manuals/';
-  const dl=pdfs.map(([f,t])=>`<a class="card" href="${base+f}" target="_blank" rel="noopener" style="display:block;text-decoration:none;color:inherit">
-    <div class="t" style="margin-top:0">📄 ${t}</div><div class="s">ブラウザで開く（スライドPDF・デモ）</div></a>`).join('');
+  const chips=cats.map(([id,l])=>`<button class="chip" data-helpcat="${id}" aria-pressed="${cat===id}">${l}</button>`).join('');
+  const dl=list.map(x=>`<a class="card" href="${base+x.f}" target="_blank" rel="noopener" style="display:block;text-decoration:none;color:inherit">
+    <div class="t" style="margin-top:0">📄 ${x.t}</div><div class="s">ブラウザで開く（スライドPDF・デモ）</div></a>`).join('')
+    ||'<p class="quiet">この種類のマニュアルはまだありません。</p>';
   const tips=[['🏠 ホーム＝今日やること','開いた瞬間に「次の一手」が出ます。迷ったらホームに戻る'],
      ['📍 活動は到着から','顧客・物件の予定はタップ → 現場到着 → 活動報告の順'],
      ['⏳ 待ちが見える','各案件に「いま誰待ちか」。あなたの番なら青、待ちなら黄色'],
      ['💻 PCと同じデータ','到着・報告はPC版台帳の同じ案件に載ります']];
-  return `<div class="dethead"><button class="backbtn" data-back="1">‹ 戻る</button><h2>マニュアル（PDF）</h2></div>
-  <div class="sec">ブラウザで開く</div>${dl}
+  return `<div class="dethead"><button class="backbtn" data-back="1">‹ 戻る</button><h2>マニュアル（種類別）</h2></div>
+  <div class="sec">種類</div><div class="chips">${chips}</div>
+  <div class="sec">ブラウザで開く <span class="cnt">${list.length}</span></div>${dl}
   <div class="sec">スマホの要点</div>
   ${tips.map(([t,s])=>`<div class="card"><div class="t" style="margin-top:0">${t}</div><div class="s">${s}</div></div>`).join('')}`;
 }
@@ -2187,6 +2200,7 @@ function wireView(){
     b.tagName==='INPUT'?b.addEventListener('focus',h):b.onclick=h;
   });
   v.querySelectorAll('[data-sub]').forEach(b=>b.onclick=()=>{state.sub=b.dataset.sub;state.mf={};render();});
+  v.querySelectorAll('[data-helpcat]').forEach(b=>b.onclick=()=>{state.helpCat=b.dataset.helpcat;render();});
   v.querySelectorAll('[data-subwip]').forEach(b=>b.onclick=()=>{state.sub={wip:b.dataset.subwip};state.mf={};state.mDraftId=null;render();});
   v.querySelectorAll('[data-ann]').forEach(b=>b.onclick=()=>{
     const i=+b.dataset.ann;
