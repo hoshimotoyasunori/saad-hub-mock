@@ -1109,12 +1109,18 @@ function go(screen, opts={}){
   if(screen==='repo' && opts.repo==='bi'){ screen='bi'; opts={}; }
   if(opts.mgmt!==undefined){ state.mgmtKey=opts.mgmt; state.mgmtQ=''; }
   if(opts.form!==undefined){ state.formKey=opts.form; state.formDone=null; state.formPre=opts.pre||null; state.formCtx=null; }
+  const prev=state.screen;
   state.screen=screen;
   if(opts.view) state.view=opts.view;
   if(opts.sel!==undefined) state.sel=opts.sel;
   if(opts.repo!==undefined) state.repo=opts.repo;
   if(opts.wip!==undefined) state.wipKey=opts.wip;
+  /* 案件台帳／リポ以外へ移ったら Issue 詳細を閉じる（別案件への切替は board/repo 内のみ） */
   if(screen!=='board' && screen!=='repo') state.sel=null;
+  /* マスタ以外へ移ったら顧客・物件の右詳細も閉じる */
+  if(screen!=='crm'){ state.customer=null; state.property=null; }
+  /* 画面が変わったとき（ポータル・管理など）は確実にパネルを落とす */
+  if(prev!==screen && screen!=='board' && screen!=='repo') state.sel=null;
   $('notif').classList.remove('open'); $('newMenu').classList.remove('open');
   render();
   const main=$('main'); if(main) main.scrollTop=0;
@@ -1124,9 +1130,16 @@ function goWip(key){
 }
 function openIssue(id){
   state.screen='board'; state.sel=id;
+  state.customer=null; state.property=null;
   const it=byId(id);
   let p=it && it.parent; while(p){ state.expanded.add(p); const par=byId(p); p=par&&par.parent; }
   render();
+}
+function panelOpen(){
+  const s=state.screen;
+  if((s==='board'||s==='repo') && state.sel) return true;
+  if(s==='crm' && (state.customer||state.property)) return true;
+  return false;
 }
 
 /* ================= render ================= */
@@ -1149,7 +1162,7 @@ function render(){
   renderGnav();
   renderInbox();
   const s=state.screen;
-  $('app').classList.toggle('has-panel', (s==='board'||s==='repo') && !!state.sel);
+  $('app').classList.toggle('has-panel', panelOpen());
   if(s==='portal') renderPortal();
   else if(s==='spaces') renderSpaces();
   else if(s==='board') renderBoard();
@@ -2247,7 +2260,7 @@ function loadDetW(splitW){
 }
 function applySplitWidths(){
   const split=document.querySelector('#main .split');
-  if(!split || !state.sel) return;
+  if(!split || !panelOpen()) return;
   const w=loadDetW(split.clientWidth||undefined);
   state.detailW=w;
   split.style.setProperty('--det-w', w+'px');
@@ -2462,7 +2475,7 @@ function crmTableHtml(){
   const start=state.crmPage*CRM_PAGE_SIZE;
   const slice=list.slice(start, start+CRM_PAGE_SIZE);
   const body = state.crmAxis==='property'
-    ? slice.map(r=>`<tr data-prop="${r.id}" style="cursor:pointer">
+    ? slice.map(r=>`<tr data-prop="${r.id}" class="${state.property===r.id?'is-selected':''}" style="cursor:pointer">
         <td><b>${r.name}</b>${r.gen?'':' <span class="ref">詳細あり</span>'}</td>
         <td>${r.structure||'—'}</td>
         <td>${r.regi==='仮'?'<span class="pill wait">仮登録</span>':'<span class="pill">本登録</span>'}</td>
@@ -2472,7 +2485,7 @@ function crmTableHtml(){
         <td>${r.until}${r.warn?' <span class="warn-badge">期限間近</span>':''}</td>
         <td>${r.last}</td>
       </tr>`).join('')
-    : slice.map(r=>`<tr data-cust="${r.id}" style="cursor:pointer">
+    : slice.map(r=>`<tr data-cust="${r.id}" class="${state.customer===r.id?'is-selected':''}" style="cursor:pointer">
         <td><b>${r.name}</b>${r.gen?'':' <span class="ref">詳細あり</span>'}</td>
         <td>${r.kind}</td>
         <td>${r.regi==='仮'?'<span class="pill wait">仮登録</span>':'<span class="pill">本登録</span>'}</td>
@@ -2485,9 +2498,10 @@ function crmTableHtml(){
   return {body, total:list.length, start, end:Math.min(start+CRM_PAGE_SIZE, list.length), pages};
 }
 function renderCrm(){
-  if(state.customer){ renderCustomer(state.customer); return; }
-  if(state.property){ renderProperty(state.property); return; }
   const axis=state.crmAxis||'customer';
+  /* 軸と選択の食い違いを解消（顧客詳細を物件台帳上に残さない） */
+  if(axis==='customer') state.property=null;
+  if(axis==='property') state.customer=null;
   const t=crmTableHtml();
   const isProp=axis==='property';
   const org=crmOrgOptions();
@@ -2500,48 +2514,53 @@ function renderCrm(){
       +`<button type="button" class="sp-act" id="crmClrAll">すべて解除</button>`
     : `<span class="quiet" style="margin:0;font-size:11.5px">未設定（一覧の範囲を部門・拠点・登録で狭める）</span>`;
   $('main').innerHTML=`
-    <div class="filterbar">
-      <div class="seg" role="tablist" aria-label="マスタのView">
-        <button type="button" role="tab" aria-selected="${axis==='customer'}" data-axis="customer">顧客台帳</button>
-        <button type="button" role="tab" aria-selected="${isProp}" data-axis="property">物件台帳</button>
+    <div class="split">
+      <div class="list-pane">
+        <div class="filterbar">
+          <div class="seg" role="tablist" aria-label="マスタのView">
+            <button type="button" role="tab" aria-selected="${axis==='customer'}" data-axis="customer">顧客台帳</button>
+            <button type="button" role="tab" aria-selected="${isProp}" data-axis="property">物件台帳</button>
+          </div>
+          <span class="ftoken">${isProp?'repo:properties':'repo:customers'}</span>
+          <span class="count">実運用想定 約12,000件 — 表示 ${t.total} / 全 ${isProp?propRows().length:crmRows().length}</span>
+          <button type="button" class="bp" id="crmNew">＋ ${isProp?'物件を登録':'顧客を登録（仮）'}</button>
+        </div>
+        <div class="filterbar search-row">
+          <span class="flab">検索</span>
+          <input type="search" id="crmQ" value="${state.crmQ||''}" placeholder="${isProp?'物件名・住所・構造で1件を当てる':'顧客名・種別で1件を当てる'}" autocomplete="off">
+          <button type="button" class="bg" id="pgPrev">◀</button>
+          <span class="count" id="pgInfo" style="margin:0">${t.start+1}–${t.end} / ${t.total}</span>
+          <button type="button" class="bg" id="pgNext">▶</button>
+        </div>
+        <div class="filterbar filter-row">
+          <span class="flab">絞り込み</span>
+          <button type="button" class="sp-act${state.crmFilterOpen||act.length?' pri':''}" id="crmFiltBtn">条件を選ぶ${act.length?`（${act.length}）`:''}</button>
+          ${chipHtml}
+          <div class="filter-panel${state.crmFilterOpen?' open':''}" id="crmFiltPanel">
+            <label>部門 <select id="crmDom">${domOpts}</select></label>
+            <label>拠点 <select id="crmBr">${brOpts}</select></label>
+            <label>登録 <select id="crmRegi"><option value="">すべて</option><option value="本"${state.crmRegi==='本'?' selected':''}>本登録</option><option value="仮"${state.crmRegi==='仮'?' selected':''}>仮登録</option></select></label>
+            <span class="quiet" style="margin:0;font-size:11px">検索箱とは別。部門→拠点の順で狭められます。</span>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="ledger"><thead><tr>
+            ${isProp
+              ? '<th style="width:26%">物件名</th><th>構造</th><th>登録</th><th>部門/拠点</th><th>契約顧客</th><th>進行中</th><th>保証・契約期限</th><th>最終接点</th>'
+              : '<th style="width:26%">顧客名</th><th>種別</th><th>登録</th><th>部門/拠点</th><th>物件</th><th>進行中</th><th>保証・契約期限</th><th>最終接点</th>'}
+          </tr></thead><tbody id="crmBody">${t.body}</tbody></table>
+        </div>
+        <div class="add-row">${isProp
+          ? '行クリックで右に物件詳細（案件と同じオーバーレイ）。契約顧客・案件へ辿れる。'
+          : '行クリックで右に顧客詳細（案件と同じオーバーレイ）。紐づく物件・案件へ辿れる。'}</div>
       </div>
-      <span class="ftoken">${isProp?'repo:properties':'repo:customers'}</span>
-      <span class="count">実運用想定 約12,000件 — 表示 ${t.total} / 全 ${isProp?propRows().length:crmRows().length}</span>
-      <button type="button" class="bp" id="crmNew">＋ ${isProp?'物件を登録':'顧客を登録（仮）'}</button>
-    </div>
-    <div class="filterbar search-row">
-      <span class="flab">検索</span>
-      <input type="search" id="crmQ" value="${state.crmQ||''}" placeholder="${isProp?'物件名・住所・構造で1件を当てる':'顧客名・種別で1件を当てる'}" autocomplete="off">
-      <button type="button" class="bg" id="pgPrev">◀</button>
-      <span class="count" id="pgInfo" style="margin:0">${t.start+1}–${t.end} / ${t.total}</span>
-      <button type="button" class="bg" id="pgNext">▶</button>
-    </div>
-    <div class="filterbar filter-row">
-      <span class="flab">絞り込み</span>
-      <button type="button" class="sp-act${state.crmFilterOpen||act.length?' pri':''}" id="crmFiltBtn">条件を選ぶ${act.length?`（${act.length}）`:''}</button>
-      ${chipHtml}
-      <div class="filter-panel${state.crmFilterOpen?' open':''}" id="crmFiltPanel">
-        <label>部門 <select id="crmDom">${domOpts}</select></label>
-        <label>拠点 <select id="crmBr">${brOpts}</select></label>
-        <label>登録 <select id="crmRegi"><option value="">すべて</option><option value="本"${state.crmRegi==='本'?' selected':''}>本登録</option><option value="仮"${state.crmRegi==='仮'?' selected':''}>仮登録</option></select></label>
-        <span class="quiet" style="margin:0;font-size:11px">検索箱とは別。部門→拠点の順で狭められます。</span>
-      </div>
-    </div>
-    <div class="table-wrap">
-      <table class="ledger"><thead><tr>
-        ${isProp
-          ? '<th style="width:26%">物件名</th><th>構造</th><th>登録</th><th>部門/拠点</th><th>契約顧客</th><th>進行中</th><th>保証・契約期限</th><th>最終接点</th>'
-          : '<th style="width:26%">顧客名</th><th>種別</th><th>登録</th><th>部門/拠点</th><th>物件</th><th>進行中</th><th>保証・契約期限</th><th>最終接点</th>'}
-      </tr></thead><tbody id="crmBody">${t.body}</tbody></table>
-    </div>
-    <div class="add-row">${isProp
-      ? '行クリックで物件レコードへ。物件から契約顧客・案件・リードを辿る（ASIS: eSM物件顧客マスタ＋建物情報）。'
-      : '行クリックで顧客レコードへ。顧客から紐づく物件・案件を辿る。同じマスタを入口だけ切替。'}</div>`;
+      <button type="button" class="split-scrim" id="splitScrim" aria-label="詳細を閉じる"></button>
+      <aside class="detail" id="detail"></aside>
+    </div>`;
   const bindRows=()=>{
     $('main').querySelectorAll('[data-cust]').forEach(tr=>tr.onclick=()=>{ state.customer=tr.dataset.cust; state.property=null; render(); });
     $('main').querySelectorAll('[data-prop]').forEach(tr=>tr.onclick=()=>{ state.property=tr.dataset.prop; state.customer=null; render(); });
   };
-  const refresh=()=>{ render(); }; /* 絞り込み行のチップも更新するため再描画 */
   $('main').querySelectorAll('[data-axis]').forEach(b=>b.onclick=()=>{
     state.crmAxis=b.dataset.axis; state.crmPage=0; state.crmQ=''; state.crmDomain=''; state.crmBranch=''; state.crmRegi=''; state.crmFilterOpen=false; state.customer=null; state.property=null; render();
   });
@@ -2558,13 +2577,16 @@ function renderCrm(){
   $('pgNext').onclick=()=>{ const all=crmFiltered(); if((state.crmPage+1)*CRM_PAGE_SIZE<all.length){ state.crmPage++; const t2=crmTableHtml(); $('crmBody').innerHTML=t2.body; $('pgInfo').textContent=`${t2.total?t2.start+1:0}–${t2.end} / ${t2.total}`; bindRows(); } };
   $('crmNew').onclick=()=>go('form',{form:isProp?'prop':'cust'});
   bindRows();
+  if(state.customer){ fillCustomerDetail($('detail'), state.customer); bindSplitResize(); }
+  else if(state.property){ fillPropertyDetail($('detail'), state.property); bindSplitResize(); }
 }
-function renderCustomer(cid){
+function fillCustomerDetail(root, cid){
+  if(!root) return;
   const c=CUSTOMERS[cid];
   if(!c){
     const r=crmRows().find(x=>x.id===cid);
-    $('main').innerHTML=`<div class="pad">
-      <button type="button" class="m-back" id="backCust">← 顧客台帳へ</button>
+    root.innerHTML=`<div class="dmain">
+      <div style="display:flex;justify-content:space-between;align-items:center"><span class="badge">顧客</span><button class="x" id="xp" aria-label="閉じる">×</button></div>
       <div class="cust-head"><h2>${r.name}</h2>
         <span class="cust-kind ${r.domain==='HSE'?'hs':r.domain==='PCS'?'pcs':''}">${r.kind} / ${r.domain}</span>
         ${r.regi==='仮'?'<span class="warn-badge">仮登録 — 受注時に本登録（ASIS: eSM運用）</span>':''}</div>
@@ -2575,8 +2597,13 @@ function renderCustomer(cid){
         <dt>最終接点</dt><dd>${r.last}</dd>
       </dl>
       <div class="note">モックの詳細データ（案件・活動履歴つき）は先頭3件。この顧客は一覧規模を示す生成データ。</div>
+    </div>
+    <div class="dside">
+      <div class="field"><label>部門 / 拠点</label><input value="${r.domain} / ${r.branch}" readonly></div>
+      <div class="field"><label>登録</label><div>${r.regi==='仮'?'仮登録':'本登録'}</div></div>
+      <div class="note">生成データのため案件紐づけは先頭顧客のみ。</div>
     </div>`;
-    $('backCust').onclick=()=>{ state.customer=null; render(); };
+    root.querySelector('#xp').onclick=()=>{ state.customer=null; render(); };
     return;
   }
   const st=custStats(cid);
@@ -2596,8 +2623,8 @@ function renderCustomer(cid){
   const tl=acts.map(({i,e})=> e.t==='sys'
     ? `<li class="sys"><span class="who">${e.who}</span><small>system</small><span class="src">${i.ref}</span><div>${e.text}</div></li>`
     : `<li class="cm"><span class="who">${e.who}</span><small>comment</small><span class="src">${i.ref}</span><div class="cmbox"><h5>${e.head}</h5>${e.body}</div></li>`).join('');
-  $('main').innerHTML=`<div class="pad">
-    <button type="button" class="m-back" id="backCust">← 顧客台帳へ</button>
+  root.innerHTML=`<div class="dmain">
+      <div style="display:flex;justify-content:space-between;align-items:center"><span class="badge">顧客</span><button class="x" id="xp" aria-label="閉じる">×</button></div>
     <div class="cust-head">
       <h2>${c.name}</h2>
       <span class="cust-kind ${c.domain==='HSE'?'hs':c.domain==='PCS'?'pcs':''}">${c.kind} / ${c.domain}</span>
@@ -2617,25 +2644,26 @@ function renderCustomer(cid){
       ${c.mergedInto?`<span class="warn-badge">名寄せ済 → ${CUSTOMERS[c.mergedInto]?CUSTOMERS[c.mergedInto].name:c.mergedInto}</span>`:''}
       ${chgHistHtml(c)}
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1.3fr;gap:14px" class="cust-cols">
-      <div>
-        <dl class="idb">
+    <dl class="idb">
           <dt>連絡先</dt><dd>${c.contact}</dd>
           <dt>所在地 / 取引</dt><dd>${c.addr} · ${c.since}</dd>
           <dt>紐づく物件</dt>${props}
           <dt>契約・保証</dt>${contracts}
-        </dl>
+    </dl>
         <h4 class="m-h">この顧客のIssue <span class="ftoken">customer:${cid}</span></h4>
         <div class="table-wrap" style="border:1px solid var(--line);border-radius:10px">
           <table class="ledger"><thead><tr><th>Title</th><th>進み</th><th>いま誰待ち</th></tr></thead><tbody>${rel}</tbody></table>
         </div>
-      </div>
-      <div>
         <h4 class="m-h">活動タイムライン（全Issue横断の集約）</h4>
         <ul class="tl">${tl||'<li class="sys"><div>履歴なし</div></li>'}</ul>
-      </div>
-    </div></div>`;
-  $('backCust').onclick=()=>{ state.customer=null; render(); };
+    </div>
+    <div class="dside">
+      <div class="field"><label>部門 / 拠点</label><input value="${c.domain} / ${c.branch}" readonly></div>
+      <div class="field"><label>登録</label><div>${c.regi==='仮'?'仮登録':c.regi==='取消'?'取り下げ':'本登録'}</div></div>
+      <div class="field"><label>連絡先</label><input value="${c.contact||'—'}" readonly></div>
+      <div class="note">一覧は左に残したまま、案件と同じ右オーバーレイで開きます。</div>
+    </div>`;
+  root.querySelector('#xp').onclick=()=>{ state.customer=null; render(); };
   const ce=$('custEdit'); if(ce) ce.onclick=()=>openEditModal({
     title:`編集 — ${c.name}`, note:'連絡先など確認不要の項目。名義・住所・請求先は「変更を申請」を使います。',
     fields:[{k:'contact',l:'連絡先',v:c.contact,full:true}],
@@ -2660,8 +2688,8 @@ function renderCustomer(cid){
     inbox.jimu=inbox.jimu.filter(n=>n.cust!==cid);
     render();
   };
-  $('main').querySelectorAll('[data-gop]').forEach(b=>b.onclick=()=>{ state.customer=null; state.property=b.dataset.gop; state.crmAxis='property'; render(); });
-  $('main').querySelectorAll('[data-openb]').forEach(b=>b.onclick=()=>{ state.customer=null; openIssue(b.dataset.openb); });
+  root.querySelectorAll('[data-gop]').forEach(b=>b.onclick=()=>{ state.customer=null; state.property=b.dataset.gop; state.crmAxis='property'; render(); });
+  root.querySelectorAll('[data-openb]').forEach(b=>b.onclick=()=>{ state.customer=null; openIssue(b.dataset.openb); });
 }
 function openCustMerge(keepId){
   const keep=CUSTOMERS[keepId]; if(!keep) return;
@@ -2695,12 +2723,13 @@ function openCustMerge(keepId){
     };
   });
 }
-function renderProperty(pid){
+function fillPropertyDetail(root, pid){
+  if(!root) return;
   const p=PROPERTIES[pid];
   if(!p){
     const r=propRows().find(x=>x.id===pid);
-    $('main').innerHTML=`<div class="pad">
-      <button type="button" class="m-back" id="backProp">← 物件台帳へ</button>
+    root.innerHTML=`<div class="dmain">
+      <div style="display:flex;justify-content:space-between;align-items:center"><span class="badge">物件</span><button class="x" id="xp" aria-label="閉じる">×</button></div>
       <div class="cust-head"><h2>${r.name}</h2>
         <span class="cust-kind ${r.domain==='HSE'?'hs':r.domain==='PCS'?'pcs':''}">物件 / ${r.domain}</span>
         ${r.regi==='仮'?'<span class="warn-badge">仮登録 — 受注時に本登録</span>':''}</div>
@@ -2712,8 +2741,13 @@ function renderProperty(pid){
         <dt>最終接点</dt><dd>${r.last}</dd>
       </dl>
       <div class="note">詳細データ付きは先頭4物件。この行は一覧規模を示す生成データ。</div>
+    </div>
+    <div class="dside">
+      <div class="field"><label>部門 / 拠点</label><input value="${r.domain} / ${r.branch}" readonly></div>
+      <div class="field"><label>登録</label><div>${r.regi==='仮'?'仮登録':'本登録'}</div></div>
+      <div class="note">生成データのため案件紐づけは先頭物件のみ。</div>
     </div>`;
-    $('backProp').onclick=()=>{ state.property=null; render(); };
+    root.querySelector('#xp').onclick=()=>{ state.property=null; render(); };
     return;
   }
   const st=propStats(pid);
@@ -2733,8 +2767,8 @@ function renderProperty(pid){
   const tl=acts.map(({i,e})=> e.t==='sys'
     ? `<li class="sys"><span class="who">${e.who}</span><small>system</small><span class="src">${i.ref}</span><div>${e.text}</div></li>`
     : `<li class="cm"><span class="who">${e.who}</span><small>comment</small><span class="src">${i.ref}</span><div class="cmbox"><h5>${e.head}</h5>${e.body}</div></li>`).join('');
-  $('main').innerHTML=`<div class="pad">
-    <button type="button" class="m-back" id="backProp">← 物件台帳へ</button>
+  root.innerHTML=`<div class="dmain">
+      <div style="display:flex;justify-content:space-between;align-items:center"><span class="badge">物件</span><button class="x" id="xp" aria-label="閉じる">×</button></div>
     <div class="cust-head">
       <h2>${p.name}</h2>
       <span class="cust-kind ${p.domain==='HSE'?'hs':p.domain==='PCS'?'pcs':''}">物件 / ${p.domain}</span>
@@ -2748,27 +2782,28 @@ function renderProperty(pid){
       <button type="button" class="sp-act" id="propChg">変更を申請</button>
       ${chgHistHtml(p)}
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1.3fr;gap:14px" class="cust-cols">
-      <div>
-        <dl class="idb">
+    <dl class="idb">
           <dt>住所</dt><dd>${p.addr}</dd>
           <dt>構造 / 用途 / 築年</dt><dd>${p.structure} · ${p.use} · ${p.built}</dd>
           <dt>戸数 / 水道</dt><dd>${p.units} · ${p.water}</dd>
           <dt>紐づく契約顧客</dt>${custs}
           <dt>契約・保証</dt>${contracts}
-        </dl>
+    </dl>
         <h4 class="m-h">この物件のIssue <span class="ftoken">property:${pid}</span></h4>
         <div class="table-wrap" style="border:1px solid var(--line);border-radius:10px">
           <table class="ledger"><thead><tr><th>Title</th><th>進み</th><th>いま誰待ち</th></tr></thead><tbody>${rel||'<tr><td colspan="3" class="quiet">なし</td></tr>'}</tbody></table>
         </div>
-      </div>
-      <div>
         <h4 class="m-h">活動タイムライン（物件横断の集約）</h4>
         <ul class="tl">${tl||'<li class="sys"><div>履歴なし</div></li>'}</ul>
         <div class="note" style="margin-top:10px">現場・保証・再施工は物件に紐づく。契約顧客が変わっても履歴は物件側に残る。</div>
-      </div>
-    </div></div>`;
-  $('backProp').onclick=()=>{ state.property=null; render(); };
+    </div>
+    <div class="dside">
+      <div class="field"><label>部門 / 拠点</label><input value="${p.domain} / ${p.branch}" readonly></div>
+      <div class="field"><label>構造</label><input value="${p.structure||'—'}" readonly></div>
+      <div class="field"><label>登録</label><div>${p.regi==='仮'?'仮登録':p.regi==='取消'?'取り下げ':'本登録'}</div></div>
+      <div class="note">一覧は左に残したまま、案件と同じ右オーバーレイで開きます。</div>
+    </div>`;
+  root.querySelector('#xp').onclick=()=>{ state.property=null; render(); };
   const pe=$('propEdit'); if(pe) pe.onclick=()=>openEditModal({
     title:`編集 — ${p.name}`, note:'施工前の軽い修正。施工後の所在地・構造は「変更を申請」。',
     fields:[{k:'use',l:'用途',v:p.use},{k:'water',l:'水道',v:p.water},{k:'units',l:'戸数',v:p.units}],
@@ -2783,9 +2818,13 @@ function renderProperty(pid){
   });
   const pr2=$('propRegi'); if(pr2) pr2.onclick=()=>{ p.regi='本'; p.reqSt='完了'; inbox.jimu=inbox.jimu.filter(n=>n.prop!==pid); if(p.by) notify(p.by, `物件が本登録されました: ${p.name}`, null, {prop:pid}); render(); };
   const pb2=$('propBack'); if(pb2) pb2.onclick=()=>{ p.reqSt='差戻し'; p.backNote='築年と構造を確認してください'; inbox.jimu=inbox.jimu.filter(n=>n.prop!==pid); if(p.by) notify(p.by, `物件の仮登録が差戻されました: ${p.name}`, null, {screen:'myreq'}); render(); };
-  $('main').querySelectorAll('[data-goc]').forEach(b=>b.onclick=()=>{ state.property=null; state.customer=b.dataset.goc; state.crmAxis='customer'; render(); });
-  $('main').querySelectorAll('[data-openb]').forEach(b=>b.onclick=()=>{ state.property=null; openIssue(b.dataset.openb); });
+  root.querySelectorAll('[data-goc]').forEach(b=>b.onclick=()=>{ state.property=null; state.customer=b.dataset.goc; state.crmAxis='customer'; render(); });
+  root.querySelectorAll('[data-openb]').forEach(b=>b.onclick=()=>{ state.property=null; openIssue(b.dataset.openb); });
 }
+
+
+function renderCustomer(cid){ state.customer=cid; state.property=null; state.crmAxis='customer'; if(state.screen!=='crm') go('crm'); else render(); }
+function renderProperty(pid){ state.property=pid; state.customer=null; state.crmAxis='property'; if(state.screen!=='crm') go('crm'); else render(); }
 
 /* ================= mobile shell (営業・施工＝スマホ完結) ================= */
 function mCard(i){
@@ -5029,11 +5068,12 @@ $('aiBtn').onclick=()=>{ $('notif').classList.remove('open'); $('newMenu').class
 $('aiClose').onclick=closeAiPanel;
 $('aiScrim').onclick=closeAiPanel;
 $('aiForm').onsubmit=e=>{ e.preventDefault(); aiSend($('aiInput').value); };
-window.addEventListener('resize',()=>{ if(state.sel) applySplitWidths(); });
+window.addEventListener('resize',()=>{ if(panelOpen()) applySplitWidths(); });
 document.addEventListener('keydown',e=>{
   if(e.key!=='Escape') return;
   if(state.aiOpen){ closeAiPanel(); return; }
   if(state.sel && (state.screen==='board'||state.screen==='repo')){ state.sel=null; render(); return; }
+  if(state.screen==='crm' && (state.customer||state.property)){ state.customer=null; state.property=null; render(); return; }
   if(state.sideOpen) setSideOpen(false);
 });
 $('search').addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); state.searchQ=e.target.value; go('search'); }});
