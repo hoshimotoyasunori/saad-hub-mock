@@ -384,6 +384,8 @@ table.man .who{white-space:nowrap;font-weight:600}
 .chg-bar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:8px 0;padding:8px 10px;border:1px solid #e6ebf2;border-radius:8px;background:#f7f9fc;font-size:11.5px;color:var(--muted)}
 .chg-bar > span{margin-right:2px}
 .chg-bar .sp-act{background:#fff}
+.chg-bar .sp-act.pri{background:var(--teal);border-color:var(--teal);color:#fff}
+tr.is-picked{background:#f0faf9}
 .chg-hist{margin:6px 0 0;padding:0;list-style:none;font-size:11.5px}
 .chg-hist li{padding:3px 0;border-bottom:1px dashed #eef1f5;color:var(--muted)}
 .chg-hist b{color:var(--ink);font-weight:600}
@@ -701,6 +703,7 @@ let inbox = {
 const VIEWS = [
   {id:'all', label:'全体', q:'group:案件 （全行）', f:i=>true, tree:true},
   {id:'mine', label:'自分の宿題', q:'assignee:@me is:open', f:i=>i.own===state.role && i.open && i.status!=='Done', tree:false},
+  {id:'handover', label:'引き継ぎ待ち', q:'label:引き継ぎ待ち is:open', f:i=>!!i.handover && i.open, tree:false},
   {id:'approvals', label:'稟議', q:'type:[稟議]', f:i=>i.kind==='ringi', tree:false},
   {id:'procurement', label:'購買', q:'type:[購買申請]', f:i=>i.kind==='buy', tree:false},
   {id:'kojiv', label:'施工', q:'repo:koji ＋ ゲート', f:i=>i.repo==='koji'||i.kind==='gate', tree:false},
@@ -708,6 +711,7 @@ const VIEWS = [
 ];
 
 let state = { role:'sales', screen:'portal', view:'all', sel:null, repo:null, wipKey:null, mScreen:'mhome', customer:null, property:null, crmAxis:'customer', crmQ:'', crmPage:0,
+  picked:new Set(),
   expanded:new Set(['841','841-gate','841-p1']) };
 function isMobile(){
   /* スマホUIは saad-mobile-hub.html（ジョブ型）に分離。
@@ -1487,6 +1491,7 @@ function rowsForView(){
 
 function ledgerTable(rowObjs, treeMode){
   const hideCost = state.role==='koji';
+  const canPick=['leader','jimu','kanri'].includes(state.role);
   const body=rowObjs.map(({it,ctx})=>{
     const hasKids=kids(it.id).length>0;
     const exp=state.expanded.has(it.id);
@@ -1494,11 +1499,13 @@ function ledgerTable(rowObjs, treeMode){
     const money = hideCost && it.amount ? '（非表示）' : (it.amount || it.eta || '—');
     const isRoot=it.depth===0;
     const org=orgLabel(it, true);
-    return `<tr class="d${it.depth}${state.sel===it.id?' is-selected':''}${it.gate?' is-gate':''}${it.blocked?' is-blocked':''}${ctx?' ctx':''}">
+    const pick=canPick && !ctx && it.open && ['deal','lead','task','ringi','buy','bill','support'].includes(it.kind);
+    return `<tr class="d${it.depth}${state.sel===it.id?' is-selected':''}${it.gate?' is-gate':''}${it.blocked?' is-blocked':''}${ctx?' ctx':''}${state.picked.has(it.id)?' is-picked':''}">
+      <td>${pick?`<input type="checkbox" data-pick="${it.id}" ${state.picked.has(it.id)?'checked':''}>`:'—'}</td>
       <td><div class="row-title">
         <button class="chev${(hasKids&&treeMode)?'':' ghost'}" data-exp="${it.id}" aria-expanded="${exp}">▶</button>
         <span class="dot${it.open?'':' closed'}"></span>
-        <button class="title-btn" data-sel="${it.id}"><span class="kind ${KC[it.kind]}">${KIND[it.kind]}</span> ${it.title} <span class="ref">${it.ref}</span></button>
+        <button class="title-btn" data-sel="${it.id}"><span class="kind ${KC[it.kind]}">${KIND[it.kind]}</span> ${it.title}${it.handover?' <span class="pend-badge">引き継ぎ待ち</span>':''} <span class="ref">${it.ref}</span></button>
       </div></td>
       <td class="orgcell${isRoot?'':' sub'}">${org}</td>
       <td>${pill(it.status)}</td>
@@ -1509,7 +1516,7 @@ function ledgerTable(rowObjs, treeMode){
     </tr>`;
   }).join('');
   return `<div class="table-wrap"><table class="ledger"><thead><tr>
-    <th style="width:34%">Title</th><th>部門/拠点</th><th>Status</th><th>Assignees</th><th>Repository</th><th>Sub</th><th>金額/納期</th>
+    <th style="width:36px"></th><th style="width:32%">Title</th><th>部門/拠点</th><th>Status</th><th>Assignees</th><th>Repository</th><th>Sub</th><th>金額/納期</th>
   </tr></thead><tbody>${body}</tbody></table>
   <button type="button" class="add-row-btn" id="addItem">＋ add an item — 新しい仕事＝表に行を足す（稟議・購買はゲートの子として）</button></div>`;
 }
@@ -1523,27 +1530,89 @@ function bindLedger(container, rerender){
   });
   container.querySelectorAll('[data-sel]').forEach(b=>b.onclick=()=>{ state.sel=b.dataset.sel; render(); });
   container.querySelectorAll('[data-repo]').forEach(b=>b.onclick=e=>{ e.stopPropagation(); go('repo',{repo:b.dataset.repo}); });
+  container.querySelectorAll('[data-pick]').forEach(b=>b.onchange=e=>{
+    e.stopPropagation();
+    const id=b.dataset.pick;
+    if(b.checked) state.picked.add(id); else state.picked.delete(id);
+    updatePickBar();
+  });
   const add=$('addItem'); if(add) add.onclick=()=>go('form',{form:null});
+}
+function updatePickBar(){
+  const bar=$('pickBar'); if(!bar) return;
+  const n=state.picked.size;
+  bar.style.display=n?'flex':'none';
+  const c=$('pickCount'); if(c) c.textContent=n;
+}
+function openAssignModal(ids){
+  const list=(ids||[...state.picked]).map(id=>byId(id)).filter(Boolean);
+  if(!list.length) return;
+  const opts=Object.entries(PEOPLE).map(([k,v])=>`<option value="${k}">${v}</option>`).join('');
+  openSimpleModal('担当を変える', `
+    <p class="quiet" style="margin:0 0 10px">${list.length} 件の担当を変えます。新旧の担当者に通知し、行に「引き継ぎ待ち」が付きます（新担当が確認すると外れます）。自分の申請・履歴は旧担当側に残ります。</p>
+    <form class="form-grid" data-as onsubmit="return false">
+      <div class="full"><label>新しい担当者<span class="req">*</span></label><select name="own">${opts}</select></div>
+      <div class="full"><label>引き継ぎメモ<span class="req">*</span></label><textarea name="memo" placeholder="お客さまの希望・次の一手・注意点"></textarea></div>
+    </form>
+    <div class="note" style="margin-top:8px">対象: ${list.map(i=>i.ref).join('、')}</div>
+    <div class="actions" style="margin-top:12px"><button class="bp" type="button" data-ok>担当を変える</button><button class="bg" type="button" data-cx>キャンセル</button></div>`,
+  (box, close)=>{
+    box.querySelector('[data-cx]').onclick=close;
+    box.querySelector('[data-ok]').onclick=()=>{
+      const own=box.querySelector('[name=own]').value;
+      const memo=box.querySelector('[name=memo]').value.trim();
+      if(!memo){ box.querySelector('[name=memo]').focus(); return; }
+      assignIssues(list, own, memo);
+      state.picked.clear();
+      closeModal(); render();
+    };
+  });
+}
+function assignIssues(list, newOwn, memo){
+  list.forEach(it=>{
+    const old=it.own;
+    if(old===newOwn){ it.handover={from:old, to:newOwn, memo, at:nowHM(), by:state.role}; recordChg(it,'担当者',PEOPLE[old],PEOPLE[newOwn],'引き継ぎメモ更新'); return; }
+    recordChg(it,'担当者',PEOPLE[old]||old,PEOPLE[newOwn]||newOwn,'担当替え');
+    it.own=newOwn;
+    it.handover={from:old, to:newOwn, memo, at:nowHM(), by:state.role};
+    addEvent(it, ev('cm', meShort(), '# 担当替え', `担当: ${PEOPLE[old]} → ${PEOPLE[newOwn]}\n引き継ぎ: ${memo}`));
+    if(old) notify(old, `担当が外れました: ${it.title}（${it.ref}）→ ${PEOPLE[newOwn]}`, it.id);
+    notify(newOwn, `担当になりました: ${it.title}（${it.ref}）— ${memo}`, it.id);
+  });
+}
+function acceptHandover(it){
+  if(!it||!it.handover) return;
+  addEvent(it, ev('sys', meShort(), `引き継ぎを確認（${it.handover.from}→${it.handover.to}）`));
+  delete it.handover;
 }
 
 function renderBoard(){
-  const v=VIEWS.find(x=>x.id===state.view);
+  const v=VIEWS.find(x=>x.id===state.view)||VIEWS[0];
   const rowObjs=rowsForView();
   const open=gateDone();
-  const tabs=VIEWS.map(x=>`<button type="button" data-v="${x.id}" aria-selected="${state.view===x.id}">${x.label}</button>`).join('')+'<button class="newv" type="button" id="newView">+ New view</button>';
+  const tabs=VIEWS.map(x=>`<button type="button" data-v="${x.id}" aria-selected="${state.view===x.id}">${x.label}${x.id==='handover'?` <span class="ref">${issues.filter(i=>i.handover&&i.open).length}</span>`:''}</button>`).join('')+'<button class="newv" type="button" id="newView">+ New view</button>';
   const n=rowObjs.filter(r=>!r.ctx).length;
+  const canPick=['leader','jimu','kanri'].includes(state.role);
   $('main').innerHTML=`
     <div class="views">${tabs}</div>
     <p class="gate-banner ${open?'ok':''}">${open?'sfa#841 施工前ゲート開通 — 施工の Blocked 解除済':'sfa#841 施工前ゲート未完了 — 稟議・購買が Done になるまで施工は Blocked'}</p>
     <div class="split">
       <div class="list-pane">
-        <div class="filterbar"><span class="ftoken">${v.q}</span><span class="chip">${ROLES[state.role].scope}</span><span class="count">${n} 件（薄い行は親コンテキスト）</span></div>
+        <div class="filterbar"><span class="ftoken">${v.q}</span><span class="chip">${ROLES[state.role].scope}</span><span class="count">${n} 件（薄い行は親コンテキスト）</span>
+          ${canPick?'<span class="quiet" style="margin:0">拠点長・事務・管理部は行を選んで担当替えできます</span>':''}</div>
+        <div class="chg-bar" id="pickBar" style="display:${state.picked.size?'flex':'none'};margin:0;border-radius:0;border-left:0;border-right:0">
+          <span><b id="pickCount">${state.picked.size}</b> 件選択</span>
+          <button type="button" class="sp-act pri" id="pickAssign">担当を変える</button>
+          <button type="button" class="sp-act" id="pickClear">選択解除</button>
+        </div>
         ${ledgerTable(rowObjs, v.tree)}
       </div>
       <aside class="detail" id="detail"></aside>
     </div>`;
-  $('main').querySelectorAll('[data-v]').forEach(b=>b.onclick=()=>{ state.view=b.dataset.v; state.sel=null; render(); });
+  $('main').querySelectorAll('[data-v]').forEach(b=>b.onclick=()=>{ state.view=b.dataset.v; state.sel=null; state.picked.clear(); render(); });
   const nv=$('newView'); if(nv) nv.onclick=()=>goWip('newview');
+  const pa=$('pickAssign'); if(pa) pa.onclick=()=>openAssignModal();
+  const pc=$('pickClear'); if(pc) pc.onclick=()=>{ state.picked.clear(); render(); };
   bindLedger($('main'), render);
   if(state.sel) renderPanel($('detail'));
 }
@@ -2332,6 +2401,7 @@ function chgBarForIssue(it){
   if(!it || state.role==='koji') return '';
   const btns=[];
   const canUndo=['leader','kanri'].includes(state.role) && it._prev;
+  const canAssign=['leader','jimu','kanri'].includes(state.role) && it.open && ['deal','lead','task','support','ringi','buy','bill'].includes(it.kind);
   if(it.kind==='deal' && it.open){
     btns.push(['editDeal','編集','bg'],['corrRingi','訂正稟議を起票','bg']);
   }
@@ -2339,10 +2409,13 @@ function chgBarForIssue(it){
   if(it.kind==='ringi' && it.status==='Done') btns.push(['corrRingi','訂正稟議を起票','bg']);
   if(it.kind==='buy' && it.status==='Done') btns.push(['chgBuy','変更を申請','bg']);
   if(it.kind==='bill' && it.status==='Done') btns.push(['corrBill','訂正稟議を起票','bg']);
+  if(canAssign) btns.push(['assign','担当を変える','bg']);
+  if(it.handover && it.own===state.role) btns.push(['acceptHO','引き継ぎを確認','bp']);
   if(canUndo) btns.push(['undo','1つ前に戻す','bd']);
-  if(!btns.length && !(it.chg&&it.chg.length)) return '';
+  if(!btns.length && !(it.chg&&it.chg.length) && !it.handover) return '';
   const pending=it.pendingChg?`<span class="pend-badge">変更申請中: ${it.pendingLabel||''}</span>`:'';
-  return `<div class="chg-bar"><span>変更・訂正:</span>${btns.map(([a,l,c])=>`<button type="button" class="sp-act${c==='bd'?'':''}" data-chg="${a}">${l}</button>`).join('')}${pending}${chgHistHtml(it)}</div>`;
+  const ho=it.handover?`<span class="pend-badge">引き継ぎ待ち: ${PEOPLE[it.handover.from]}→${PEOPLE[it.handover.to]}</span>`:'';
+  return `<div class="chg-bar"><span>変更・訂正:</span>${btns.map(([a,l])=>`<button type="button" class="sp-act" data-chg="${a}">${l}</button>`).join('')}${pending}${ho}${it.handover?`<div class="note" style="margin:6px 0 0;width:100%">メモ: ${it.handover.memo}</div>`:''}${chgHistHtml(it)}</div>`;
 }
 function bindChgBar(root, it){
   root.querySelectorAll('[data-chg]').forEach(b=>b.onclick=()=>{
@@ -2383,6 +2456,8 @@ function bindChgBar(root, it){
           });
         }});
     } else if(a==='undo') openUndoModal(it);
+    else if(a==='assign') openAssignModal([it.id]);
+    else if(a==='acceptHO'){ acceptHandover(it); render(); }
   });
 }
 
