@@ -26,6 +26,13 @@
 
 ---
 
+
+### ローカルと Pages の見え方
+
+- **正入口は同じ**: ローカルは `mocks/saad-hub.html?v=pc`、公開は https://hoshimotoyasunori.github.io/saad-hub-mock/?v=pc
+- `saad-github-hub.html` を直開きすると切替バー無しのPC版のみ（iframe枠・自動スマホ切替が無い）
+- 幅820px未満で Pages を開くとジョブ型スマホになり、PC直開きと差が出る
+
 ## 1. 作ろうとしているもの（プロダクト意図）
 
 ### 1-1. 背景

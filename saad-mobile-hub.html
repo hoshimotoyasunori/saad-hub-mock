@@ -422,6 +422,27 @@ const DEALS={
       {d:'8/30',who:'sys',t:'請求入金確認 — 案件を Close'},
       {d:'8/12',who:'山',t:'<b>施工完了報告</b><div class="m">写真・サイン済</div>'},
     ]},
+  d3001:{ref:'sfa#3001', cust:'株式会社青葉ビル', title:'ES-2026-3001 給排水高圧洗浄（青葉ビル本館）', dom:'ES',
+    addr:'横浜市青葉区青葉台2-1', tel:'045-yyy-1000', stage:1, amount:'見積提示中',
+    hist:[{d:'9/21',who:'星',t:'<b>見積提示予定</b><div class="m">本館管財へ。別館は別活動で並行</div>'}]},
+  d3002:{ref:'sfa#3002', cust:'株式会社青葉ビル', title:'ES-2026-3002 建物調査（青葉ビル別館）', dom:'ES',
+    addr:'横浜市青葉区青葉台2-3', tel:'045-yyy-1000', stage:0, amount:'—', lead:true,
+    hist:[{d:'9/19',who:'sys',t:'本館と並列で起票 — 物件軸で履歴分離'}]},
+  d3003:{ref:'sfa#3003', cust:'田中 花子さま', title:'HS-2026-3003 シロアリ防除（辻堂）', dom:'HSE',
+    addr:'藤沢市辻堂1-8', tel:'080-xxxx-2211', stage:1, amount:'見積作成中',
+    hist:[{d:'9/15',who:'星',t:'<b>現地調査を完了</b>'}]},
+  d3004:{ref:'sfa#3004', cust:'桜丘マンション管理組合', title:'PCS-2026-3004 貯水槽清掃（桜丘）', dom:'PCS',
+    addr:'相模原市南区桜丘4-2', tel:'042-xxx-xxxx', stage:3, amount:'165,000円',
+    hist:[{d:'9/10',who:'山',t:'<b>施工準備</b><div class="m">9/26 着手予定</div>'}]},
+  d3007:{ref:'sfa#3007', cust:'厚木精密工業株式会社', title:'SE-2026-3007 DS防錆機器 点検', dom:'SE',
+    addr:'厚木市岡田3000', tel:'046-xxx-xxxx', stage:1, amount:'保守契約内',
+    hist:[{d:'9/11',who:'星',t:'<b>点検日程調整中</b>'}]},
+  d3008:{ref:'sfa#3008', cust:'渡辺 美咲さま', title:'電話問い合わせ（物件未定）', dom:'HSE',
+    addr:'', tel:'090-xxxx-3344', stage:0, amount:'—', lead:true,
+    hist:[{d:'9/22',who:'星',t:'<b>電話受付</b><div class="m">物件は訪問後に登録</div>'}]},
+  d3013:{ref:'sfa#3013', cust:'株式会社青葉ビル', title:'ES-2026-3013 防鼠施工（川崎物流センター）', dom:'ES',
+    addr:'川崎市川崎区東扇島', tel:'045-yyy-1000', stage:1, amount:'見積中',
+    hist:[{d:'8/28',who:'星',t:'<b>テナント入居前の防鼠</b>'}]},
 };
 
 /* 今日の予定（PC CAL_EVENTS と同じ・タップで到着→活動報告） */
@@ -485,6 +506,10 @@ const CUSTS=[
   {id:'c1',name:'株式会社サンプル',kind:'法人', domain:'ES', branch:'横浜営業所', regi:'本', deal:'d1',info:'物件2 · 横浜市西区 · 2019年〜',warn:false, contact:'総務部 大山様 / 045-xxx-xxxx', addr:'横浜市西区', since:'2019年〜', last:'9/20', propertyIds:['p1','p2'], contracts:[{name:'建物調査契約', until:'2027-03', warn:false}]},
   {id:'c2',name:'佐藤 一郎',kind:'個人', domain:'HSE', branch:'藤沢営業所', regi:'本', deal:'d2',info:'保証 2026-10 期限間近 · 藤沢市',warn:true, contact:'090-xxxx-xxxx', addr:'藤沢市', since:'2021年〜', last:'9/18', propertyIds:['p3'], contracts:[{name:'シロアリ定期点検・保証', until:'2026-10', warn:true}]},
   {id:'c3',name:'グリーンハイツ管理組合',kind:'法人', domain:'PCS', branch:'相模原営業所', regi:'本', deal:'d3',info:'10年保証 · 相模原市 · 物件1',warn:false, contact:'理事長 川口様', addr:'相模原市', since:'2018年〜', last:'8/30', propertyIds:['p4'], contracts:[{name:'屋根改修 10年保証', until:'2031-08', warn:false}]},
+  {id:'c4',name:'田中 花子',kind:'個人', domain:'HSE', branch:'藤沢営業所', regi:'本', deal:'d3003',info:'物件1 · 辻堂',warn:false, contact:'080-xxxx-2211', addr:'藤沢市辻堂', since:'2024年〜', last:'9/15', propertyIds:['p5'], contracts:[{name:'シロアリ防除 5年保証', until:'2029-04', warn:false}]},
+  {id:'c5',name:'株式会社青葉ビル',kind:'法人', domain:'ES', branch:'横浜営業所', regi:'本', deal:'d3001',info:'物件3 · 青葉・川崎',warn:false, contact:'管財 村上様', addr:'横浜市青葉区', since:'2016年〜', last:'9/21', propertyIds:['p6','p7','p15'], contracts:[{name:'給排水メンテナンス契約', until:'2027-12', warn:false}]},
+  {id:'c6',name:'桜丘マンション管理組合',kind:'法人', domain:'PCS', branch:'相模原営業所', regi:'本', deal:'d3004',info:'物件1 · 桜丘',warn:false, contact:'理事長 森様', addr:'相模原市南区', since:'2020年〜', last:'9/10', propertyIds:['p8'], contracts:[{name:'貯水槽清掃（年次）', until:'2026-10', warn:false}]},
+  {id:'c10',name:'渡辺 美咲',kind:'個人', domain:'HSE', branch:'横浜北営業所', regi:'仮', deal:'d3008',info:'物件未定 · 電話リード',warn:false, contact:'090-xxxx-3344', addr:'横浜市港北区', since:'2026年〜', last:'9/22', propertyIds:[], contracts:[{name:'（物件未定）', until:'—', warn:false}]},
 ].concat((()=>{
   const sei=['田中','鈴木','高橋','伊藤','渡辺','山田','中村','小林','加藤','吉田','山口','松本','井上','木村','林','斎藤','清水','山崎','森','池田'];
   const mei=['一郎','花子','健','美咲','誠'];
@@ -504,6 +529,11 @@ const PROPS=[
   {id:'p2',name:'川崎倉庫', structure:'平屋・鉄骨', domain:'ES', branch:'横浜営業所', regi:'仮', deal:'dL1', info:'株式会社サンプル · 外壁調査リード', addr:'川崎市川崎区 ind-2', cust:'株式会社サンプル', custId:'c1', use:'倉庫', built:'2005', units:'—', water:'公営水道', last:'9/12', contracts:[{name:'外壁調査（リード中）', until:'—', warn:false}]},
   {id:'p3',name:'戸建（藤沢・木造2F）', structure:'木造2F', domain:'HSE', branch:'藤沢営業所', regi:'本', deal:'d2', info:'佐藤 一郎 · 保証あり', addr:'藤沢市鵠沼3-2', cust:'佐藤 一郎', custId:'c2', use:'住宅', built:'1987', units:'1', water:'井戸→公営切替済', last:'9/18', contracts:[{name:'シロアリ定期点検・保証', until:'2026-10', warn:true}]},
   {id:'p4',name:'グリーンハイツ', structure:'RC造8F', domain:'PCS', branch:'相模原営業所', regi:'本', deal:'d3', info:'管理組合 · 48戸', addr:'相模原市中央区緑が丘', cust:'グリーンハイツ管理組合', custId:'c3', use:'集合住宅', built:'2001', units:'48戸', water:'公営水道', last:'8/30', contracts:[{name:'屋根改修 10年保証', until:'2031-08', warn:false},{name:'貯水槽清掃（年次）', until:'2026-09', warn:false}]},
+  {id:'p5',name:'戸建（辻堂・木造2F）', structure:'木造2F', domain:'HSE', branch:'藤沢営業所', regi:'本', deal:'d3003', info:'田中 花子', addr:'藤沢市辻堂1-8', cust:'田中 花子', custId:'c4', use:'住宅', built:'1995', units:'1', water:'公営水道', last:'9/15', contracts:[{name:'シロアリ防除 5年保証', until:'2029-04', warn:false}]},
+  {id:'p6',name:'青葉ビル本館', structure:'SRC造8F', domain:'ES', branch:'横浜営業所', regi:'本', deal:'d3001', info:'株式会社青葉ビル', addr:'横浜市青葉区青葉台2-1', cust:'株式会社青葉ビル', custId:'c5', use:'事務所', built:'2008', units:'—', water:'公営水道', last:'9/21', contracts:[{name:'給排水メンテナンス契約', until:'2027-12', warn:false}]},
+  {id:'p7',name:'青葉ビル別館', structure:'S造3F', domain:'ES', branch:'横浜営業所', regi:'本', deal:'d3002', info:'株式会社青葉ビル', addr:'横浜市青葉区青葉台2-3', cust:'株式会社青葉ビル', custId:'c5', use:'店舗併用', built:'2012', units:'—', water:'公営水道', last:'9/19', contracts:[{name:'建物調査（別館）', until:'—', warn:false}]},
+  {id:'p8',name:'桜丘マンション', structure:'RC造10F', domain:'PCS', branch:'相模原営業所', regi:'本', deal:'d3004', info:'管理組合 · 62戸', addr:'相模原市南区桜丘4-2', cust:'桜丘マンション管理組合', custId:'c6', use:'集合住宅', built:'1999', units:'62戸', water:'公営水道', last:'9/10', contracts:[{name:'貯水槽清掃（年次）', until:'2026-10', warn:false}]},
+  {id:'p15',name:'川崎物流センター', structure:'S造2F', domain:'ES', branch:'川崎営業所', regi:'本', deal:'d3013', info:'株式会社青葉ビル', addr:'川崎市川崎区東扇島', cust:'株式会社青葉ビル', custId:'c5', use:'倉庫', built:'2010', units:'—', water:'公営水道', last:'8/28', contracts:[{name:'防鼠施工契約', until:'2027-01', warn:false}]},
 ].concat((()=>{
   const names=['コーポ','ハイツ','ビル','マンション','倉庫','工場','店舗','戸建'];
   const stru=['木造2F','S造3F','RC造5F','RC造8F','平屋','SRC造12F'];

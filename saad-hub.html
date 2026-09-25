@@ -24,7 +24,7 @@
   <button type="button" data-v="auto">自動</button>
   <button type="button" data-v="pc">PC</button>
   <button type="button" data-v="mobile">スマホ</button>
-  <span class="hint" id="hint">幅820px未満 → ジョブ型スマホ</span>
+  <span class="hint" id="hint">幅820px未満 → ジョブ型スマホ（PC比較は ?v=pc）</span>
 </div>
 <script>
 (function(){
@@ -52,8 +52,8 @@
   function srcFor(mode){
     const base=location.pathname.replace(/[^/]*$/,'');
     return mode==='mobile'
-      ? base+'saad-mobile-hub.html?embed=1&_r=20260925ag'
-      : base+'saad-github-hub.html?pc=1&_r=20260925ag';
+      ? base+'saad-mobile-hub.html?embed=1&_r=20260925ah'
+      : base+'saad-github-hub.html?pc=1&_r=20260925ah';
   }
   function syncBar(mode){
     const f=forced();
