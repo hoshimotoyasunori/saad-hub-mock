@@ -3,15 +3,28 @@
 1つのURLで画面幅に応じて表示が切り替わる **UIモック**（静的HTML）です。  
 本番アプリではなく、**検証・デモ・合意形成用**の画面です。
 
-> **別の人／別のAIが続きをやるとき** → 必ず **[HANDOFF.md](./HANDOFF.md)** と **[STATUS.md](./STATUS.md)** から読む。
+> **別の人／別のAIが続きをやるとき** → 必ず **[HANDOFF.md](./HANDOFF.md)** と **[STATUS.md](./STATUS.md)** から読む。  
+> コピペ用の引き継ぎプロンプトは **[HANDOFF.md の末尾 §7](./HANDOFF.md#7-別aiへのプロンプト例コピー用)** にある。
 
 - **公開URL**: https://hoshimotoyasunori.github.io/saad-hub-mock/
 - **リポジトリ**: https://github.com/hoshimotoyasunori/saad-hub-mock
-- **引き継ぎ（必読）**: [HANDOFF.md](./HANDOFF.md) — 何を作るか・ASIS精査の仕方・同期ルール
+- **引き継ぎ（必読）**: [HANDOFF.md](./HANDOFF.md) — 何を作るか・ASIS精査の仕方・同期ルール・**末尾にコピペ用プロンプト**
 - **現状スナップショット**: [STATUS.md](./STATUS.md) — できている／できていない（日付付き）
 - **要件定義**: [requirements.md](./requirements.md)
 - **ASIS由来の導入状況（必読）**: [asis-capability-coverage.md](./asis-capability-coverage.md) — 何が導入済／未導入か、なぜASISで要ったか、無駄な管理をやめる方針
 - **利用者目線の想定要望台帳**: [user-journey-requirements.md](./user-journey-requirements.md) — どこから起票するか・ポップアップか・下書きはどこか など操作の流れの問いと対応状況
+
+---
+
+## 別のAI／別担当への引き継ぎ
+
+このリポジトリだけで開発を続行できます。手順は次のとおりです。
+
+1. **最初に読む**: [HANDOFF.md](./HANDOFF.md) → [STATUS.md](./STATUS.md)（この2つで足ります）
+2. **必要なら続く**: [asis-capability-coverage.md](./asis-capability-coverage.md)（導入状況）／[user-journey-requirements.md](./user-journey-requirements.md) §12（残作業）／[requirements.md](./requirements.md)（モック要件ID）
+3. **チャットに渡す文**: [HANDOFF.md 末尾 §7「別AIへのプロンプト例」](./HANDOFF.md#7-別aiへのプロンプト例コピー用) をそのままコピーして使う
+
+HTMLを変えたら docs も同じ作業で更新する（[HANDOFF.md §5](./HANDOFF.md#5-変更時の必須ルールドキュメント同期)／[requirements.md §12](./requirements.md)）。
 
 ---
 
