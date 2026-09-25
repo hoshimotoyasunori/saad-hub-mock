@@ -2775,15 +2775,20 @@ function renderManual(){
 function mManualHtml(){
   const cat=state.manualCat||'all';
   const list=manualsFiltered();
-  const seg=MANUAL_CATS.map(c=>`<button type="button" class="chip" data-mcat="${c.id}" aria-pressed="${cat===c.id}" style="margin:0 4px 6px 0">${c.label}</button>`).join('');
+  const seg=MANUAL_CATS.map(c=>{
+    const n=c.id==='all'?MANUAL_PDFS.length:MANUAL_PDFS.filter(m=>m.cat===c.id).length;
+    return `<button type="button" class="chip" data-mcat="${c.id}" aria-pressed="${cat===c.id}" style="margin:0 4px 6px 0">${c.label} ${n}</button>`;
+  }).join('');
   const cards=list.map(m=>`<a class="m-card" href="${manualPdfHref(m.file)}" target="_blank" rel="noopener" style="display:block;text-decoration:none;color:inherit">
     <div class="m-title">${manualCatLabel(m.cat)} · ${m.title}</div>
-    <div class="m-sub">${m.who} · ブラウザで開く</div></a>`).join('')||'<div class="note">該当なし</div>';
+    <div class="m-sub">${m.who} · タップで開く</div></a>`).join('')||'<div class="note">該当なし</div>';
   return `<button type="button" class="m-back" data-m="mhome">← ホーム</button>
     <h3 style="margin:0 0 8px;font-size:16px">マニュアル（種類別）</h3>
-    <div>${seg}</div>
-    ${cards}
-    <div class="note">種類を切り替えて探せます。デモのスライドPDFです。</div>`;
+    <p class="quiet" style="margin:0 0 8px">横にスワイプして種類を切り替え</p>
+    <div style="display:flex;flex-wrap:nowrap;overflow-x:auto;gap:4px;padding-bottom:8px;-webkit-overflow-scrolling:touch">${seg}</div>
+    <input id="mManQ" value="${(state.manualQ||'').replace(/"/g,'&quot;')}" placeholder="検索" style="width:100%;margin:0 0 10px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-size:14px;box-sizing:border-box">
+    <div id="mManList">${cards}</div>
+    <div class="note">デモのスライドPDFです。</div>`;
 }
 
 /* ================= CRM（顧客レコード＝リポの正本データ相当） ================= */
@@ -3453,6 +3458,13 @@ function renderMobile(){
   <p class="phone-note">営業・施工はスマホ完結 — 同じIssue・同じタイムライン・同じ連携。他役割（PC台帳）での承認がこの画面の Inbox とロック解除に反映される。</p></div>`;
   $('main').querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>{ state.mScreen=b.dataset.m; state.sel=null; state.customer=null; render(); });
   $('main').querySelectorAll('[data-mcat]').forEach(b=>b.onclick=()=>{ state.manualCat=b.dataset.mcat; render(); });
+  const mmq=$('mManQ'); if(mmq) mmq.addEventListener('input',e=>{
+    state.manualQ=e.target.value;
+    const box=$('mManList'); if(box) box.innerHTML=manualsFiltered().map(m=>`<a class="m-card" href="${manualPdfHref(m.file)}" target="_blank" rel="noopener" style="display:block;text-decoration:none;color:inherit">
+      <div class="m-title">${manualCatLabel(m.cat)} · ${m.title}</div>
+      <div class="m-sub">${m.who} · タップで開く</div></a>`).join('')||'<div class="note">該当なし</div>';
+    mmq.focus(); const L=mmq.value.length; mmq.setSelectionRange(L,L);
+  });
   $('main').querySelectorAll('[data-cust]').forEach(b=>b.onclick=()=>{ state.customer=b.dataset.cust; render(); });
   $('main').querySelectorAll('[data-gocust]').forEach(b=>b.onclick=()=>renderCustomer(b.dataset.gocust));
   $('main').querySelectorAll('[data-goprop]').forEach(b=>b.onclick=()=>renderProperty(b.dataset.goprop));

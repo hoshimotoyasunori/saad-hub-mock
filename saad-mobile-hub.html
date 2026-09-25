@@ -171,6 +171,13 @@ button.tl-row:active .body,button.tl-row:hover .body{border-color:var(--accent);
 .chips{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 4px}
 .chip{border:1.5px solid var(--line);background:#fff;border-radius:999px;padding:9px 15px;font-size:15.6px;font-weight:600;cursor:pointer;color:var(--ink)}
 .chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#fff}
+/* マニュアル種類切替（横スクロール） */
+.mcat-bar{display:flex;gap:8px;overflow-x:auto;-webkit-overflow-scrolling:touch;padding:6px 2px 10px;margin:0 -2px 4px;scrollbar-width:none}
+.mcat-bar::-webkit-scrollbar{display:none}
+.mcat-bar .chip{flex:none;padding:8px 14px;font-size:14.4px}
+.mcat-bar .chip .n{font-weight:600;opacity:.75;margin-left:4px;font-size:12.6px}
+.man-search{width:100%;border:1.5px solid var(--line);border-radius:12px;padding:11px 13px;font-size:16.2px;margin:4px 0 10px;background:#fff;box-sizing:border-box;font-family:inherit}
+.mancard .tag{display:inline-block;font-size:12px;font-weight:700;color:var(--accent);background:#e8f1fb;border-radius:999px;padding:2px 8px;margin-right:6px}
 .sheet textarea{width:100%;border:1.5px solid var(--line);border-radius:12px;padding:10px 12px;font-size:15.6px;
   font-family:inherit;min-height:64px;resize:none;margin-top:6px}
 .slabel{font-size:14.4px;font-weight:700;color:var(--muted);margin:14px 0 2px}
@@ -740,6 +747,7 @@ function createMobileActivity(vals){
 const state={
   role:'sales', tab:'home', deal:null, approving:null, aiMsgs:[],
   sub:null, annOpen:-1, custSel:null, propSel:null, crmStack:[], custQ:'', propQ:'', dealQ:'',
+  helpCat:'all', helpQ:'',
   custDom:'', custBr:'', custRegi:'', custFilt:false,
   propDom:'', propBr:'', propRegi:'', propFilt:false,
   ringi:'pending',            // pending → ok / back
@@ -860,6 +868,11 @@ function homeSales(){
   ${state.ringi==='ok'?`<div class="card"><div class="k">値引起案（サンプル社）</div><div class="wait ok" style="margin-top:8px">✓ 承認されました — ゲート開通・施工へ</div></div>`:''}
   ${state.ringi==='back'?`<div class="card"><div class="k">値引起案（サンプル社）</div><div class="wait" style="margin-top:8px;color:var(--danger);background:var(--danger-bg)">↩ 差戻し — ホーム上部から再申請</div></div>`:''}
   ${annTeaser()}
+  <button class="card" data-sub="help" style="width:100%;text-align:left">
+    <div class="k">📖 マニュアル</div>
+    <div class="t">種類別に探す（総務・人事・事業部・申請…）</div>
+    <div class="s">わからない操作はここから手順書を開けます</div>
+  </button>
   <div class="note">この画面の報告・申請は、PC版の同じ案件（sfa#841 / #2103）の履歴にそのまま載ります（データは1つ）。</div>`;
 }
 
@@ -894,6 +907,11 @@ function homeKoji(){
         <div class="s">施工前ゲート（稟議・購買）が終わると「着工OK」になり通知が届きます</div>
       </div>`}
   ${annTeaser()}
+  <button class="card" data-sub="help" style="width:100%;text-align:left">
+    <div class="k">📖 マニュアル</div>
+    <div class="t">種類別に探す（施工・事業部・申請…）</div>
+    <div class="s">わからない操作はここから手順書を開けます</div>
+  </button>
   <div class="note">金額・原価はこの役割では表示されません（見え方だけの違い。データはPCと同じ）。</div>`;
 }
 
@@ -919,6 +937,11 @@ function homeBoss(){
     <div style="flex:1;border-left:1px solid var(--line)"><div style="font-size:24px;font-weight:800">81万</div><div class="s">売上（日）</div></div>
   </div><div class="s" style="margin-top:8px;text-align:center;color:var(--accent);font-weight:600">詳しい数字（BI）›</div></button>
   ${annTeaser()}
+  <button class="card" data-sub="help" style="width:100%;text-align:left">
+    <div class="k">📖 マニュアル</div>
+    <div class="t">種類別に探す（人事・申請・経費…）</div>
+    <div class="s">わからない操作はここから手順書を開けます</div>
+  </button>
   <div class="note">一覧・分析・請求などの重い業務はPC版（台帳）で。スマホは「承認と確認」に絞っています。</div>`;
 }
 
@@ -1083,44 +1106,67 @@ function menuView(){
   ${mItem('📚','社内ナレッジ（手順書・FAQ）','data-subwip="knowledge"')}
   ${mItem('⚠️','安全衛生・ヒヤリハット','data-subwip="anzen"')}
   <div class="sec">ヘルプ・設定</div>
-  ${mItem('📖','マニュアル（PDF）','data-sub="help"')}
+  ${mItem('📖','マニュアル（種類別）','data-sub="help"','総務・人事・事業部・申請・経費')}
   ${mItem('💻','PC版でできること','data-sub="pcinfo"')}
   ${mItem('⚙️','設定','data-subwip="settings"')}
   <div class="note">「›」の先が準備中の機能は<b>今後実装予定</b>の画面が開き、できるようになること・提供段階・それまでの代替が見られます（PC版と同じ方針）。</div>`;
 }
-function helpView(){
-  const cats=[['all','すべて'],['saad','SAAD操作'],['soumu','総務'],['jinji','人事'],['jigyo','事業部'],['shinsei','各種申請'],['keihi','経費申請']];
+const M_MANUALS=[
+  {f:'01-hajimete.pdf',c:'saad',t:'はじめての方へ',s:'台帳の約束と全体の流れ'},
+  {f:'02-eigyo.pdf',c:'saad',t:'営業向け操作',s:'活動・見積・稟議'},
+  {f:'03-koji.pdf',c:'saad',t:'施工向け操作',s:'ゲート・着手・写真3枚'},
+  {f:'04-kanri.pdf',c:'saad',t:'管理部向け操作',s:'承認・請求・入金'},
+  {f:'05-mobile.pdf',c:'saad',t:'スマホ操作ガイド',s:'ホーム／Inbox／現場報告'},
+  {f:'06-daicho.pdf',c:'saad',t:'案件台帳・フィルタ',s:'Viewと行の読み方'},
+  {f:'07-soumu.pdf',c:'soumu',t:'総務（備品・施設・社用車）',s:'総務手続きの見本'},
+  {f:'08-jinji.pdf',c:'jinji',t:'人事（休暇・勤怠）',s:'申請から人事反映まで'},
+  {f:'09-es.pdf',c:'jigyo',t:'ES事業部',s:'給排水・建物調査'},
+  {f:'10-hse.pdf',c:'jigyo',t:'HSE事業部',s:'シロアリ・床下・保証'},
+  {f:'11-pcs.pdf',c:'jigyo',t:'PCS事業部',s:'防水・貯水槽・改修'},
+  {f:'12-shinsei.pdf',c:'shinsei',t:'各種申請の進め方',s:'稟議・購買などの共通手順'},
+  {f:'13-keihi.pdf',c:'keihi',t:'経費申請',s:'立替・交通費・締切'},
+];
+const M_MAN_CATS=[['all','すべて'],['saad','SAAD操作'],['soumu','総務'],['jinji','人事'],['jigyo','事業部'],['shinsei','各種申請'],['keihi','経費申請']];
+function manCatLabel(id){ return (M_MAN_CATS.find(x=>x[0]===id)||['',id])[1]; }
+function manualsMobileFiltered(){
   const cat=state.helpCat||'all';
-  const all=[
-    {f:'01-hajimete.pdf',c:'saad',t:'はじめての方へ'},
-    {f:'02-eigyo.pdf',c:'saad',t:'営業向け'},
-    {f:'03-koji.pdf',c:'saad',t:'施工向け'},
-    {f:'04-kanri.pdf',c:'saad',t:'管理部向け'},
-    {f:'05-mobile.pdf',c:'saad',t:'スマホ操作ガイド'},
-    {f:'06-daicho.pdf',c:'saad',t:'案件台帳・フィルタ'},
-    {f:'07-soumu.pdf',c:'soumu',t:'総務（備品・施設）'},
-    {f:'08-jinji.pdf',c:'jinji',t:'人事（休暇・勤怠）'},
-    {f:'09-es.pdf',c:'jigyo',t:'ES事業部'},
-    {f:'10-hse.pdf',c:'jigyo',t:'HSE事業部'},
-    {f:'11-pcs.pdf',c:'jigyo',t:'PCS事業部'},
-    {f:'12-shinsei.pdf',c:'shinsei',t:'各種申請の進め方'},
-    {f:'13-keihi.pdf',c:'keihi',t:'経費申請'},
-  ];
-  const list=all.filter(x=>cat==='all'||x.c===cat);
+  const q=(state.helpQ||'').trim();
+  return M_MANUALS.filter(m=>{
+    if(cat!=='all' && m.c!==cat) return false;
+    if(q && !(m.t+m.s+manCatLabel(m.c)).includes(q)) return false;
+    return true;
+  });
+}
+function manualPdfUrl(file){
   const base=(location.pathname.replace(/[^/]+$/,'')||'./')+'manuals/';
-  const chips=cats.map(([id,l])=>`<button class="chip" data-helpcat="${id}" aria-pressed="${cat===id}">${l}</button>`).join('');
-  const dl=list.map(x=>`<a class="card" href="${base+x.f}" target="_blank" rel="noopener" style="display:block;text-decoration:none;color:inherit">
-    <div class="t" style="margin-top:0">📄 ${x.t}</div><div class="s">ブラウザで開く（スライドPDF・デモ）</div></a>`).join('')
-    ||'<p class="quiet">この種類のマニュアルはまだありません。</p>';
-  const tips=[['🏠 ホーム＝今日やること','開いた瞬間に「次の一手」が出ます。迷ったらホームに戻る'],
-     ['📍 活動は到着から','顧客・物件の予定はタップ → 現場到着 → 活動報告の順'],
-     ['⏳ 待ちが見える','各案件に「いま誰待ちか」。あなたの番なら青、待ちなら黄色'],
-     ['💻 PCと同じデータ','到着・報告はPC版台帳の同じ案件に載ります']];
-  return `<div class="dethead"><button class="backbtn" data-back="1">‹ 戻る</button><h2>マニュアル（種類別）</h2></div>
-  <div class="sec">種類</div><div class="chips">${chips}</div>
-  <div class="sec">ブラウザで開く <span class="cnt">${list.length}</span></div>${dl}
-  <div class="sec">スマホの要点</div>
-  ${tips.map(([t,s])=>`<div class="card"><div class="t" style="margin-top:0">${t}</div><div class="s">${s}</div></div>`).join('')}`;
+  return base+file;
+}
+function openManualPdf(file){
+  const url=manualPdfUrl(file);
+  /* iframe埋め込み時も新しいタブで開く（アプリ内に閉じ込めない） */
+  const w=window.open(url,'_blank','noopener,noreferrer');
+  if(!w){ toast('ポップアップがブロックされました。リンクを長押しして開いてください'); }
+}
+function helpView(){
+  const cat=state.helpCat||'all';
+  const list=manualsMobileFiltered();
+  const chips=M_MAN_CATS.map(([id,l])=>{
+    const n=id==='all'?M_MANUALS.length:M_MANUALS.filter(m=>m.c===id).length;
+    return `<button type="button" class="chip" data-helpcat="${id}" aria-pressed="${cat===id}">${l}<span class="n">${n}</span></button>`;
+  }).join('');
+  const dl=list.map(m=>`<button type="button" class="card mancard" data-manpdf="${m.f}" style="width:100%;text-align:left">
+    <div class="k"><span class="tag">${manCatLabel(m.c)}</span></div>
+    <div class="t" style="margin:4px 0 0;font-size:16.2px">${m.t}</div>
+    <div class="s">${m.s} · タップでブラウザ表示</div>
+  </button>`).join('')
+    ||'<p class="quiet">この種類・検索に該当するマニュアルはありません。</p>';
+  return `<div class="dethead"><button class="backbtn" data-back="1">‹ 戻る</button><h2>マニュアル</h2>
+  <div class="sub">種類を切り替えて探せます。タップでスライドPDFが開きます。</div></div>
+  <div class="mcat-bar" role="tablist" aria-label="マニュアルの種類">${chips}</div>
+  <input class="man-search" id="helpQ" value="${(state.helpQ||'').replace(/"/g,'&quot;')}" placeholder="🔍 タイトルで検索" inputmode="search">
+  <div class="sec">一覧 <span class="cnt">${list.length} / ${M_MANUALS.length}</span></div>
+  ${dl}
+  <div class="note">正式版は今後差し替え。いまはデモのスライドPDFです。</div>`;
 }
 /* ---- 今後実装予定（WIP）画面 ---- */
 function wipView(key){
@@ -1696,10 +1742,10 @@ function renderSheet(){
   if(state.sheet==='launcher'){
     title='何をしますか？';
     const items = state.role==='koji'
-      ? [['📍','現場到着（入場）を報告','現場に着いたらワンタップ','enter'],['📷','写真・完了を報告','作業前後の写真とチェック','done'],['📦','資材を注文','現場からワンタップ発注','sub:buyForm'],['⚠️','ヒヤリハット報告','安全衛生へ共有','wip:anzen'],['🧑‍💼','休暇・勤怠','打刻・休暇申請','wip:jinji']]
+      ? [['📍','現場到着（入場）を報告','現場に着いたらワンタップ','enter'],['📷','写真・完了を報告','作業前後の写真とチェック','done'],['📦','資材を注文','現場からワンタップ発注','sub:buyForm'],['📖','マニュアルを見る','種類別に探す','sub:help'],['⚠️','ヒヤリハット報告','安全衛生へ共有','wip:anzen'],['🧑‍💼','休暇・勤怠','打刻・休暇申請','wip:jinji']]
       : state.role==='boss'
-      ? [['✅','承認する','待ちキューを開く','goboss'],['📊','拠点の数字を見る','売上・成約・訪問','wip:bi'],['📍','現場到着を報告','同行訪問の開始','arrive-pick'],['✏️','活動を報告','到着後に結果を残す','report'],['🚗','経費を申請','出張・車両','wip:keihi']]
-      : [['📅','活動予定を立てる','顧客／物件に何をするか','actplan'],['📍','現場到着を報告','顧客・物件活動の開始','arrive-pick'],['✏️','活動を報告','到着後に結果を残す','report'],['📞','問い合わせを登録','受けたその場で1件','sub:leadForm'],['📷','写真を報告','調査・現場の写真','wip:photo'],['🧾','稟議を申請','値引き・特価・着手','sub:ringiForm'],['🧮','見積を作る','標準単価から自動計算','wip:quote'],['📦','資材を注文','施工前の手配','sub:buyForm'],['👤','顧客を登録','その場で仮登録（30秒）','sub:custreg'],['🚗','経費を申請','出張・立替','wip:keihi']];
+      ? [['✅','承認する','待ちキューを開く','goboss'],['📊','拠点の数字を見る','売上・成約・訪問','wip:bi'],['📍','現場到着を報告','同行訪問の開始','arrive-pick'],['✏️','活動を報告','到着後に結果を残す','report'],['📖','マニュアルを見る','種類別に探す','sub:help'],['🚗','経費を申請','出張・車両','wip:keihi']]
+      : [['📅','活動予定を立てる','顧客／物件に何をするか','actplan'],['📍','現場到着を報告','顧客・物件活動の開始','arrive-pick'],['✏️','活動を報告','到着後に結果を残す','report'],['📞','問い合わせを登録','受けたその場で1件','sub:leadForm'],['📷','写真を報告','調査・現場の写真','wip:photo'],['🧾','稟議を申請','値引き・特価・着手','sub:ringiForm'],['🧮','見積を作る','標準単価から自動計算','wip:quote'],['📦','資材を注文','施工前の手配','sub:buyForm'],['👤','顧客を登録','その場で仮登録（30秒）','sub:custreg'],['📖','マニュアルを見る','種類別に探す','sub:help'],['🚗','経費を申請','出張・立替','wip:keihi']];
     body=items.map(([ic,tt,ss,act])=>`<button class="launch" data-launch="${act}"><span class="ic">${ic}</span><span><div class="tt">${tt}</div><div class="ss">${ss}</div></span></button>`).join('')
       +`<p class="note" style="margin-top:4px">🚧 マークのない項目は今すぐ使えます。準備中の項目は「今後実装予定」の画面が開きます。</p>`;
   }
@@ -1967,7 +2013,7 @@ function aiReplyM(q){
     return `${r.name}さん（${r.label}）向け: ホームの「今日の予定」をタップし、現場到着→活動報告の順で進めます。下部＋からも起票できます。`;
   }
   if(/使い方|マニュアル|ヘルプ|どうやって/.test(t)){
-    return 'メニュー→「マニュアル（PDF）」から手順書をブラウザで開けます。顧客さがしは右上🔍、通知は🔔です。';
+    return 'メニューまたはホームの「マニュアル」から種類を切り替えて手順書を開けます。顧客さがしは右上🔍、通知は🔔です。';
   }
   if(/顧客|物件/.test(t)) return '右上の🔍、またはメニューの「顧客台帳／物件台帳」から開けます。';
   if(!t) return `こんにちは。SAAD AI です（モック）。\n未読通知は ${n} 件。承認・今日の宿題・画面の使い方などを聞いてください。`;
@@ -2028,7 +2074,7 @@ function openDrawer(){
       ${dItem('📚','社内ナレッジ','wip:knowledge')}
       ${dItem('⚠️','安全衛生・ヒヤリハット','wip:anzen')}
       <div class="d-sec">ヘルプ・設定</div>
-      ${dItem('📖','マニュアル（PDF）','sub:help')}
+      ${dItem('📖','マニュアル（種類別）','sub:help')}
       ${dItem('💻','PC版でできること','sub:pcinfo')}
       ${dItem('⚙️','設定','wip:settings')}
     </div>
@@ -2201,6 +2247,8 @@ function wireView(){
   });
   v.querySelectorAll('[data-sub]').forEach(b=>b.onclick=()=>{state.sub=b.dataset.sub;state.mf={};render();});
   v.querySelectorAll('[data-helpcat]').forEach(b=>b.onclick=()=>{state.helpCat=b.dataset.helpcat;render();});
+  v.querySelectorAll('[data-manpdf]').forEach(b=>b.onclick=()=>openManualPdf(b.dataset.manpdf));
+  const hq=$('helpQ'); if(hq) hq.addEventListener('input',e=>{ state.helpQ=e.target.value; render(); const el=$('helpQ'); if(el){ el.focus(); const L=el.value.length; el.setSelectionRange(L,L);} });
   v.querySelectorAll('[data-subwip]').forEach(b=>b.onclick=()=>{state.sub={wip:b.dataset.subwip};state.mf={};state.mDraftId=null;render();});
   v.querySelectorAll('[data-ann]').forEach(b=>b.onclick=()=>{
     const i=+b.dataset.ann;
