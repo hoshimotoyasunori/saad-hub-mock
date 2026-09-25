@@ -205,6 +205,17 @@ h2.page{margin:0 0 6px;font-size:17px}
 .filterbar{flex:none;display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:8px 14px;background:#f8fafc;border-bottom:1px solid var(--line)}
 .ftoken{font-family:ui-monospace,Menlo,monospace;font-size:11px;padding:4px 8px;border-radius:6px;background:#eef2f7;border:1px solid var(--line);color:var(--ink)}
 .count{margin-left:auto;font-size:11.5px;color:var(--muted)}
+.search-row{background:#fff !important}
+.search-row input[type=search],.search-row #crmQ{flex:1;min-width:180px;border:1px solid var(--line);border-radius:8px;padding:7px 10px;font-size:12.5px}
+.filter-row{background:#f3f6f9 !important;border-bottom:1px solid var(--line)}
+.filter-row .flab{font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.02em;margin-right:2px}
+.fchip{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;padding:3px 8px;border-radius:999px;background:#fff;border:1px solid var(--line);color:var(--ink)}
+.fchip.on{background:#e4f3f3;border-color:var(--teal);color:var(--teal-deep);font-weight:600}
+.fchip button{border:0;background:0;padding:0 2px;cursor:pointer;color:var(--muted);font-size:13px;line-height:1}
+.filter-panel{display:none;width:100%;padding:8px 0 2px;border-top:1px dashed #d0d7de;margin-top:4px;gap:10px;flex-wrap:wrap;align-items:center}
+.filter-panel.open{display:flex}
+.filter-panel label{font-size:11.5px;color:var(--muted);display:inline-flex;align-items:center;gap:6px}
+.filter-panel select{border:1px solid var(--line);border-radius:6px;padding:4px 8px;font-size:12.5px;background:#fff}
 /* Primer風: View切替（セグメント）＋ フィルタの軽いラベル */
 .seg{display:inline-flex;align-items:center;padding:3px;gap:1px;background:#eff1f3;border:1px solid #d0d7de;border-radius:6px}
 .seg button{border:0;background:transparent;margin:0;padding:3px 11px;font-size:12px;font-weight:500;color:#656d76;border-radius:4px;line-height:20px;white-space:nowrap}
@@ -751,7 +762,7 @@ const BOARD_NEW={
   handover:null,
 };
 
-let state = { role:'sales', screen:'portal', view:'all', sel:null, repo:null, wipKey:null, mScreen:'mhome', customer:null, property:null, crmAxis:'customer', crmQ:'', crmDomain:'', crmBranch:'', crmPage:0,
+let state = { role:'sales', screen:'portal', view:'all', sel:null, repo:null, wipKey:null, mScreen:'mhome', customer:null, property:null, crmAxis:'customer', crmQ:'', crmDomain:'', crmBranch:'', crmRegi:'', crmFilterOpen:false, crmPage:0,
   picked:new Set(),
   sortKey:'upd', sortDir:'desc',
   scope:'role', /* role | self | branch | all */
@@ -2087,16 +2098,31 @@ function crmOrgOptions(){
   const branches=[...new Set(rows.filter(r=>!state.crmDomain||r.domain===state.crmDomain).map(r=>r.branch).filter(Boolean))].sort();
   return {domains, branches};
 }
+function crmActiveFilters(){
+  const a=[];
+  if(state.crmDomain) a.push({k:'domain', l:`部門: ${state.crmDomain}`});
+  if(state.crmBranch) a.push({k:'branch', l:`拠点: ${state.crmBranch}`});
+  if(state.crmRegi) a.push({k:'regi', l:`登録: ${state.crmRegi}`});
+  return a;
+}
+function crmClearFilter(k){
+  if(k==='domain'){ state.crmDomain=''; state.crmBranch=''; }
+  else if(k==='branch') state.crmBranch='';
+  else if(k==='regi') state.crmRegi='';
+  else { state.crmDomain=''; state.crmBranch=''; state.crmRegi=''; }
+  state.crmPage=0;
+}
 function crmFiltered(){
   const q=(state.crmQ||'').trim();
   let list=state.crmAxis==='property' ? propRows() : crmRows();
   if(state.crmDomain) list=list.filter(r=>r.domain===state.crmDomain);
   if(state.crmBranch) list=list.filter(r=>r.branch===state.crmBranch);
+  if(state.crmRegi) list=list.filter(r=>r.regi===state.crmRegi);
   if(q){
     list=list.filter(r=>{
       const hay=state.crmAxis==='property'
-        ? (r.name+(r.structure||'')+r.domain+r.branch+r.regi+(r.addr||''))
-        : (r.name+r.kind+r.domain+r.branch+r.regi);
+        ? (r.name+(r.structure||'')+(r.addr||''))
+        : (r.name+r.kind);
       return hay.includes(q);
     });
   }
@@ -2139,27 +2165,40 @@ function renderCrm(){
   const isProp=axis==='property';
   const org=crmOrgOptions();
   if(state.crmBranch && !org.branches.includes(state.crmBranch)) state.crmBranch='';
-  const domOpts=`<option value="">部門: すべて</option>`+org.domains.map(d=>`<option value="${d}"${state.crmDomain===d?' selected':''}>${d}</option>`).join('');
-  const brOpts=`<option value="">拠点: すべて</option>`+org.branches.map(b=>`<option value="${b}"${state.crmBranch===b?' selected':''}>${b}</option>`).join('');
+  const act=crmActiveFilters();
+  const domOpts=`<option value="">すべて</option>`+org.domains.map(d=>`<option value="${d}"${state.crmDomain===d?' selected':''}>${d}</option>`).join('');
+  const brOpts=`<option value="">すべて</option>`+org.branches.map(b=>`<option value="${b}"${state.crmBranch===b?' selected':''}>${b}</option>`).join('');
+  const chipHtml=act.length
+    ? act.map(c=>`<span class="fchip on">${c.l}<button type="button" data-fclr="${c.k}" aria-label="外す">×</button></span>`).join('')
+      +`<button type="button" class="sp-act" id="crmClrAll">すべて解除</button>`
+    : `<span class="quiet" style="margin:0;font-size:11.5px">未設定（一覧の範囲を部門・拠点・登録で狭める）</span>`;
   $('main').innerHTML=`
     <div class="filterbar">
       <div class="seg" role="tablist" aria-label="マスタのView">
         <button type="button" role="tab" aria-selected="${axis==='customer'}" data-axis="customer">顧客台帳</button>
         <button type="button" role="tab" aria-selected="${isProp}" data-axis="property">物件台帳</button>
       </div>
-      <span class="ftoken">${isProp?'repo:properties（物件顧客マスタ）':'repo:customers（契約顧客マスタ）'}</span>
-      <span class="chip">${ROLES[state.role].scope}</span>
-      <span class="count">実運用想定 約12,000件 — モック ${isProp?propRows().length:crmRows().length}件</span>
-    </div>
-    <div class="filterbar" style="background:#fff">
-      <label class="quiet" style="margin:0">部門 <select id="crmDom">${domOpts}</select></label>
-      <label class="quiet" style="margin:0">拠点 <select id="crmBr">${brOpts}</select></label>
-      <input id="crmQ" value="${state.crmQ||''}" placeholder="${isProp?'物件名・構造・仮/本（例: RC / 仮）':'顧客名・種別・仮/本（例: 仮 / 管理）'}"
-        style="flex:1;border:1px solid var(--line);border-radius:8px;padding:7px 10px;font-size:12.5px">
-      <button type="button" class="bg" id="pgPrev">◀</button>
-      <span class="count" id="pgInfo">${t.start+1}–${t.end} / ${t.total}</span>
-      <button type="button" class="bg" id="pgNext">▶</button>
+      <span class="ftoken">${isProp?'repo:properties':'repo:customers'}</span>
+      <span class="count">実運用想定 約12,000件 — 表示 ${t.total} / 全 ${isProp?propRows().length:crmRows().length}</span>
       <button type="button" class="bp" id="crmNew">＋ ${isProp?'物件を登録':'顧客を登録（仮）'}</button>
+    </div>
+    <div class="filterbar search-row">
+      <span class="flab">検索</span>
+      <input type="search" id="crmQ" value="${state.crmQ||''}" placeholder="${isProp?'物件名・住所・構造で1件を当てる':'顧客名・種別で1件を当てる'}" autocomplete="off">
+      <button type="button" class="bg" id="pgPrev">◀</button>
+      <span class="count" id="pgInfo" style="margin:0">${t.start+1}–${t.end} / ${t.total}</span>
+      <button type="button" class="bg" id="pgNext">▶</button>
+    </div>
+    <div class="filterbar filter-row">
+      <span class="flab">絞り込み</span>
+      <button type="button" class="sp-act${state.crmFilterOpen||act.length?' pri':''}" id="crmFiltBtn">条件を選ぶ${act.length?`（${act.length}）`:''}</button>
+      ${chipHtml}
+      <div class="filter-panel${state.crmFilterOpen?' open':''}" id="crmFiltPanel">
+        <label>部門 <select id="crmDom">${domOpts}</select></label>
+        <label>拠点 <select id="crmBr">${brOpts}</select></label>
+        <label>登録 <select id="crmRegi"><option value="">すべて</option><option value="本"${state.crmRegi==='本'?' selected':''}>本登録</option><option value="仮"${state.crmRegi==='仮'?' selected':''}>仮登録</option></select></label>
+        <span class="quiet" style="margin:0;font-size:11px">検索箱とは別。部門→拠点の順で狭められます。</span>
+      </div>
     </div>
     <div class="table-wrap">
       <table class="ledger"><thead><tr>
@@ -2175,15 +2214,21 @@ function renderCrm(){
     $('main').querySelectorAll('[data-cust]').forEach(tr=>tr.onclick=()=>{ state.customer=tr.dataset.cust; state.property=null; render(); });
     $('main').querySelectorAll('[data-prop]').forEach(tr=>tr.onclick=()=>{ state.property=tr.dataset.prop; state.customer=null; render(); });
   };
-  const refresh=()=>{ const t2=crmTableHtml(); $('crmBody').innerHTML=t2.body; $('pgInfo').textContent=`${t2.total?t2.start+1:0}–${t2.end} / ${t2.total}`; bindRows(); };
+  const refresh=()=>{ render(); }; /* 絞り込み行のチップも更新するため再描画 */
   $('main').querySelectorAll('[data-axis]').forEach(b=>b.onclick=()=>{
-    state.crmAxis=b.dataset.axis; state.crmPage=0; state.crmQ=''; state.crmDomain=''; state.crmBranch=''; state.customer=null; state.property=null; render();
+    state.crmAxis=b.dataset.axis; state.crmPage=0; state.crmQ=''; state.crmDomain=''; state.crmBranch=''; state.crmRegi=''; state.crmFilterOpen=false; state.customer=null; state.property=null; render();
   });
-  $('crmDom').onchange=()=>{ state.crmDomain=$('crmDom').value; state.crmBranch=''; state.crmPage=0; render(); };
-  $('crmBr').onchange=()=>{ state.crmBranch=$('crmBr').value; state.crmPage=0; refresh(); };
-  $('crmQ').addEventListener('input', e=>{ state.crmQ=e.target.value; state.crmPage=0; refresh(); });
-  $('pgPrev').onclick=()=>{ if(state.crmPage>0){ state.crmPage--; refresh(); } };
-  $('pgNext').onclick=()=>{ const t2=crmFiltered(); if((state.crmPage+1)*CRM_PAGE_SIZE<t2.length){ state.crmPage++; refresh(); } };
+  const fb=$('crmFiltBtn'); if(fb) fb.onclick=()=>{ state.crmFilterOpen=!state.crmFilterOpen; render(); };
+  $('main').querySelectorAll('[data-fclr]').forEach(b=>b.onclick=e=>{ e.stopPropagation(); crmClearFilter(b.dataset.fclr); render(); });
+  const ca=$('crmClrAll'); if(ca) ca.onclick=()=>{ crmClearFilter(); state.crmFilterOpen=true; render(); };
+  const cd=$('crmDom'); if(cd) cd.onchange=()=>{ state.crmDomain=cd.value; state.crmBranch=''; state.crmPage=0; state.crmFilterOpen=true; render(); };
+  const cb=$('crmBr'); if(cb) cb.onchange=()=>{ state.crmBranch=cb.value; state.crmPage=0; state.crmFilterOpen=true; render(); };
+  const cr=$('crmRegi'); if(cr) cr.onchange=()=>{ state.crmRegi=cr.value; state.crmPage=0; state.crmFilterOpen=true; render(); };
+  $('crmQ').addEventListener('input', e=>{ state.crmQ=e.target.value; state.crmPage=0;
+    const t2=crmTableHtml(); $('crmBody').innerHTML=t2.body; $('pgInfo').textContent=`${t2.total?t2.start+1:0}–${t2.end} / ${t2.total}`; bindRows();
+  });
+  $('pgPrev').onclick=()=>{ if(state.crmPage>0){ state.crmPage--; const t2=crmTableHtml(); $('crmBody').innerHTML=t2.body; $('pgInfo').textContent=`${t2.total?t2.start+1:0}–${t2.end} / ${t2.total}`; bindRows(); } };
+  $('pgNext').onclick=()=>{ const all=crmFiltered(); if((state.crmPage+1)*CRM_PAGE_SIZE<all.length){ state.crmPage++; const t2=crmTableHtml(); $('crmBody').innerHTML=t2.body; $('pgInfo').textContent=`${t2.total?t2.start+1:0}–${t2.end} / ${t2.total}`; bindRows(); } };
   $('crmNew').onclick=()=>go('form',{form:isProp?'prop':'cust'});
   bindRows();
 }

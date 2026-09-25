@@ -206,6 +206,11 @@ textarea.fin{min-height:64px;resize:vertical}
 .mrow .ic{font-size:18px}
 .mrow .tt{font-size:13.5px;font-weight:600}
 .mrow .arr{margin-left:auto;color:var(--muted)}
+.filtbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0 4px}
+.filtbar .fl{font-size:11px;font-weight:700;color:var(--muted)}
+.fchip{display:inline-flex;align-items:center;gap:4px;font-size:12px;padding:6px 10px;border-radius:999px;background:#fff;border:1.5px solid var(--line);font:inherit;cursor:pointer}
+.fchip.on{background:#e8f1fb;border-color:var(--accent);color:var(--accent);font-weight:700}
+.filt-sheet .slabel{margin-top:10px}
 .searchbox{width:100%;border:1.5px solid var(--line);border-radius:12px;padding:11px 13px;font-size:14px;
   font-family:inherit;background:#fff;margin:8px 0 10px}
 
@@ -408,15 +413,26 @@ const ANNS=[
   {d:'9/17',from:'購買',t:'防除資材Aの価格改定（10月〜）',body:'仕入価格改定に伴い、10月1日以降の見積は新単価が自動適用されます。既提出の見積は旧単価のまま有効です。'},
 ];
 const CUSTS=[
-  {name:'佐藤 一郎',kind:'個人 / HS',deal:'d1',info:'保証 2026-10 期限間近 · 福岡市南区',warn:true},
-  {name:'株式会社サンプル',kind:'法人 / ES',deal:'d2',info:'物件2 · 福岡市博多区'},
-  {name:'グリーンハイツ管理組合',kind:'法人 / PCS',deal:'d3',info:'10年保証 · 福岡市東区'},
+  {name:'佐藤 一郎',kind:'個人', domain:'HSE', branch:'福岡南営業所', regi:'本', deal:'d1',info:'保証 2026-10 期限間近 · 福岡市南区',warn:true},
+  {name:'株式会社サンプル',kind:'法人', domain:'ES', branch:'福岡東営業所', regi:'本', deal:'d2',info:'物件2 · 福岡市博多区'},
+  {name:'グリーンハイツ管理組合',kind:'法人', domain:'PCS', branch:'福岡東営業所', regi:'本', deal:'d3',info:'10年保証 · 福岡市東区'},
+  {name:'山田 花子',kind:'個人', domain:'HSE', branch:'福岡南営業所', regi:'仮', deal:null,info:'仮登録 · 電話のみ'},
+  {name:'株式会社青葉建物',kind:'法人', domain:'ES', branch:'福岡南営業所', regi:'本', deal:null,info:'物件1 · 紹介経由'},
+  {name:'西 太郎',kind:'個人', domain:'SE', branch:'福岡西営業所', regi:'本', deal:null,info:'蓄電池相談'},
+];
+const PROPS=[
+  {name:'戸建（大橋・木造2F）', structure:'木造2F', domain:'HSE', branch:'福岡南営業所', regi:'本', deal:'d1', info:'佐藤 一郎 · 保証あり'},
+  {name:'サンプル社 本社ビル', structure:'S造5F', domain:'ES', branch:'福岡東営業所', regi:'本', deal:'d2', info:'株式会社サンプル'},
+  {name:'グリーンハイツ', structure:'RC造8F', domain:'PCS', branch:'福岡東営業所', regi:'本', deal:'d3', info:'管理組合'},
+  {name:'仮物件（住所未確定）', structure:'—', domain:'HSE', branch:'福岡南営業所', regi:'仮', deal:null, info:'仮登録'},
 ];
 
 /* 稟議（連鎖の核）: r1=佐藤様値引き */
 const state={
   role:'sales', tab:'home', deal:null, approving:null,
-  sub:null, annOpen:-1, custQ:'', dealQ:'',
+  sub:null, annOpen:-1, custQ:'', propQ:'', dealQ:'',
+  custDom:'', custBr:'', custRegi:'', custFilt:false,
+  propDom:'', propBr:'', propRegi:'', propFilt:false,
   ringi:'pending',            // pending → ok / back
   gateD1:false,               // 佐藤様現場の着工OK
   entered:{}, done:{},        // dealId → bool（現場ごとの入場・完了）
@@ -701,8 +717,9 @@ function mItem(ic,tt,attr,sub){
 }
 function menuView(){
   return `<div class="hgreet"><h2>メニュー</h2><p>${ROLES[state.role].name}さん（${ROLES[state.role].label}） — どこに何があるかはここが正</p></div>
-  <div class="sec">さがす</div>
-  ${mItem('🔍','顧客をさがす','data-sub="cust"','約12,000件 — 検索が入口')}
+  <div class="sec">さがす・台帳</div>
+  ${mItem('🔍','顧客台帳','data-sub="cust"','検索＋部門・拠点で絞り込み')}
+  ${mItem('🏘','物件台帳','data-sub="prop"','検索＋部門・拠点で絞り込み')}
   ${mItem('🗂','過去の案件をさがす','data-sub="past"','完了・Close済みも')}
   <div class="sec">申請する</div>
   ${mItem('📋','自分の申請・登録（下書き・結果）','data-sub="myreq"','どこから出した申請もここに')}
@@ -733,7 +750,7 @@ function helpView(){
      ['✏️ 報告は3タップ','結果を選ぶ→ひとことを選ぶ→送信。文章を書かなくていい（あとから追記も可能）'],
      ['⏳ 待ちが見える','各案件に「いま誰待ちか」が出ます。あなたの番なら青、待ちなら黄色'],
      ['🔔 通知＝あなた宛だけ','承認された・着工OK・差戻し。タップでその仕事に飛べます'],
-     ['☰ メニュー＝道具箱','申請・ナレッジ・人事などの入口は全部メニューに。迷ったら ☰'],
+     ['☰ メニュー＝道具箱','顧客・物件台帳は「検索」と「絞り込み」が別。迷ったら ☰'],
      ['💻 PCと同じデータ','ここでの報告はPC版台帳の同じ案件に載ります。二重入力はありません']]
     .map(([t,s])=>`<div class="card"><div class="t" style="margin-top:0">${t}</div><div class="s">${s}</div></div>`).join('')}`;
 }
@@ -761,21 +778,88 @@ function annView(){
   </button>`).join('')}
   <div class="note">タップで本文を開閉。実装版では未読管理と「自分の拠点宛」フィルタが付きます。</div>`;
 }
-/* ---- 顧客検索（簡易実装） ---- */
-function custView(){
+/* ---- 顧客・物件台帳（検索と絞り込みを分離） ---- */
+function ledgerHitCust(){
   const q=(state.custQ||'').trim();
-  const hit=q?CUSTS.filter(c=>(c.name+c.kind+c.info).includes(q)):CUSTS;
-  return `<div class="dethead"><button class="backbtn" data-back="1">‹ 戻る</button><h2>顧客をさがす</h2>
-  <div class="sub">実運用は約12,000件 — 一覧を眺めず、検索で1件に当てます（eSMと同じ入口）</div></div>
-  <input class="searchbox" id="custQ" value="${state.custQ||''}" placeholder="🔍 名前・住所・電話番号">
+  return CUSTS.filter(c=>{
+    if(state.custDom && c.domain!==state.custDom) return false;
+    if(state.custBr && c.branch!==state.custBr) return false;
+    if(state.custRegi && c.regi!==state.custRegi) return false;
+    if(q && !(c.name+c.kind+(c.info||'')).includes(q)) return false;
+    return true;
+  });
+}
+function ledgerHitProp(){
+  const q=(state.propQ||'').trim();
+  return PROPS.filter(p=>{
+    if(state.propDom && p.domain!==state.propDom) return false;
+    if(state.propBr && p.branch!==state.propBr) return false;
+    if(state.propRegi && p.regi!==state.propRegi) return false;
+    if(q && !(p.name+p.structure+(p.info||'')).includes(q)) return false;
+    return true;
+  });
+}
+function mFiltChips(kind){
+  const isC=kind==='cust';
+  const dom=isC?state.custDom:state.propDom, br=isC?state.custBr:state.propBr, regi=isC?state.custRegi:state.propRegi;
+  const n=[dom,br,regi].filter(Boolean).length;
+  const chips=[];
+  if(dom) chips.push(`<button class="fchip on" data-mfclr="${kind}:dom">${dom} ×</button>`);
+  if(br) chips.push(`<button class="fchip on" data-mfclr="${kind}:br">${br.replace('営業所','')} ×</button>`);
+  if(regi) chips.push(`<button class="fchip on" data-mfclr="${kind}:regi">${regi} ×</button>`);
+  return `<div class="filtbar"><span class="fl">絞り込み</span>
+    <button class="fchip${n?' on':''}" data-mfilt="${kind}">条件を選ぶ${n?`（${n}）`:''}</button>
+    ${chips.join('')||'<span class="s" style="font-size:11px">未設定</span>'}</div>`;
+}
+function mFiltSheet(kind){
+  const isC=kind==='cust';
+  const rows=isC?CUSTS:PROPS;
+  const dom=isC?state.custDom:state.propDom;
+  const domains=[...new Set(rows.map(r=>r.domain))].sort();
+  const branches=[...new Set(rows.filter(r=>!dom||r.domain===dom).map(r=>r.branch))].sort();
+  const curDom=dom, curBr=isC?state.custBr:state.propBr, curRegi=isC?state.custRegi:state.propRegi;
+  return `<div class="filt-sheet">
+    <div class="slabel">部門</div><div class="chips">${[['','すべて']].concat(domains.map(d=>[d,d])).map(([v,l])=>`<button class="chip" data-mfset="${kind}:dom:${v}" aria-pressed="${curDom===v}">${l}</button>`).join('')}</div>
+    <div class="slabel">拠点</div><div class="chips">${[['','すべて']].concat(branches.map(b=>[b,b.replace('営業所','')])).map(([v,l])=>`<button class="chip" data-mfset="${kind}:br:${v}" aria-pressed="${curBr===v}">${l}</button>`).join('')}</div>
+    <div class="slabel">登録</div><div class="chips">${[['','すべて'],['本','本登録'],['仮','仮登録']].map(([v,l])=>`<button class="chip" data-mfset="${kind}:regi:${v}" aria-pressed="${curRegi===v}">${l}</button>`).join('')}</div>
+    <div class="btnrow" style="margin-top:12px"><button class="abtn g" data-mfdone="${kind}">閉じる</button>
+      <button class="abtn p" data-mfclrall="${kind}">すべて解除</button></div>
+  </div>`;
+}
+function custView(){
+  if(state.custFilt) return `<div class="dethead"><button class="backbtn" data-back="1">‹ 戻る</button><h2>絞り込み（顧客）</h2>
+    <div class="sub">検索箱とは別。部門・拠点・登録で一覧の範囲を狭めます</div></div>${mFiltSheet('cust')}`;
+  const hit=ledgerHitCust();
+  return `<div class="dethead"><button class="backbtn" data-back="1">‹ 戻る</button><h2>顧客台帳</h2>
+  <div class="sub">検索＝名前で1件を当てる ／ 絞り込み＝部門・拠点・登録で範囲を狭める</div></div>
+  <input class="searchbox" id="custQ" value="${state.custQ||''}" placeholder="🔍 名前・種別でさがす" inputmode="search">
+  ${mFiltChips('cust')}
+  <div class="s" style="margin:4px 0 8px">${hit.length} 件</div>
   <div id="custList">${
     hit.length?hit.map(c=>`<button class="card" ${c.deal?`data-deal="${c.deal}"`:''} style="width:100%;text-align:left">
-      <div class="k">${c.kind}${c.warn?' <span class="tagP">保証期限間近</span>':''}</div>
-      <div class="t">${c.name}</div><div class="s">${c.info} — タップで進行中の案件へ</div>
+      <div class="k">${c.kind} · ${c.domain}・${c.branch.replace('営業所','')}${c.regi==='仮'?' <span class="tagP">仮</span>':''}${c.warn?' <span class="tagP">保証期限間近</span>':''}</div>
+      <div class="t">${c.name}</div><div class="s">${c.info}${c.deal?' — タップで案件へ':''}</div>
     </button>`).join('')
-    :`<p class="quiet">該当なし。新規のお客さまは「＋ → 顧客を登録」から仮登録できます。</p>`
+    :`<p class="quiet">該当なし。条件を緩めるか、「＋ → 顧客を登録」から仮登録できます。</p>`
   }</div>
-  <div class="note">モックの詳細データは3件。検索→顧客→案件の動線を確認するためのものです。</div>`;
+  <button class="abtn p" data-sub="custreg" style="margin-top:8px">＋ 顧客を登録（仮）</button>`;
+}
+function propView(){
+  if(state.propFilt) return `<div class="dethead"><button class="backbtn" data-back="1">‹ 戻る</button><h2>絞り込み（物件）</h2>
+    <div class="sub">検索箱とは別。部門・拠点・登録で一覧の範囲を狭めます</div></div>${mFiltSheet('prop')}`;
+  const hit=ledgerHitProp();
+  return `<div class="dethead"><button class="backbtn" data-back="1">‹ 戻る</button><h2>物件台帳</h2>
+  <div class="sub">検索＝物件名で1件を当てる ／ 絞り込み＝部門・拠点・登録で範囲を狭める</div></div>
+  <input class="searchbox" id="propQ" value="${state.propQ||''}" placeholder="🔍 物件名・構造でさがす" inputmode="search">
+  ${mFiltChips('prop')}
+  <div class="s" style="margin:4px 0 8px">${hit.length} 件</div>
+  <div id="propList">${
+    hit.length?hit.map(p=>`<button class="card" ${p.deal?`data-deal="${p.deal}"`:''} style="width:100%;text-align:left">
+      <div class="k">${p.structure} · ${p.domain}・${p.branch.replace('営業所','')}${p.regi==='仮'?' <span class="tagP">仮</span>':''}</div>
+      <div class="t">${p.name}</div><div class="s">${p.info}${p.deal?' — タップで案件へ':''}</div>
+    </button>`).join('')
+    :`<p class="quiet">該当なし。条件を緩めてください。</p>`
+  }</div>`;
 }
 /* ---- PC版でできること ---- */
 function pcInfoView(){
@@ -874,7 +958,7 @@ function pastView(){
   const now=Object.entries(DEALS).map(([id,d])=>({t:d.title+'（進行中）',cust:d.cust,info:d.addr,deal:id}));
   const list=now.concat(PAST).filter(x=>!q||(x.t+x.cust+x.info).includes(q));
   return `<div class="dethead"><button class="backbtn" data-back="1">‹ 戻る</button><h2>過去の案件をさがす</h2>
-  <div class="sub">完了・Close済みも含めて横断検索（移行データを含む）</div></div>
+  <div class="sub">キーワード検索で1件を当てる（部門・拠点の絞り込みは顧客／物件台帳側）</div></div>
   <input class="searchbox" id="pastQ" value="${state.pastQ||''}" placeholder="🔍 顧客名・案件名">
   <div id="pastList">${list.length?list.map(x=>`<button class="card" ${x.deal?`data-deal="${x.deal}"`:''} style="width:100%;text-align:left">
     <div class="k">${x.deal?'<span class="tagOK">進行中</span>':'<span class="tagP">完了</span>'} ${x.cust}</div><div class="t">${x.t}</div><div class="s">${x.info}</div></button>`).join('')
@@ -1195,8 +1279,9 @@ function openDrawer(){
   $('drawer').innerHTML=`
     <div class="d-head"><span class="av">${r.icon}</span><span><div class="nm">${PEOPLE_NAME(r)}</div><div class="rl">${r.label} · 福岡南営業所</div></span><button class="x" data-dgo="close">✕</button></div>
     <div class="d-body">
-      <div class="d-sec">さがす</div>
-      ${dItem('🔍','顧客をさがす','sub:cust')}
+      <div class="d-sec">さがす・台帳</div>
+      ${dItem('🔍','顧客台帳','sub:cust')}
+      ${dItem('🏘','物件台帳','sub:prop')}
       ${dItem('🗂','過去の案件をさがす','sub:past')}
       <div class="d-sec">申請する</div>
       ${dItem('📋','自分の申請・登録','sub:myreq')}
@@ -1274,7 +1359,7 @@ function render(){
   if(state.sub){
     const s=state.sub;
     html = s.wip?(IMPL_WIPS[s.wip]?IMPL_WIPS[s.wip]():wipView(s.wip)) : s==='myreq'?myReqView() : s==='help'?helpView() : s==='ann'?annView() : s==='cust'?custView() : s==='pcinfo'?pcInfoView()
-      : s==='custreg'?custRegView() : s==='leadForm'?leadFormView() : s==='ringiForm'?ringiFormView() : s==='buyForm'?buyFormView() : s==='past'?pastView() : '';
+      : s==='custreg'?custRegView() : s==='leadForm'?leadFormView() : s==='ringiForm'?ringiFormView() : s==='buyForm'?buyFormView() : s==='past'?pastView() : s==='prop'?propView() : '';
   }
   else if(state.approving) html=approveView(state.approving);
   else if(state.deal) html=dealDetail(state.deal);
@@ -1318,7 +1403,11 @@ function render(){
 function wireView(){
   const v=$('view');
   v.querySelectorAll('[data-deal]').forEach(b=>b.onclick=()=>{state.deal=b.dataset.deal;state.sub=null;render();});
-  v.querySelectorAll('[data-back]').forEach(b=>b.onclick=()=>{state.deal=null;state.approving=null;state.sub=null;state.annOpen=-1;render();});
+  v.querySelectorAll('[data-back]').forEach(b=>b.onclick=()=>{
+    if(state.custFilt){ state.custFilt=false; render(); return; }
+    if(state.propFilt){ state.propFilt=false; render(); return; }
+    state.deal=null;state.approving=null;state.sub=null;state.annOpen=-1;render();
+  });
   v.querySelectorAll('[data-approve]').forEach(b=>b.onclick=()=>{
     const rid=b.dataset.approve;
     if(rid==='r2'){toast('🚧 2件目（着手承認）はデモ簡略化のため確認のみ');return;}
@@ -1346,16 +1435,37 @@ function wireView(){
     state.annOpen = state.annOpen===i ? -1 : i;
     render();
   });
-  const cq=$('custQ'); if(cq) cq.addEventListener('input',e=>{
-    state.custQ=e.target.value;
-    const q=state.custQ.trim();
-    const hit=q?CUSTS.filter(c=>(c.name+c.kind+c.info).includes(q)):CUSTS;
-    $('custList').innerHTML = hit.length?hit.map(c=>`<button class="card" ${c.deal?`data-deal="${c.deal}"`:''} style="width:100%;text-align:left">
-      <div class="k">${c.kind}${c.warn?' <span class="tagP">保証期限間近</span>':''}</div>
-      <div class="t">${c.name}</div><div class="s">${c.info} — タップで進行中の案件へ</div>
-    </button>`).join('')
-    :`<p class="quiet">該当なし。新規のお客さまは「＋ → 顧客を登録」から仮登録できます。</p>`;
-    $('custList').querySelectorAll('[data-deal]').forEach(b=>b.onclick=()=>{state.deal=b.dataset.deal;state.sub=null;render();});
+  const cq=$('custQ'); if(cq) cq.addEventListener('input',e=>{ state.custQ=e.target.value; render(); });
+  const pq=$('propQ'); if(pq) pq.addEventListener('input',e=>{ state.propQ=e.target.value; render(); });
+  v.querySelectorAll('[data-mfilt]').forEach(b=>b.onclick=()=>{
+    if(b.dataset.mfilt==='cust') state.custFilt=true; else state.propFilt=true; render();
+  });
+  v.querySelectorAll('[data-mfdone]').forEach(b=>b.onclick=()=>{
+    if(b.dataset.mfdone==='cust') state.custFilt=false; else state.propFilt=false; render();
+  });
+  v.querySelectorAll('[data-mfclrall]').forEach(b=>b.onclick=()=>{
+    if(b.dataset.mfclrall==='cust'){ state.custDom=''; state.custBr=''; state.custRegi=''; }
+    else { state.propDom=''; state.propBr=''; state.propRegi=''; }
+    render();
+  });
+  v.querySelectorAll('[data-mfclr]').forEach(b=>b.onclick=()=>{
+    const [kind,key]=b.dataset.mfclr.split(':');
+    if(kind==='cust'){ if(key==='dom'){ state.custDom=''; state.custBr=''; } else if(key==='br') state.custBr=''; else state.custRegi=''; }
+    else { if(key==='dom'){ state.propDom=''; state.propBr=''; } else if(key==='br') state.propBr=''; else state.propRegi=''; }
+    render();
+  });
+  v.querySelectorAll('[data-mfset]').forEach(b=>b.onclick=()=>{
+    const [kind,key,val]=b.dataset.mfset.split(':');
+    if(kind==='cust'){
+      if(key==='dom'){ state.custDom=val; state.custBr=''; }
+      else if(key==='br') state.custBr=val;
+      else state.custRegi=val;
+    } else {
+      if(key==='dom'){ state.propDom=val; state.propBr=''; }
+      else if(key==='br') state.propBr=val;
+      else state.propRegi=val;
+    }
+    render();
   });
   v.querySelectorAll('[data-mf]').forEach(b=>b.onclick=()=>{
     const i=b.dataset.mf.indexOf(':'), k=b.dataset.mf.slice(0,i), val=b.dataset.mf.slice(i+1);
@@ -1404,7 +1514,7 @@ function wireView(){
   v.querySelectorAll('[data-mdoc]').forEach(b=>b.onclick=()=>{ const i=+b.dataset.mdoc; state.mdoc=state.mdoc===i?-1:i; render(); });
   v.querySelectorAll('[data-noff]').forEach(b=>b.onclick=()=>{ const o=b.dataset.noff, a=state.notifOff, i=a.indexOf(o); i>=0?a.splice(i,1):a.push(o); render(); });
   const kq=$('knowQ'); if(kq) kq.addEventListener('input',e=>{ state.knowQ=e.target.value; render(); const el=$('knowQ'); el.focus(); el.setSelectionRange(el.value.length,el.value.length); });
-  const pq=$('pastQ'); if(pq) pq.addEventListener('input',e=>{
+  const pastQi=$('pastQ'); if(pastQi) pastQi.addEventListener('input',e=>{
     state.pastQ=e.target.value; render();
     const el=$('pastQ'); el.focus(); el.setSelectionRange(el.value.length,el.value.length);
   });
