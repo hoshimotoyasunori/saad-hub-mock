@@ -3,8 +3,12 @@
 1つのURLで画面幅に応じて表示が切り替わる **UIモック**（静的HTML）です。  
 本番アプリではなく、**検証・デモ・合意形成用**の画面です。
 
+> **別の人／別のAIが続きをやるとき** → 必ず **[HANDOFF.md](./HANDOFF.md)** と **[STATUS.md](./STATUS.md)** から読む。
+
 - **公開URL**: https://hoshimotoyasunori.github.io/saad-hub-mock/
 - **リポジトリ**: https://github.com/hoshimotoyasunori/saad-hub-mock
+- **引き継ぎ（必読）**: [HANDOFF.md](./HANDOFF.md) — 何を作るか・ASIS精査の仕方・同期ルール
+- **現状スナップショット**: [STATUS.md](./STATUS.md) — できている／できていない（日付付き）
 - **要件定義**: [requirements.md](./requirements.md)
 - **ASIS由来の導入状況（必読）**: [asis-capability-coverage.md](./asis-capability-coverage.md) — 何が導入済／未導入か、なぜASISで要ったか、無駄な管理をやめる方針
 - **利用者目線の想定要望台帳**: [user-journey-requirements.md](./user-journey-requirements.md) — どこから起票するか・ポップアップか・下書きはどこか など操作の流れの問いと対応状況
@@ -26,6 +30,8 @@ saad-hub-mock/
 ├── index.html                   ← 公開の正入口（切替シェル）
 ├── saad-github-hub.html         ← PC版（GitHub型台帳）
 ├── saad-mobile-hub.html         ← スマホ版（ジョブ型）
+├── HANDOFF.md                   ← 別担当／別AIの引き継ぎ正本（最初に読む）
+├── STATUS.md                    ← 現状スナップショット（完了／未完了）
 ├── requirements.md              ← 本モックの要件定義（HTML変更時は必ず更新）
 ├── asis-capability-coverage.md  ← ASIS由来機能の導入状況（正本コピー）
 ├── user-journey-requirements.md ← 利用者目線の想定要望台帳（正本コピー）
@@ -39,6 +45,8 @@ saad-hub-mock/
 | `index.html` | **唯一の公開入口。** iframe で PC/スマホを載せ替え。下部に「自動 / PC / スマホ」切替バー |
 | `saad-github-hub.html` | **PC向け本体。** 案件台帳・View・パネル・Inbox など GitHub 風の台帳UI |
 | `saad-mobile-hub.html` | **スマホ向け本体。** 下部タブ＋ジョブ（今日やること／報告／承認）。Issue 語彙は出さない |
+| `HANDOFF.md` | **別担当／別AIの入り口。** 何を作るか・ASIS精査・次の残件・同期ルール |
+| `STATUS.md` | **現状スナップショット。** できている／できていない（日付付き） |
 | `asis-capability-coverage.md` | **導入状況の常時台帳。** ASISでなぜ要ったか／残す・やめる・吸収／✅🟡⬜ |
 
 開発比較用に各 HTML を単体で開くこともできますが、**デモの正は `index.html`（Pages のルート）**です。
@@ -133,6 +141,7 @@ python3 -m http.server 8123
 3. モード切替・embed 全画面の調整
 4. スマホをジョブ型UIへ。PC 内蔵の旧 GitHub Mobile シェルは使わない
 5. 2026-09-25: 詳細＝台帳エリア内オーバーレイ＋リサイズ（〜2/3）＋外側クリックで閉じない／Assignees・右メタ固定幅（要件 P-07〜P-12）
+6. 2026-09-25: Issue親子整合（P-13/14）。**HANDOFF.md / STATUS.md** を追加し、GitHub上で引き継ぎ可能に
 
 ---
 

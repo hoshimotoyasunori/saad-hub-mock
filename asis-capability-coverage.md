@@ -3,8 +3,8 @@
 > **目的**: 「今までASISにあったもののうち、新システム（SAAD Hubモック含む）で何が導入できていて、何ができていないか」を常に分かるようにする。  
 > **対象**: モック／設計合意時点のカバレッジ。本番実装の完了定義ではない。  
 > **更新**: Hub・設計を変えたら、このファイルを同じPR／作業で更新する。  
-> **最終更新**: 2026-09-25（詳細オーバーレイ／Issue親子整合。優先1〜12はモック導入済。「まだ無い」を再整理）  
-> **関連**: [system-page-structure.md](system-page-structure.md)／[saad-hub-manual.md](saad-hub-manual.md)／[app-catalog.md](app-catalog.md)／`ASIS対応表.csv`（48ドメイン）／[user-journey-requirements.md](user-journey-requirements.md)／Pages [requirements.md](../../saad-hub-pages/requirements.md)（Hub公開要件）
+> **最終更新**: 2026-09-25（詳細オーバーレイ／Issue親子整合。優先1〜12はモック導入済。「まだ無い」を再整理。GitHub引き継ぎは HANDOFF.md / STATUS.md）  
+> **関連（本リポ）**: [HANDOFF.md](./HANDOFF.md)／[STATUS.md](./STATUS.md)／[requirements.md](./requirements.md)／[user-journey-requirements.md](./user-journey-requirements.md)／[system-page-structure.md](./system-page-structure.md)／[saad-hub-manual.md](./saad-hub-manual.md)
 
 ---
 
