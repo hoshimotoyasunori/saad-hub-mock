@@ -282,7 +282,7 @@ h2.page{margin:0 0 6px;font-size:17px}
 .split > .table-wrap{flex:1 1 auto}
 .main > .table-wrap{flex:1 1 auto}
 table.ledger{width:100%;border-collapse:collapse;font-size:12px;min-width:720px}
-table.ledger th.pickcell,table.ledger td.pickcell{width:28px;padding-left:8px;padding-right:4px;text-align:center;vertical-align:middle}
+table.ledger th.col-own,table.ledger td.col-own{width:72px;max-width:88px;white-space:nowrap}
 table.ledger th{text-align:left;font-weight:600;color:var(--muted);padding:8px 10px;border-bottom:1px solid var(--line);background:#fbfcfe;position:sticky;top:0;z-index:1}
 table.ledger td{padding:7px 10px;border-bottom:1px solid #e8edf5;vertical-align:middle}
 table.ledger tr:hover td{background:#f3f8f8}
@@ -352,7 +352,7 @@ table.man .who{white-space:nowrap;font-weight:600}
   border-left:1px solid var(--line);
   box-shadow:-10px 0 28px rgba(15,23,42,.12);
 }
-.has-panel .detail{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(180px,.85fr)}
+.has-panel .detail{display:grid;grid-template-columns:minmax(0,1fr) 220px}
 @media(max-width:720px){
   .has-panel .detail{width:100%!important;max-width:100%;min-width:0;grid-template-columns:1fr;display:flex;flex-direction:column;overflow:auto}
   .has-panel .split-scrim{display:none}
@@ -368,7 +368,7 @@ table.man .who{white-space:nowrap;font-weight:600}
 .det-resize:hover::after,.detail.resizing .det-resize::after{background:var(--teal)}
 .detail.resizing,.split.resizing{user-select:none}
 .dmain{padding:14px 16px 20px;border-right:1px solid var(--line);overflow:auto;overscroll-behavior:contain;min-height:0}
-.dside{padding:14px 12px;background:#f8fafc;overflow:auto;overscroll-behavior:contain;min-height:0}
+.dside{padding:14px 12px;background:#f8fafc;overflow:auto;overscroll-behavior:contain;min-height:0;width:220px;max-width:220px;flex:none;box-sizing:border-box}
 @media(max-width:720px){.dmain{border-right:0;border-bottom:1px solid var(--line)}}
 .badge{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;border-radius:999px;padding:2px 9px;background:#e8f6ee;color:var(--open)}
 .badge.closed{background:#ece8f6;color:var(--done)}
@@ -1879,7 +1879,7 @@ function ledgerTable(rowObjs, treeMode, opts){
       </div></td>
       <td class="orgcell${isRoot?'':' sub'}">${org}</td>
       <td>${pill(it.status)}</td>
-      <td>${PEOPLE[it.own]||'—'}</td>
+      <td class="col-own">${PEOPLE[it.own]||'—'}</td>
       <td class="ref">${['承認待ち','Todo','差戻し'].includes(it.status)?idleDays(it)+'日':'—'}</td>
       <td><button type="button" class="linkbtn" data-repo="${it.repo}">${it.repo}</button></td>
       <td>${pr?`${pr[0]}/${pr[1]}`:'—'}</td>
@@ -1887,7 +1887,7 @@ function ledgerTable(rowObjs, treeMode, opts){
     </tr>`;
   }).join('');
   return `<div class="table-wrap"><table class="ledger"><thead><tr>
-    ${canPick?'<th class="pickcell" title="複数選択（担当替え・一括承認）"></th>':''}<th style="width:30%">Title</th><th>部門/拠点</th><th>進み</th><th>Assignees</th><th>放置</th><th>Repository</th><th>Sub</th><th>金額/納期</th>
+    ${canPick?'<th class="pickcell" title="複数選択（担当替え・一括承認）"></th>':''}<th style="width:30%">Title</th><th>部門/拠点</th><th>進み</th><th class="col-own">Assignees</th><th>放置</th><th>Repository</th><th>Sub</th><th>金額/納期</th>
   </tr></thead><tbody>${body}</tbody></table>
   <button type="button" class="add-row-btn" id="addItem">＋ add an item — 新しい仕事＝表に行を足す（稟議・購買はゲートの子として）</button></div>`;
 }
