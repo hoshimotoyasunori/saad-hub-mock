@@ -482,9 +482,9 @@ const ANNS=[
 ];
 /* PC CUSTOMERS / PROPERTIES と同じ3+4件＋生成マスタ（閲覧デモ用） */
 const CUSTS=[
-  {id:'c1',name:'株式会社サンプル',kind:'法人', domain:'ES', branch:'横浜営業所', regi:'本', deal:'d1',info:'物件2 · 横浜市西区 · 2019年〜',warn:false, contact:'総務部 大山様 / 045-xxx-xxxx', addr:'横浜市西区'},
-  {id:'c2',name:'佐藤 一郎',kind:'個人', domain:'HSE', branch:'藤沢営業所', regi:'本', deal:'d2',info:'保証 2026-10 期限間近 · 藤沢市',warn:true, contact:'090-xxxx-xxxx', addr:'藤沢市'},
-  {id:'c3',name:'グリーンハイツ管理組合',kind:'法人', domain:'PCS', branch:'相模原営業所', regi:'本', deal:'d3',info:'10年保証 · 相模原市 · 物件1',warn:false, contact:'理事長 川口様', addr:'相模原市'},
+  {id:'c1',name:'株式会社サンプル',kind:'法人', domain:'ES', branch:'横浜営業所', regi:'本', deal:'d1',info:'物件2 · 横浜市西区 · 2019年〜',warn:false, contact:'総務部 大山様 / 045-xxx-xxxx', addr:'横浜市西区', since:'2019年〜', last:'9/20', propertyIds:['p1','p2'], contracts:[{name:'建物調査契約', until:'2027-03', warn:false}]},
+  {id:'c2',name:'佐藤 一郎',kind:'個人', domain:'HSE', branch:'藤沢営業所', regi:'本', deal:'d2',info:'保証 2026-10 期限間近 · 藤沢市',warn:true, contact:'090-xxxx-xxxx', addr:'藤沢市', since:'2021年〜', last:'9/18', propertyIds:['p3'], contracts:[{name:'シロアリ定期点検・保証', until:'2026-10', warn:true}]},
+  {id:'c3',name:'グリーンハイツ管理組合',kind:'法人', domain:'PCS', branch:'相模原営業所', regi:'本', deal:'d3',info:'10年保証 · 相模原市 · 物件1',warn:false, contact:'理事長 川口様', addr:'相模原市', since:'2018年〜', last:'8/30', propertyIds:['p4'], contracts:[{name:'屋根改修 10年保証', until:'2031-08', warn:false}]},
 ].concat((()=>{
   const sei=['田中','鈴木','高橋','伊藤','渡辺','山田','中村','小林','加藤','吉田','山口','松本','井上','木村','林','斎藤','清水','山崎','森','池田'];
   const mei=['一郎','花子','健','美咲','誠'];
@@ -500,10 +500,10 @@ const CUSTS=[
   return list;
 })());
 const PROPS=[
-  {id:'p1',name:'横浜支店ビル', structure:'S造5F', domain:'ES', branch:'横浜営業所', regi:'本', deal:'d1', info:'株式会社サンプル · みなとみらい', addr:'横浜市西区みなとみらい1-1', cust:'株式会社サンプル'},
-  {id:'p2',name:'川崎倉庫', structure:'平屋・鉄骨', domain:'ES', branch:'横浜営業所', regi:'仮', deal:'dL1', info:'株式会社サンプル · 外壁調査リード', addr:'川崎市川崎区 ind-2', cust:'株式会社サンプル'},
-  {id:'p3',name:'戸建（藤沢・木造2F）', structure:'木造2F', domain:'HSE', branch:'藤沢営業所', regi:'本', deal:'d2', info:'佐藤 一郎 · 保証あり', addr:'藤沢市鵠沼3-2', cust:'佐藤 一郎'},
-  {id:'p4',name:'グリーンハイツ', structure:'RC造8F', domain:'PCS', branch:'相模原営業所', regi:'本', deal:'d3', info:'管理組合 · 48戸', addr:'相模原市中央区緑が丘', cust:'グリーンハイツ管理組合'},
+  {id:'p1',name:'横浜支店ビル', structure:'S造5F', domain:'ES', branch:'横浜営業所', regi:'本', deal:'d1', info:'株式会社サンプル · みなとみらい', addr:'横浜市西区みなとみらい1-1', cust:'株式会社サンプル', custId:'c1', use:'事務所', built:'1998', units:'—', water:'公営水道', last:'9/20', contracts:[{name:'建物調査契約', until:'2027-03', warn:false}]},
+  {id:'p2',name:'川崎倉庫', structure:'平屋・鉄骨', domain:'ES', branch:'横浜営業所', regi:'仮', deal:'dL1', info:'株式会社サンプル · 外壁調査リード', addr:'川崎市川崎区 ind-2', cust:'株式会社サンプル', custId:'c1', use:'倉庫', built:'2005', units:'—', water:'公営水道', last:'9/12', contracts:[{name:'外壁調査（リード中）', until:'—', warn:false}]},
+  {id:'p3',name:'戸建（藤沢・木造2F）', structure:'木造2F', domain:'HSE', branch:'藤沢営業所', regi:'本', deal:'d2', info:'佐藤 一郎 · 保証あり', addr:'藤沢市鵠沼3-2', cust:'佐藤 一郎', custId:'c2', use:'住宅', built:'1987', units:'1', water:'井戸→公営切替済', last:'9/18', contracts:[{name:'シロアリ定期点検・保証', until:'2026-10', warn:true}]},
+  {id:'p4',name:'グリーンハイツ', structure:'RC造8F', domain:'PCS', branch:'相模原営業所', regi:'本', deal:'d3', info:'管理組合 · 48戸', addr:'相模原市中央区緑が丘', cust:'グリーンハイツ管理組合', custId:'c3', use:'集合住宅', built:'2001', units:'48戸', water:'公営水道', last:'8/30', contracts:[{name:'屋根改修 10年保証', until:'2031-08', warn:false},{name:'貯水槽清掃（年次）', until:'2026-09', warn:false}]},
 ].concat((()=>{
   const names=['コーポ','ハイツ','ビル','マンション','倉庫','工場','店舗','戸建'];
   const stru=['木造2F','S造3F','RC造5F','RC造8F','平屋','SRC造12F'];
@@ -519,15 +519,23 @@ const PROPS=[
 })());
 function custById(id){ return CUSTS.find(c=>c.id===id); }
 function propById(id){ return PROPS.find(p=>p.id===id); }
+function nameKey(s){ return (s||'').replace(/さま$/,'').trim(); }
+function propsForCust(c){
+  if(!c) return [];
+  if(c.propertyIds&&c.propertyIds.length) return c.propertyIds.map(propById).filter(Boolean);
+  const nm=nameKey(c.name);
+  return PROPS.filter(p=>p.custId===c.id || nameKey(p.cust)===nm || (p.info||'').includes(c.name));
+}
 function actsForCust(c){
   if(!c) return [];
-  const nm=c.name.replace(/さま$/,'');
+  const nm=nameKey(c.name);
   const ids=new Set();
   if(c.deal && DEALS[c.deal]) ids.add(c.deal);
   Object.entries(DEALS).forEach(([id,d])=>{
-    const cn=(d.cust||'').replace(/さま$/,'');
-    if(cn && (cn.includes(nm) || nm.includes(cn))) ids.add(id);
+    const cn=nameKey(d.cust);
+    if(cn && (cn===nm || cn.includes(nm) || nm.includes(cn))) ids.add(id);
   });
+  propsForCust(c).forEach(p=>{ if(p.deal&&DEALS[p.deal]) ids.add(p.deal); });
   return [...ids].map(id=>({id,...DEALS[id]}));
 }
 function actsForProp(p){
@@ -535,10 +543,62 @@ function actsForProp(p){
   const ids=new Set();
   if(p.deal && DEALS[p.deal]) ids.add(p.deal);
   Object.entries(DEALS).forEach(([id,d])=>{
-    if(p.name && ((d.title||'').includes(p.name) || (d.addr||'').includes((p.addr||'').slice(0,8)))) ids.add(id);
-    if(p.cust && (d.cust||'').replace(/さま$/,'').includes(p.cust.replace(/さま$/,''))) ids.add(id);
+    if(p.name && ((d.title||'').includes(p.name) || (d.addr&&p.addr&&d.addr.includes(p.addr.slice(0,8))))) ids.add(id);
   });
+  /* 同顧客の別物件案件は物件詳細には混ぜない（顧客詳細で横断） */
   return [...ids].filter(id=>DEALS[id]).map(id=>({id,...DEALS[id]}));
+}
+function pastForCust(c){
+  if(!c) return [];
+  const nm=nameKey(c.name);
+  return PAST.filter(x=>{ const cn=nameKey(x.cust); return cn===nm||cn.includes(nm)||nm.includes(cn); });
+}
+function pastForProp(p){
+  if(!p) return [];
+  return PAST.filter(x=>(x.t||'').includes(p.name)||(x.info||'').includes(p.name));
+}
+function dateScore(d){
+  const m=String(d||'').match(/(\d+)\/(\d+)/); if(!m) return 0;
+  return (+m[1])*100+(+m[2]);
+}
+function contactTimeline(acts){
+  const rows=[];
+  (acts||[]).forEach(a=>{
+    (typeof histOf==='function'?histOf(a.id):(a.hist||[])).forEach(h=>{
+      rows.push({d:h.d, who:h.who, t:h.t, ref:a.ref||a.id, title:a.title, deal:a.id});
+    });
+  });
+  rows.sort((a,b)=>dateScore(b.d)-dateScore(a.d));
+  return rows;
+}
+function actCardHtml(a){
+  const st=a.closed?'<span class="tagOK">完了</span>':a.lead?'<span class="tagP">活動</span>':'<span class="tagDom">進行中</span>';
+  return `<button class="card" data-deal="${a.id}" style="width:100%;text-align:left">
+    <div class="k"><span class="tagDom">${a.dom||''}</span>${a.ref?` ${a.ref}`:''} ${st}</div>
+    <div class="t">${a.title}</div>
+    <div class="s">${a.addr||a.cust||''}${a.amount&&a.amount!=='—'?' · '+a.amount:''}</div>
+  </button>`;
+}
+function histListHtml(rows){
+  if(!rows.length) return '<p class="quiet">まだ接点履歴はありません。</p>';
+  return `<div class="card"><ul class="hist">${rows.slice(0,24).map(h=>`
+    <li${h.deal?` data-deal="${h.deal}" style="cursor:pointer"`:''}><span class="hd">${h.d}</span><span class="av${h.who==='sys'?' sys':''}">${h.who==='sys'?'⚙':h.who}</span>
+    <span class="tx">${h.ref?`<div class="m" style="margin:0 0 2px">${h.ref}${h.title?` · ${h.title}`:''}</div>`:''}${h.t}</span></li>`).join('')}
+  </ul></div>`;
+}
+function contractsHtml(list){
+  if(!list||!list.length) return '<div class="s">—</div>';
+  return list.map(k=>`<div class="s">${k.name} — ${k.until}${k.warn?' <span class="tagP">期限間近</span>':''}</div>`).join('');
+}
+function pushCrmNav(){
+  state.crmStack=state.crmStack||[];
+  state.crmStack.push({sub:state.sub, custSel:state.custSel, propSel:state.propSel});
+}
+function popCrmNav(){
+  const prev=(state.crmStack||[]).pop();
+  if(!prev) return false;
+  state.sub=prev.sub; state.custSel=prev.custSel; state.propSel=prev.propSel;
+  return true;
 }
 function openActPlanSheet(ctx){
   state.actPlanCtx=ctx||{};
@@ -561,7 +621,7 @@ function createMobileActivity(vals){
 /* 稟議（連鎖の核）: r1=#841 サンプル社値引12%（PC ringi#12） */
 const state={
   role:'sales', tab:'home', deal:null, approving:null, aiMsgs:[],
-  sub:null, annOpen:-1, custSel:null, propSel:null, custQ:'', propQ:'', dealQ:'',
+  sub:null, annOpen:-1, custSel:null, propSel:null, crmStack:[], custQ:'', propQ:'', dealQ:'',
   custDom:'', custBr:'', custRegi:'', custFilt:false,
   propDom:'', propBr:'', propRegi:'', propFilt:false,
   ringi:'pending',            // pending → ok / back
@@ -1031,50 +1091,88 @@ function propView(){
 }
 function custDetailView(cid){
   const c=custById(cid); if(!c){ state.custSel=null; return custView(); }
+  const props=propsForCust(c);
   const acts=actsForCust(c);
-  const props=PROPS.filter(p=>(p.cust&&p.cust===c.name)||(p.info||'').includes(c.name));
-  return `<div class="dethead"><button class="backbtn" data-backcust="1">‹ 顧客台帳へ</button>
-    <div class="k"><span class="tagDom">${c.domain}</span> ${c.kind} · ${c.branch.replace('営業所','')}</div>
+  const open=acts.filter(a=>!a.closed);
+  const closed=acts.filter(a=>a.closed);
+  const past=pastForCust(c);
+  const tl=contactTimeline(acts);
+  const peek=(state.crmStack||[])[(state.crmStack||[]).length-1];
+  const backLbl=peek&&peek.sub==='prop'?'‹ 物件詳細へ':'‹ 顧客台帳へ';
+  const backAttr=peek&&peek.sub==='prop'?'data-crmpop="1"':'data-backcust="1"';
+  return `<div class="dethead"><button class="backbtn" ${backAttr}>${backLbl}</button>
+    <div class="k"><span class="tagDom">${c.domain}</span> ${c.kind} · ${c.branch.replace('営業所','')}${c.regi==='仮'?' <span class="tagP">仮</span>':''}${c.warn?' <span class="tagP">保証期限間近</span>':''}</div>
     <h2>${c.name}</h2>
     <div class="sub">${c.info}</div></div>
   <div class="card">
-    <div class="k">連絡先</div><div class="s">${c.contact||'—'}</div>
-    <div class="k" style="margin-top:8px">所在地</div><div class="s">${c.addr||'—'}</div>
-    <div class="k" style="margin-top:8px">登録</div><div class="s">${c.regi==='仮'?'仮登録':'本登録'}${c.warn?' · 保証期限間近':''}</div>
+    <div class="kvrow"><span class="kt">連絡先</span><span>${c.contact||'—'}</span></div>
+    <div class="kvrow"><span class="kt">所在地</span><span>${c.addr||'—'}</span></div>
+    <div class="kvrow"><span class="kt">取引開始</span><span>${c.since||'—'}</span></div>
+    <div class="kvrow"><span class="kt">最終接点</span><span>${c.last||'—'}</span></div>
+    <div class="kvrow"><span class="kt">登録</span><span>${c.regi==='仮'?'仮登録':'本登録'} · ${c.domain}/${c.branch.replace('営業所','')}</span></div>
+    <div class="kvrow"><span class="kt">契約・保証</span><span>${contractsHtml(c.contracts)}</span></div>
   </div>
   <button class="abtn p" data-actplan-cust="${c.id}">📅 この顧客への活動予定を立てる</button>
-  <div class="sec">進行中の活動 <span class="cnt">${acts.length}</span></div>
-  ${acts.length?acts.map(a=>`<button class="card" data-deal="${a.id}" style="width:100%;text-align:left">
-    <div class="k"><span class="tagDom">${a.dom}</span>${a.ref?` ${a.ref}`:''}${a.lead?' <span class="tagP">活動</span>':a.closed?' <span class="tagOK">Close</span>':''}</div>
-    <div class="t">${a.title}</div><div class="s">${a.addr||''}</div>
-  </button>`).join(''):'<p class="quiet">まだありません。上のボタンから活動予定を立てられます。</p>'}
-  <div class="sec">紐づく物件</div>
-  ${props.length?props.map(p=>`<button class="card" data-openprop="${p.id}" style="width:100%;text-align:left">
-    <div class="k">${p.structure}</div><div class="t">${p.name}</div><div class="s">${p.addr||p.info}</div>
-  </button>`).join(''):'<p class="quiet">物件未紐づけでも活動予定は立てられます。</p>'}
-  <div class="note">営業の操作は「この顧客に何の活動をするか」です。管理・PC台帳では同じ行が案件として見えます。</div>`;
+  <div class="sec">紐づく物件 <span class="cnt">${props.length}</span></div>
+  <div class="note" style="margin-top:0">複数物件を持ち、物件ごとに活動が並列で動くことがあります。物件を開くと現場・保証の履歴が見えます。</div>
+  ${props.length?props.map(p=>{
+    const pa=actsForProp(p).filter(a=>!a.closed);
+    return `<button class="card" data-openprop="${p.id}" style="width:100%;text-align:left">
+      <div class="k">${p.structure||''}${p.regi==='仮'?' <span class="tagP">仮</span>':''}${pa.length?` <span class="tagDom">進行 ${pa.length}</span>`:''}</div>
+      <div class="t">${p.name}</div>
+      <div class="s">${p.addr||p.info||''}</div>
+    </button>`;
+  }).join(''):'<p class="quiet">物件未紐づけでも活動予定は立てられます。</p>'}
+  <div class="sec">進行中の活動 <span class="cnt">${open.length}</span></div>
+  ${open.length?open.map(actCardHtml).join(''):'<p class="quiet">進行中はありません。上から活動予定を立てられます。</p>'}
+  ${closed.length?`<div class="sec">完了した活動 <span class="cnt">${closed.length}</span></div>${closed.map(actCardHtml).join('')}`:''}
+  <div class="sec">これまでの接点（横断） <span class="cnt">${tl.length}</span></div>
+  <div class="note" style="margin-top:0">この顧客に紐づく全活動の履歴を新しい順にまとめています。行タップでその活動の詳細へ。</div>
+  ${histListHtml(tl)}
+  ${past.length?`<div class="sec">過去の完了案件（書類） <span class="cnt">${past.length}</span></div>
+    ${past.map(x=>`<button class="card" data-sub="past" style="width:100%;text-align:left">
+      <div class="k"><span class="tagOK">完了</span> ${x.cust}</div><div class="t">${x.t}</div><div class="s">${x.info}</div>
+    </button>`).join('')}`:''}
+  <div class="note">営業は「この顧客とどう接してきたか」をここで確認します。管理・PC台帳では同じ行が案件・タイムラインとして見えます。</div>`;
 }
 function propDetailView(pid){
   const p=propById(pid); if(!p){ state.propSel=null; return propView(); }
   const acts=actsForProp(p);
-  return `<div class="dethead"><button class="backbtn" data-backprop="1">‹ 物件台帳へ</button>
-    <div class="k"><span class="tagDom">${p.domain}</span> ${p.structure} · ${p.branch.replace('営業所','')}</div>
+  const open=acts.filter(a=>!a.closed);
+  const closed=acts.filter(a=>a.closed);
+  const past=pastForProp(p);
+  const tl=contactTimeline(acts);
+  const cust=p.custId?custById(p.custId):CUSTS.find(x=>nameKey(x.name)===nameKey(p.cust));
+  const peek=(state.crmStack||[])[(state.crmStack||[]).length-1];
+  const backLbl=peek&&peek.sub==='cust'?'‹ 顧客詳細へ':'‹ 物件台帳へ';
+  const backAttr=peek&&peek.sub==='cust'?'data-crmpop="1"':'data-backprop="1"';
+  return `<div class="dethead"><button class="backbtn" ${backAttr}>${backLbl}</button>
+    <div class="k"><span class="tagDom">${p.domain}</span> 物件 · ${p.branch.replace('営業所','')}${p.regi==='仮'?' <span class="tagP">仮</span>':''}</div>
     <h2>${p.name}</h2>
     <div class="sub">${p.info}</div></div>
   <div class="card">
-    <div class="k">住所</div><div class="s">${p.addr||'—'}</div>
-    <div class="k" style="margin-top:8px">契約顧客</div><div class="s">${p.cust||'（未紐づけ）'}</div>
-    <div class="k" style="margin-top:8px">登録</div><div class="s">${p.regi==='仮'?'仮登録':'本登録'}</div>
+    <div class="kvrow"><span class="kt">住所</span><span>${p.addr||'—'}</span></div>
+    <div class="kvrow"><span class="kt">構造</span><span>${p.structure||'—'}</span></div>
+    <div class="kvrow"><span class="kt">用途 / 築年</span><span>${p.use||'—'} · ${p.built||'—'}</span></div>
+    <div class="kvrow"><span class="kt">戸数 / 水道</span><span>${p.units||'—'} · ${p.water||'—'}</span></div>
+    <div class="kvrow"><span class="kt">最終接点</span><span>${p.last||'—'}</span></div>
+    <div class="kvrow"><span class="kt">登録</span><span>${p.regi==='仮'?'仮登録':'本登録'} · ${p.domain}/${p.branch.replace('営業所','')}</span></div>
+    <div class="kvrow"><span class="kt">契約顧客</span><span>${cust?`<button type="button" data-opencust="${cust.id}" style="padding:0;border:0;background:0;color:var(--accent);font:inherit;font-weight:700;cursor:pointer">${cust.name}</button>`:(p.cust||'（未紐づけ）')}</span></div>
+    <div class="kvrow"><span class="kt">契約・保証</span><span>${contractsHtml(p.contracts)}</span></div>
   </div>
   <button class="abtn p" data-actplan-prop="${p.id}">📅 この物件での活動予定を立てる</button>
-  <div class="sec">進行中の活動 <span class="cnt">${acts.length}</span></div>
-  ${acts.length?acts.map(a=>`<button class="card" data-deal="${a.id}" style="width:100%;text-align:left">
-    <div class="k"><span class="tagDom">${a.dom}</span>${a.ref?` ${a.ref}`:''}${a.lead?' <span class="tagP">活動</span>':a.closed?' <span class="tagOK">Close</span>':''}</div>
-    <div class="t">${a.title}</div><div class="s">${a.cust||''}</div>
-  </button>`).join(''):'<p class="quiet">まだありません。上のボタンから活動予定を立てられます。</p>'}
-  <div class="note">営業の操作は「この物件で何の活動をするか」です。管理・PC台帳では同じ行が案件として見えます。</div>`;
+  <div class="sec">この物件の活動 <span class="cnt">${open.length}</span></div>
+  ${open.length?open.map(actCardHtml).join(''):'<p class="quiet">進行中はありません。上から活動予定を立てられます。</p>'}
+  ${closed.length?`<div class="sec">完了した活動 <span class="cnt">${closed.length}</span></div>${closed.map(actCardHtml).join('')}`:''}
+  <div class="sec">これまでの動き（物件の履歴） <span class="cnt">${tl.length}</span></div>
+  <div class="note" style="margin-top:0">現場・保証・再施工は物件に紐づきます。契約顧客が変わっても履歴は物件側に残ります。行タップで活動詳細へ。</div>
+  ${histListHtml(tl)}
+  ${past.length?`<div class="sec">過去の完了案件（書類） <span class="cnt">${past.length}</span></div>
+    ${past.map(x=>`<button class="card" data-sub="past" style="width:100%;text-align:left">
+      <div class="k"><span class="tagOK">完了</span> ${x.cust}</div><div class="t">${x.t}</div><div class="s">${x.info}</div>
+    </button>`).join('')}`:''}
+  <div class="note">PC版の物件詳細と同じ軸です。管理台帳では案件行としても見えます。</div>`;
 }
-/* ---- PC版でできること ---- */
 function pcInfoView(){
   const rows=[['ホーム「今日やること」','ポータル「自分宛」'],['案件タブ','案件台帳（自分のView）'],['報告・履歴','同じ行のタイムライン（Comment）'],['承認（拠点長）','稟議View'],['通知','Inbox'],['メニューの道具','スペース（アプリカタログ）']];
   return `<div class="dethead"><button class="backbtn" data-back="1">‹ 戻る</button><h2>PC版でできること</h2>
@@ -1799,7 +1897,7 @@ function render(){
     <button data-ah="ai" class="ai-ah" aria-label="SAAD AI">${AI_ICON_SVG}</button>`;
   $('apphead').querySelectorAll('[data-ah]').forEach(b=>b.onclick=()=>{
     const a=b.dataset.ah;
-    state.deal=null; state.approving=null; state.annOpen=-1; state.custSel=null; state.propSel=null;
+    state.deal=null; state.approving=null; state.annOpen=-1; state.custSel=null; state.propSel=null; state.crmStack=[];
     if(a==='ai'){ state.sub='ai'; render(); return; }
     if(a==='cust'){ state.sub='cust'; }
     else { state.sub=null; state.tab=a; if(a==='notif') state.notifs[state.role].forEach(x=>x.unread=false); }
@@ -1813,7 +1911,7 @@ function render(){
     <button data-tab="notif" ${state.tab==='notif'&&!state.sub?'aria-current="true"':''}><span class="ic badge-dot">🔔${n?`<span class="n">${n}</span>`:''}</span>通知</button>
     <button data-tab="menu" ${state.tab==='menu'&&!state.sub?'aria-current="true"':''}><span class="ic">☰</span>メニュー</button>`;
   $('tabbar').querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{
-    state.tab=b.dataset.tab; state.deal=null; state.approving=null; state.sub=null; state.annOpen=-1; state.custSel=null; state.propSel=null;
+    state.tab=b.dataset.tab; state.deal=null; state.approving=null; state.sub=null; state.annOpen=-1; state.custSel=null; state.propSel=null; state.crmStack=[];
     if(b.dataset.tab==='notif') state.notifs[state.role].forEach(x=>x.unread=false);
     render();
   });
@@ -1825,10 +1923,20 @@ function render(){
 function wireView(){
   const v=$('view');
   v.querySelectorAll('[data-deal]').forEach(b=>b.onclick=()=>{state.deal=b.dataset.deal;state.sub=null;state.custSel=null;state.propSel=null;render();});
-  v.querySelectorAll('[data-opencust]').forEach(b=>b.onclick=()=>{state.custSel=b.dataset.opencust;state.propSel=null;state.sub='cust';render();});
-  v.querySelectorAll('[data-openprop]').forEach(b=>b.onclick=()=>{state.propSel=b.dataset.openprop;state.custSel=null;state.sub='prop';render();});
-  v.querySelectorAll('[data-backcust]').forEach(b=>b.onclick=()=>{state.custSel=null;state.sub='cust';render();});
-  v.querySelectorAll('[data-backprop]').forEach(b=>b.onclick=()=>{state.propSel=null;state.sub='prop';render();});
+  v.querySelectorAll('[data-opencust]').forEach(b=>b.onclick=e=>{
+    e.stopPropagation();
+    if(state.sub==='prop'&&state.propSel) pushCrmNav();
+    state.custSel=b.dataset.opencust; state.propSel=null; state.sub='cust'; render();
+  });
+  v.querySelectorAll('[data-openprop]').forEach(b=>b.onclick=e=>{
+    e.stopPropagation();
+    if(state.sub==='cust'&&state.custSel) pushCrmNav();
+    state.propSel=b.dataset.openprop; state.custSel=null; state.sub='prop'; render();
+  });
+  v.querySelectorAll('[data-crmpop]').forEach(b=>b.onclick=()=>{ if(!popCrmNav()){ state.custSel=null; state.propSel=null; } render(); });
+  v.querySelectorAll('[data-backcust]').forEach(b=>b.onclick=()=>{ state.crmStack=[]; state.custSel=null; state.sub='cust'; render(); });
+  v.querySelectorAll('[data-backprop]').forEach(b=>b.onclick=()=>{ state.crmStack=[]; state.propSel=null; state.sub='prop'; render(); });
+  v.querySelectorAll('.hist li[data-deal]').forEach(li=>li.onclick=()=>{ state.deal=li.dataset.deal; state.sub=null; render(); });
   v.querySelectorAll('[data-actplan-cust]').forEach(b=>b.onclick=e=>{e.stopPropagation();openSheet('actplan',{custId:b.dataset.actplanCust,step:'choose'});});
   v.querySelectorAll('[data-actplan-prop]').forEach(b=>b.onclick=e=>{e.stopPropagation();openSheet('actplan',{propId:b.dataset.actplanProp,step:'choose'});});
   v.querySelectorAll('[data-back]').forEach(b=>b.onclick=()=>{
