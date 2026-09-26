@@ -105,6 +105,23 @@ button.tl-row:active .body,button.tl-row:hover .body{border-color:var(--accent);
 .tl-row .stpill.wait{background:var(--warn-bg);color:var(--warn)}
 .tl-row .stpill.on{background:#e8f1fb;color:var(--accent)}
 .tl-row .stpill.ok{background:var(--ok-bg);color:var(--ok)}
+.progchip{display:inline-flex;align-items:center;gap:6px;margin-top:10px;padding:6px 10px;border-radius:999px;
+  background:#e8f1fb;color:var(--accent);font-size:13.2px;font-weight:700}
+.progchip b{font-size:15px}
+.deskbox{margin:16px 0 8px;background:#fff;border:1px solid var(--line);border-radius:14px;padding:0 12px 8px}
+.deskbox summary{list-style:none;cursor:pointer;font-size:14.4px;font-weight:700;color:var(--muted);
+  padding:12px 4px;display:flex;align-items:center;justify-content:space-between}
+.deskbox summary::-webkit-details-marker{display:none}
+.deskbox summary::after{content:"›";font-size:18px;color:var(--muted);transform:rotate(90deg)}
+.deskbox[open] summary::after{transform:rotate(-90deg)}
+.deskbox .card.desk{box-shadow:none;margin-bottom:8px}
+.card.soft{opacity:.88;background:#fafbfd}
+.desk-links{display:flex;flex-wrap:wrap;gap:8px;padding:4px 0 8px}
+.desk-links button{border:0;background:#eef2f7;color:var(--accent);font-size:13.8px;font-weight:700;
+  padding:10px 12px;border-radius:10px;cursor:pointer;min-height:44px}
+.abtn,.tl-row .body,.tabbar button{min-height:44px}
+.tl-row time{padding-top:10px}
+
 
 /* ステッパー */
 .stepper{display:flex;align-items:center;margin:12px 0 4px}
@@ -361,10 +378,10 @@ if(new URLSearchParams(location.search).has('embed')){
     <div class="acard">
       <h3>デモ手順（連鎖が動きます）</h3>
       <ol>
-        <li><b>営業</b>: ホームで佐藤さま訪問を報告 → サンプル社（#841）の稟議進みを確認</li>
-        <li><b>拠点長</b>: 値引起案12%・着手承認 → 「承認する」（PC ringi#12/#13 と同じ）</li>
-        <li><b>営業/施工</b>に戻る: 通知が届き、横浜支店ビルが<b>準備中→着工OK</b>に変わる</li>
-        <li><b>施工</b>: グリーンハイツ入場報告 → 写真つき完了報告（PC施工スケジュールと同じ）</li>
+        <li><b>営業</b>: ホーム「次の訪問」→到着→活動報告（机上の宿題は折りたたみ）</li>
+        <li><b>拠点長</b>: 承認待ちをタップ→「承認する」（PCの稟議と同じ）</li>
+        <li><b>営業/施工</b>: 通知が届き、横浜支店ビルが<b>準備中→着工OK</b>に変わる</li>
+        <li><b>施工</b>: 「いまの現場」入場→写真つき完了報告</li>
       </ol>
     </div>
 
@@ -455,9 +472,9 @@ const DEALS={
 
 /* 今日の予定（PC CAL_EVENTS と同じ・タップで到着→活動報告） */
 const TODAY_EV=[
-  {id:'e1', tm:'9:00', title:'横浜支店ビル 現地調査', sub:'sfa#841 · 株式会社サンプル', deal:'d1', kind:'visit', addr:'横浜市西区みなとみらい1-1', prop:'横浜支店ビル', cust:'株式会社サンプル'},
+  {id:'e1', tm:'9:00', title:'横浜支店ビル 現地調査', sub:'株式会社サンプル · みなとみらい', deal:'d1', kind:'visit', addr:'横浜市西区みなとみらい1-1', prop:'横浜支店ビル', cust:'株式会社サンプル'},
   {id:'e2', tm:'13:30', title:'藤沢 定期点検の訪問', sub:'佐藤さま · 戸建（藤沢・木造2F）', deal:'d2', kind:'visit', addr:'藤沢市鵠沼3-2', prop:'戸建（藤沢・木造2F）', cust:'佐藤 一郎'},
-  {id:'e3', tm:'終日', title:'見積提示期限（佐藤さま）', sub:'sfa#2103 · 今日まで', deal:'d2', kind:'deadline', addr:'', prop:'', cust:'佐藤 一郎'},
+  {id:'e3', tm:'終日', title:'見積を佐藤さまへ提示', sub:'今日まで · 保証更新の再アプローチ', deal:'d2', kind:'deadline', addr:'', prop:'', cust:'佐藤 一郎'},
 ];
 function evById(id){ return TODAY_EV.find(e=>e.id===id); }
 function evStatus(e){
@@ -467,18 +484,37 @@ function evStatus(e){
   if(state.arrived[e.id]) return 'arrived';
   return 'todo';
 }
-function schedRows(list){
-  return list.map(e=>{
+function visitProgress(){
+  const visits=TODAY_EV.filter(e=>e.kind==='visit');
+  const done=visits.filter(e=>evStatus(e)==='done').length;
+  return {n:visits.length, done, left:visits.length-done};
+}
+function schedRows(list, opts={}){
+  const showOnly=opts.kinds||null;
+  return list.filter(e=>!showOnly||showOnly.includes(e.kind)).map(e=>{
     const st=evStatus(e);
     const cls=st==='done'?' done':st==='arrived'?' arrived':'';
     const pill=st==='done'?'<span class="stpill ok">報告済</span>'
       :st==='arrived'?'<span class="stpill on">到着済</span>'
-      :e.kind==='visit'?'<span class="stpill wait">未到着</span>':'<span class="stpill wait">未報告</span>';
+      :e.kind==='visit'?'<span class="stpill wait">未到着</span>':'<span class="stpill wait">机上</span>';
     const hint=st==='done'?'タップで内容を確認'
       :st==='arrived'?'▶ 活動を報告する'
       :e.kind==='visit'?'▶ 現場到着から始める':'▶ 報告する';
-    return `<button type="button" class="tl-row${cls}" data-ev="${e.id}"><time>${e.tm}</time><div class="body"><div class="tt">${pill}${e.title}</div><div class="ts">${e.sub}</div><div class="acthint">${hint}</div></div></button>`;
+    const place=e.addr?`<div class="ts">${e.addr}</div>`:'';
+    return `<button type="button" class="tl-row${cls}" data-ev="${e.id}"><time>${e.tm}</time><div class="body"><div class="tt">${pill}${e.title}</div><div class="ts">${e.sub}</div>${place}<div class="acthint">${hint}</div></div></button>`;
   }).join('');
+}
+function deskLinksSales(){
+  const bits=[];
+  if(state.ringi==='back') bits.push(`<button class="card desk" data-deal="d1"><div class="k"><span class="tagNG">差戻し</span></div><div class="t">値引起案を見直して再申請</div><div class="s">拠点長コメントあり — 机上で対応</div></button>`);
+  else if(state.ringi==='pending') bits.push(`<div class="card desk"><div class="k">申請中</div><div class="wait" style="margin-top:6px">⏳ 値引起案 — 拠点長の承認待ち（結果は通知）</div></div>`);
+  bits.push(`<button class="card desk" data-ev="e3"><div class="k"><span class="tagP">机上 · 今日まで</span></div><div class="t">佐藤さまへ見積を提示</div><div class="s">訪問とは別の宿題。現場のあとでOK</div></button>`);
+  bits.push(`<div class="desk-links">
+    <button type="button" data-sub="myreq">自分の申請 ›</button>
+    <button type="button" data-sub="mydraft">下書き ›</button>
+    <button type="button" data-sub="ann">通達 ›</button>
+  </div>`);
+  return bits.join('');
 }
 
 /* ============ 機能カタログ（未実装＝今後実装予定画面へ） ============ */
@@ -507,7 +543,7 @@ const ANNS=[
   {d:'9/17',from:'DX推進部',t:'保証期限30日前リードの自動起票を開始（HSE 定期点検）',body:'シロアリ等の保証期限30日前にリードが自動起票され、担当営業の宿題に入ります。'},
   {d:'9/15',from:'経理',t:'経費精算の締切は毎月末営業日17:00です',body:'締め日以降の提出は翌月精算になります。領収書の紛失が多いため早めの提出を。'},
   {d:'9/14',from:'生産管理',t:'施工写真の撮り方・アップ手順（完了報告の必須3枚）',body:'作業前・中・後の3枚が完了報告の必須です。長辺1600pxに圧縮されます。'},
-  {d:'9/12',from:'生産管理',t:'施工前ゲート（稟議・購買）完了後に現場着手 — 運用リマインド',body:'ゲート未完了の現場は施工Viewで Blocked のままです。スマホの着工OK通知を待って入場してください。'},
+  {d:'9/12',from:'生産管理',t:'施工前ゲート（稟議・購買）完了後に現場着手 — 運用リマインド',body:'決裁・資材が揃うまで現場は「準備中」のままです。スマホの着工OK通知を待って入場してください。'},
 ];
 /* PC CUSTOMERS / PROPERTIES と同じ3+4件＋生成マスタ（閲覧デモ用） */
 const CUSTS=[
@@ -757,7 +793,7 @@ const state={
   sheetEv:null, sheetDeal:null,
   notifs:{
     sales:[{ic:'⏰',tt:'見積提示の期限が今日です（9/25）',ss:'佐藤 一郎 — HS-2026-2103 定期点検更新',when:'9:05',go:{deal:'d2'},unread:true},
-           {ic:'🔔',tt:'値引起案（12%）は拠点長の承認待ち',ss:'sfa#841 株式会社サンプル / 横浜支店ビル',when:'8:50',go:{deal:'d1'},unread:true}],
+           {ic:'🔔',tt:'値引起案（12%）は拠点長の承認待ち',ss:'株式会社サンプル / 横浜支店ビル',when:'8:50',go:{deal:'d1'},unread:true}],
     koji:[{ic:'🗓',tt:'今日の現場: グリーンハイツ 9:00開始',ss:'貯水槽清掃 — 断水案内は掲示済み',when:'8:30',go:{deal:'d3'},unread:true}],
     boss:[{ic:'🔔',tt:'承認待ちが2件あります',ss:'値引起案12%（サンプル社）／施工着手承認',when:'9:00',go:{tab:'home'},unread:true}],
   },
@@ -801,16 +837,19 @@ function waitLine(d,id){
     if(state.done.d3) return `<div class="wait ok">✓ 施工完了 — 管理部の請求処理待ち</div>`;
     return `<div class="wait ok">✓ 着工OK — 今日 9:00 作業開始</div>`;
   }
-  if(id==='dL1'||id==='dL2') return `<div class="wait me">▶ リード — 一次対応のうえ案件化</div>`;
-  if(id==='d44') return `<div class="wait ok">✓ Close済 — 請求・入金確認済み</div>`;
+  if(id==='dL1'||id==='dL2') return `<div class="wait me">▶ 問い合わせ — 一次対応のうえ案件化</div>`;
+  if(id==='d44') return `<div class="wait ok">✓ 完了済 — 請求・入金確認済み</div>`;
   return '';
 }
 function dealCard(id){
   const d=DEALS[id];
-  const tag=d.closed?'<span class="tagOK">Close</span>':d.lead?'<span class="tagP">リード</span>':'';
+  const tag=d.closed?'<span class="tagOK">完了</span>':d.lead?'<span class="tagP">問い合わせ</span>':'';
+  const place=d.addr?`<div class="s">${d.addr}</div>`:'';
   return `<button class="card" data-deal="${id}">
-    <div class="k"><span class="tagDom">${d.dom}</span>${tag}${d.ref?` <span style="font-weight:600;color:var(--muted)">${d.ref}</span>`:''} ${d.title}</div>
+    <div class="k"><span class="tagDom">${d.dom}</span>${tag}</div>
     <div class="t">${d.cust}</div>
+    <div class="s">${d.title}</div>
+    ${place}
     ${d.lead||d.closed?'':stepper(effStage(id))}
     ${waitLine(d,id)}
   </button>`;
@@ -827,122 +866,126 @@ function effStage(id){
 
 /* ================= ホーム ================= */
 function homeSales(){
-  const focus = state.ringi==='back' ? '差戻しが1件（サンプル社 値引12%）。見直して再申請しましょう。'
-    : '今日は横浜支店ビルの現地調査と、佐藤さまの訪問。現場到着→活動報告の順です。';
-  const focusEv=TODAY_EV.find(e=>e.kind==='visit'&&evStatus(e)!=='done')||TODAY_EV[1];
-  const fst=evStatus(focusEv);
-  const cta=fst==='arrived'?'✏️ 活動を報告する':'📍 現場到着を報告する';
-  const ctaSub=fst==='arrived'?'到着済み — 活動の結果を残しましょう':'顧客・物件の活動は到着報告から始まります';
-  return `<div class="hgreet"><h2>おはようございます、星本さん</h2><p>${focus}</p></div>
+  const vp=visitProgress();
+  const next=TODAY_EV.find(e=>e.kind==='visit'&&evStatus(e)!=='done');
+  const focus = state.ringi==='back'
+    ? '現場の合間に、差戻しの値引起案を見直せます（机上の宿題）。'
+    : next
+      ? `次は ${next.tm} ${next.cust||next.title}。到着してから報告します。`
+      : '今日の訪問はすべて報告済みです。おつかれさまです。';
+  const fst=next?evStatus(next):'done';
+  const cta=fst==='arrived'?'✏️ 活動を報告する':fst==='done'?'✓ 訪問完了':'📍 現場到着を報告する';
+  const ctaSub=fst==='arrived'?'到着済み — 結果を残しましょう'
+    :fst==='done'?'今日の訪問は完了'
+    :'顧客・物件の活動は「到着→報告」の順';
 
-  <div class="sec">いまやること</div>
-  <button class="card hero" data-ev="${focusEv.id}">
-    <div class="k">${focusEv.tm} · ${focusEv.cust||''}</div>
-    <div class="t">${focusEv.title}</div>
-    <div class="s">${focusEv.addr?`住所: ${focusEv.addr} · `:''}${ctaSub}</div>
+  const hero=next?`<button class="card hero" data-ev="${next.id}">
+    <div class="k">次の訪問 · ${next.tm}</div>
+    <div class="t">${next.cust||next.title}</div>
+    <div class="s">${next.title}${next.addr?` · ${next.addr}`:''}</div>
+    <div class="s" style="margin-top:4px">${ctaSub}</div>
     <div class="btnrow"><span class="abtn p">${cta}</span></div>
-  </button>
-  <button class="card" data-deal="d2">
-    <div class="k"><span class="tagP">今日 期限</span> sfa#2103</div>
-    <div class="t">佐藤さまへ見積を提示する</div>
-    <div class="s">HS-2026-2103 定期点検更新 — 保証 2026-10 期限の再アプローチ</div>
-  </button>
-  <button class="card" data-deal="d1">
-    <div class="k"><span class="tagDom">ES</span> sfa#841 · ゲート進行中</div>
-    <div class="t">サンプル社 — 横浜支店ビル 調査依頼</div>
-    <div class="s">値引起案12%と着手承認が拠点長キュー（PCと同じ）</div>
-  </button>
-  ${state.ringi==='back'?`<button class="card" data-deal="d1">
-    <div class="k"><span class="tagNG">差戻し</span></div>
-    <div class="t">値引起案（12%）を見直して再申請</div>
-    <div class="s">田中拠点長: 値引き幅の再検討を。−8%なら即決します</div>
-  </button>`:''}
+  </button>`
+  :`<div class="card hero"><div class="k">今日の訪問</div><div class="t">すべて報告済み</div><div class="s">おつかれさまでした</div></div>`;
 
-  <div class="sec">今日の予定（タップで到着・報告）</div>
-  ${schedRows(TODAY_EV)}
-  <div class="note" style="margin-top:4px">顧客・物件の活動は <b>現場到着 → 活動報告</b> の順。タップすると次の一手が出ます。</div>
+  return `<div class="hgreet">
+    <h2>おはようございます、星本さん</h2>
+    <p>${focus}</p>
+    <div class="progchip"><b>${vp.done}/${vp.n}</b> 訪問を報告済み${vp.left?` · 残り ${vp.left}`:''}</div>
+  </div>
 
-  <div class="sec">申請の進み <button data-sub="myreq" style="margin-left:auto;border:0;background:none;color:var(--accent);font-size:13.8px;font-weight:700;cursor:pointer">自分の申請 ›</button></div>
-  <div class="sec">下書き <button data-sub="mydraft" style="margin-left:auto;border:0;background:none;color:var(--accent);font-size:13.8px;font-weight:700;cursor:pointer">途中の入力 ›</button></div>
-  ${state.ringi==='pending'?`<div class="card"><div class="k">値引起案（サンプル社 12% · ringi#12）</div><div class="wait" style="margin-top:8px">⏳ 田中拠点長の承認待ち — 結果は通知に届きます</div></div>`:''}
-  ${state.ringi==='ok'?`<div class="card"><div class="k">値引起案（サンプル社）</div><div class="wait ok" style="margin-top:8px">✓ 承認されました — ゲート開通・施工へ</div></div>`:''}
-  ${state.ringi==='back'?`<div class="card"><div class="k">値引起案（サンプル社）</div><div class="wait" style="margin-top:8px;color:var(--danger);background:var(--danger-bg)">↩ 差戻し — ホーム上部から再申請</div></div>`:''}
-  ${annTeaser()}
-  <button class="card" data-sub="help" style="width:100%;text-align:left">
-    <div class="k">📖 マニュアル</div>
-    <div class="t">種類別に探す（総務・人事・事業部・申請…）</div>
-    <div class="s">わからない操作はここから手順書を開けます</div>
-  </button>
-  <div class="note">この画面の報告・申請は、PC版の同じ案件（sfa#841 / #2103）の履歴にそのまま載ります（データは1つ）。</div>`;
+  <div class="sec">いま向かう先</div>
+  ${hero}
+
+  <div class="sec">今日の訪問 <span class="cnt">${vp.n}</span></div>
+  ${schedRows(TODAY_EV,{kinds:['visit']})}
+  <div class="note" style="margin-top:2px">タップ → <b>到着</b> → <b>活動報告</b>。3タップで完了します。</div>
+
+  <details class="deskbox">
+    <summary>机上の宿題（現場のあと）</summary>
+    ${deskLinksSales()}
+  </details>`;
 }
 
 function homeKoji(){
   const gate=state.gateD1;
-  return `<div class="hgreet"><h2>おつかれさまです、山本さん</h2><p>${gate?'横浜支店ビル（サンプル社）が着工OKになりました。':'今日はグリーンハイツ。横浜支店ビルの調査施工はゲート待ちです。'}</p></div>
+  const curDone=!!state.done.d3;
+  const curEntered=!!state.entered.d3;
+  const focus=curDone
+    ? (gate?'次は横浜支店ビルが着工OKです。':'今日の現場は完了。準備中の現場は通知待ちです。')
+    : curEntered
+      ? 'グリーンハイツ作業中。終わったら写真つきで完了報告。'
+      : 'まずはグリーンハイツへ。着いたら入場を報告します。';
 
-  <div class="sec">今日の現場（PC施工スケジュールと同じ）</div>
-  ${state.done.d3
+  const hero=curDone
     ? `<button class="card" data-deal="d3">
-        <div class="k"><span class="tagOK">完了報告済み</span>9:00〜 グリーンハイツ</div>
-        <div class="t">貯水槽清掃（年次） — おつかれさまでした</div>
-        <div class="s">管理部の請求処理に進んでいます</div>
+        <div class="k"><span class="tagOK">完了</span> 9:00 · グリーンハイツ</div>
+        <div class="t">貯水槽清掃（年次）</div>
+        <div class="s">相模原市中央区緑が丘 — おつかれさまでした</div>
       </button>`
     : `<button class="card hero" data-deal="d3">
-        <div class="k">9:00 開始 · グリーンハイツ</div>
-        <div class="t">貯水槽清掃（年次） — 断水案内は掲示済み</div>
-        <div class="s">相模原市中央区緑が丘</div>
-        <div class="btnrow"><span class="abtn p">${state.entered.d3?'📷 完了を報告する':'📍 入場を報告する'}</span></div>
-      </button>`}
+        <div class="k">いまの現場 · 9:00</div>
+        <div class="t">グリーンハイツ</div>
+        <div class="s">貯水槽清掃（年次） · 相模原市中央区緑が丘</div>
+        <div class="btnrow"><span class="abtn p">${curEntered?'📷 完了を報告する':'📍 入場を報告する'}</span></div>
+      </button>`;
 
-  <div class="sec">次の現場（未割当キューと同じ）</div>
-  ${gate
+  const next=gate
     ? `<button class="card" data-deal="d1">
-        <div class="k"><span class="tagOK">着工OK</span> koji#55</div>
-        <div class="t">横浜支店ビル 調査施工</div>
-        <div class="s">sfa#841 · 承認と資材完了。日程が決まり次第、入場できます</div>
+        <div class="k"><span class="tagOK">着工OK</span> 次の現場</div>
+        <div class="t">横浜支店ビル · 調査施工</div>
+        <div class="s">サンプル社 — 日程が決まり次第、入場できます</div>
       </button>`
-    : `<div class="card" style="opacity:.75">
-        <div class="k"><span class="tagP">準備中（Blocked）</span> koji#55</div>
-        <div class="t">横浜支店ビル 調査施工</div>
-        <div class="s">施工前ゲート（稟議・購買）が終わると「着工OK」になり通知が届きます</div>
-      </div>`}
-  ${annTeaser()}
-  <button class="card" data-sub="help" style="width:100%;text-align:left">
-    <div class="k">📖 マニュアル</div>
-    <div class="t">種類別に探す（施工・事業部・申請…）</div>
-    <div class="s">わからない操作はここから手順書を開けます</div>
-  </button>
-  <div class="note">金額・原価はこの役割では表示されません（見え方だけの違い。データはPCと同じ）。</div>`;
+    : `<div class="card soft">
+        <div class="k"><span class="tagP">準備中</span> 次の現場</div>
+        <div class="t">横浜支店ビル · 調査施工</div>
+        <div class="s">決裁・資材が揃うと「着工OK」通知が届きます（金額は見えません）</div>
+      </div>`;
+
+  return `<div class="hgreet">
+    <h2>おつかれさまです、山本さん</h2>
+    <p>${focus}</p>
+  </div>
+
+  <div class="sec">いまの現場</div>
+  ${hero}
+
+  <div class="sec">このあと</div>
+  ${next}
+
+  <details class="deskbox">
+    <summary>通知・通達</summary>
+    <div class="desk-links">
+      <button type="button" data-tab="notif">通知を見る ›</button>
+      <button type="button" data-sub="ann">通達 ›</button>
+    </div>
+  </details>`;
 }
 
 function homeBoss(){
   const q=[];
-  if(state.ringi==='pending') q.push(`<button class="card" data-approve="r1">
-    <div class="k"><span class="tagP">承認待ち</span>値引起案 · ringi#12 · 星本</div>
-    <div class="t">サンプル社 調査依頼 −12%</div>
-    <div class="s">1,500,000 → 1,320,000円 — タップして内容を確認</div>
+  if(state.ringi==='pending') q.push(`<button class="card hero" data-approve="r1">
+    <div class="k"><span class="tagP">承認待ち</span> · 星本</div>
+    <div class="t">サンプル社の値引起案 −12%</div>
+    <div class="s">150万 → 132万 — タップして内容を確認</div>
+    <div class="btnrow"><span class="abtn p">承認画面を開く</span></div>
   </button>`);
   q.push(`<button class="card" data-approve="r2">
-    <div class="k"><span class="tagP">承認待ち</span>施工着手承認 · ringi#13 · 星本</div>
-    <div class="t">サンプル社 横浜支店ビル（sfa#841）</div>
-    <div class="s">標準の着手承認 — タップして内容を確認</div>
+    <div class="k"><span class="tagP">承認待ち</span> · 星本</div>
+    <div class="t">施工着手の承認（横浜支店ビル）</div>
+    <div class="s">標準の着手承認 — タップして確認</div>
   </button>`);
-  return `<div class="hgreet"><h2>おつかれさまです、田中さん</h2><p>移動中でも承認だけはスマホで片付く設計です。</p></div>
+  return `<div class="hgreet"><h2>おつかれさまです、田中さん</h2><p>移動中は承認だけ片付ける。台帳はPCで。</p></div>
   <div class="sec">あなたの承認待ち <span class="cnt">${q.length}</span></div>
   ${q.join('')||'<p class="quiet">承認待ちはありません。</p>'}
-  <div class="sec">拠点の今日</div>
-  <button class="card" data-subwip="bi" style="width:100%"><div style="display:flex;text-align:center">
-    <div style="flex:1"><div style="font-size:24px;font-weight:800">6</div><div class="s">訪問予定</div></div>
-    <div style="flex:1;border-left:1px solid var(--line)"><div style="font-size:24px;font-weight:800">2</div><div class="s">成約</div></div>
-    <div style="flex:1;border-left:1px solid var(--line)"><div style="font-size:24px;font-weight:800">81万</div><div class="s">売上（日）</div></div>
-  </div><div class="s" style="margin-top:8px;text-align:center;color:var(--accent);font-weight:600">詳しい数字（BI）›</div></button>
-  ${annTeaser()}
-  <button class="card" data-sub="help" style="width:100%;text-align:left">
-    <div class="k">📖 マニュアル</div>
-    <div class="t">種類別に探す（人事・申請・経費…）</div>
-    <div class="s">わからない操作はここから手順書を開けます</div>
-  </button>
-  <div class="note">一覧・分析・請求などの重い業務はPC版（台帳）で。スマホは「承認と確認」に絞っています。</div>`;
+  <details class="deskbox" open>
+    <summary>拠点の今日（要約）</summary>
+    <button class="card" data-subwip="bi" style="width:100%"><div style="display:flex;text-align:center">
+      <div style="flex:1"><div style="font-size:24px;font-weight:800">6</div><div class="s">訪問</div></div>
+      <div style="flex:1;border-left:1px solid var(--line)"><div style="font-size:24px;font-weight:800">2</div><div class="s">成約</div></div>
+      <div style="flex:1;border-left:1px solid var(--line)"><div style="font-size:24px;font-weight:800">81万</div><div class="s">売上</div></div>
+    </div></button>
+  </details>`;
 }
 
 /* ================= 案件 ================= */
@@ -950,10 +993,9 @@ function dealsList(){
   let ids=state.role==='koji'?['d3','d1','d44']:['d1','d2','dL1','dL2','d3','d44'];
   const q=(state.dealQ||'').trim();
   if(q) ids=ids.filter(id=>{const d=DEALS[id];return (d.cust+d.title+d.addr+d.dom+(d.ref||'')).includes(q);});
-  return `<div class="hgreet"><h2>担当の案件</h2><p>PC台帳と同じ案件・リード（sfa#841 / #2103 / リード / Close）。タップで詳細。</p></div>
-  <input class="searchbox" id="dealQ" value="${state.dealQ||''}" placeholder="🔍 顧客名・案件番号・住所で検索">
-  ${ids.length?ids.map(dealCard).join(''):'<p class="quiet">該当なし。過去の案件は メニュー →「過去の案件をさがす」へ。</p>'}
-  <div class="note">進行中・リード・Close済をPCと同じデータで表示。拠点全体の木構造はPC版の台帳で。</div>`;
+  return `<div class="hgreet"><h2>担当の案件</h2><p>顧客名で探す。番号は詳細の補足です。</p></div>
+  <input class="searchbox" id="dealQ" value="${state.dealQ||''}" placeholder="🔍 顧客名・住所で検索">
+  ${ids.length?ids.map(dealCard).join(''):'<p class="quiet">該当なし。過去の案件はメニューから。</p>'}`;
 }
 
 function dealDetail(id){
@@ -966,7 +1008,7 @@ function dealDetail(id){
       : '拠点長の値引起案（12%）・着手承認待ち。ゲートが開くと施工へ';
     if(state.role==='koji') next = state.done.d1 ? '完了報告済み。おつかれさまでした'
       : state.gateD1 ? (state.entered.d1?'作業が終わったら写真つきで完了報告':'横浜支店ビルに着いたら入場を報告')
-      : 'Blocked。施工前ゲート完了で着工OKになります';
+      : 'まだ準備中。決裁・資材が揃うと「着工OK」通知が届きます';
     if(state.role==='boss') next = state.ringi==='pending' ? '値引起案（12%）を承認または差戻し' : '進行中。承認済み';
   }
   if(id==='d2') next='見積を確認して今日（9/25）までに提示する';
@@ -974,7 +1016,7 @@ function dealDetail(id){
     ? (state.done.d3?'完了報告済み。おつかれさまでした':state.entered.d3?'作業が終わったら写真つきで完了報告':'9:00に現場到着したら入場を報告')
     : '施工中。完了すると請求準備に進みます';
   if(id==='dL1') next='外壁調査の一次対応。訪問候補日を確定して案件化する';
-  if(id==='dL2') next='保証更新の再アプローチ。定期点検更新（#2103）とあわせて提案する';
+  if(id==='dL2') next='保証更新の再アプローチ。定期点検の訪問とあわせて提案する';
   if(id==='d44') next='Close済の対比用。請求・入金まで完了しています';
 
   const acts=[];
@@ -1013,7 +1055,7 @@ function dealDetail(id){
   <div class="card"><ul class="hist">${histOf(id).map(h=>`
     <li><span class="hd">${h.d}</span><span class="av${h.who==='sys'?' sys':''}">${h.who==='sys'?'⚙':h.who}</span><span class="tx">${h.t}</span></li>`).join('')}
   </ul></div>
-  <div class="note">履歴はPC版の同じ案件のタイムラインと同一です。管理番号: ${d.ref||id}</div>
+  <div class="note">履歴はPC版の同じ案件のタイムラインと同一です。${d.ref?`（PC管理番号 ${d.ref}）`:''}</div>
   ${acts.length?`<div class="fixact"><div class="inner"><button class="abtn icon" data-tel="${d.tel}">📞</button>${acts.join('')}</div></div>`:''}`;
 }
 function histOf(id){
@@ -2009,11 +2051,11 @@ function aiReplyM(q){
     if(state.role==='boss') return '承認待ちはホームのカードから開けます。値引き・着手など、いま手元の件を優先してください。';
     return '稟議の進みは案件詳細のステッパーと通知で確認できます。差戻しがあればホームに戻ります。';
   }
-  if(/宿題|今日|報告/.test(t)){
-    return `${r.name}さん（${r.label}）向け: ホームの「今日の予定」をタップし、現場到着→活動報告の順で進めます。下部＋からも起票できます。`;
+  if(/宿題|今日|報告|訪問/.test(t)){
+    return `${r.name}さん（${r.label}）向け: ホーム最上段の「次の訪問／いまの現場」から入り、到着→報告の順で進めます。机上の宿題・通達は折りたたみかメニューへ。`;
   }
   if(/使い方|マニュアル|ヘルプ|どうやって/.test(t)){
-    return 'メニューまたはホームの「マニュアル」から種類を切り替えて手順書を開けます。顧客さがしは右上🔍、通知は🔔です。';
+    return 'マニュアルはメニューから。顧客さがしは右上🔍、通知は🔔です。ホームは訪問・現場だけに絞っています。';
   }
   if(/顧客|物件/.test(t)) return '右上の🔍、またはメニューの「顧客台帳／物件台帳」から開けます。';
   if(!t) return `こんにちは。SAAD AI です（モック）。\n未読通知は ${n} 件。承認・今日の宿題・画面の使い方などを聞いてください。`;
@@ -2126,7 +2168,7 @@ function doApprove(rid){
   if(rid==='r1'){
     state.ringi='ok'; state.gateD1=true;
     pushNotif('sales',{ic:'✅',tt:'田中拠点長が値引起案を承認しました',ss:'サンプル社 −12% OK — ゲート開通へ',go:{deal:'d1'}});
-    pushNotif('koji',{ic:'🟢',tt:'横浜支店ビルが着工OKになりました',ss:'sfa#841 ゲート開通 — 日程確定後に入場できます',go:{deal:'d1'}});
+    pushNotif('koji',{ic:'🟢',tt:'横浜支店ビルが着工OKになりました',ss:'準備完了 — 日程が決まり次第、入場できます',go:{deal:'d1'}});
     state.notifs.boss=state.notifs.boss.filter(n=>!n.tt.includes('承認待ち'));
   }
   state.approving=null; state.tab='home';
@@ -2246,6 +2288,9 @@ function wireView(){
     b.tagName==='INPUT'?b.addEventListener('focus',h):b.onclick=h;
   });
   v.querySelectorAll('[data-sub]').forEach(b=>b.onclick=()=>{state.sub=b.dataset.sub;state.mf={};render();});
+  v.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{
+    state.tab=b.dataset.tab; state.sub=null; state.deal=null; state.approving=null; state.custSel=null; state.propSel=null; render();
+  });
   v.querySelectorAll('[data-helpcat]').forEach(b=>b.onclick=()=>{state.helpCat=b.dataset.helpcat;render();});
   v.querySelectorAll('[data-manpdf]').forEach(b=>b.onclick=()=>openManualPdf(b.dataset.manpdf));
   const hq=$('helpQ'); if(hq) hq.addEventListener('input',e=>{ state.helpQ=e.target.value; render(); const el=$('helpQ'); if(el){ el.focus(); const L=el.value.length; el.setSelectionRange(L,L);} });
